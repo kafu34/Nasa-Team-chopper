@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type DatasetDetail, type ResearchRecordsPage } from './api'
 import type { BodySelection } from './BodyMap'
+import { HistologyResults } from './ResearchSpecialResults'
 import './research-context.css'
 
 const studies = {
@@ -16,6 +17,12 @@ const studies = {
     explanation: 'Bone-marrow stem-cell differentiation research aboard the ISS. It is not a direct astronaut bone-density measurement.',
     source: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-546',
   },
+  'OSD-817': {
+    title: 'Optic nerve research context',
+    classification: 'Ex vivo human donor-eye ground experiment',
+    explanation: 'TUNEL and CTB counts from cultured donor eyes in a ground model of spaceflight-associated neuro-ocular syndrome. These are not measurements from an astronaut or a diagnosis.',
+    source: 'https://osdr.nasa.gov/bio/repo/data/studies/OSD-817',
+  },
 } as const
 type StudyId = keyof typeof studies
 
@@ -25,7 +32,7 @@ export function AnatomyResearchPanel({ selection }: { selection: BodySelection |
   const [page, setPage] = useState<ResearchRecordsPage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { if (selection?.regionId === 'upper_back' || selection?.regionId === 'lower_back') setSelected('OSD-546'); else if (selection?.regionId === 'upper_arm' || selection?.regionId === 'upper_leg') setSelected('OSD-195') }, [selection])
+  useEffect(() => { if (selection?.regionId === 'eyes') setSelected('OSD-817'); else if (selection?.regionId === 'upper_back' || selection?.regionId === 'lower_back') setSelected('OSD-546'); else if (selection?.regionId === 'upper_arm' || selection?.regionId === 'upper_leg') setSelected('OSD-195') }, [selection])
   useEffect(() => {
     let active = true
     setDetail(null); setPage(null); setError(null); setBusy(true)
@@ -40,14 +47,14 @@ export function AnatomyResearchPanel({ selection }: { selection: BodySelection |
     return () => { active = false }
   }, [selected])
   const study = studies[selected]
-  const expectedSystem = selected === 'OSD-195' ? 'skeletal_muscle' : 'bone'
+  const expectedSystem = selected === 'OSD-195' ? 'skeletal_muscle' : selected === 'OSD-546' ? 'bone' : 'eye_optic_nerve'
   return <section className="card research-context" aria-label="Anatomical research context">
     <h2>Research context for body systems</h2>
     <p className="muted small">These studies provide scientific context only. No research result is a finding about {selection?.label ?? 'the fictional astronaut'}.</p>
-    <div className="segmented" aria-label="Research study"><button type="button" aria-pressed={selected === 'OSD-195'} onClick={() => setSelected('OSD-195')}>Muscle · OSD-195</button><button type="button" aria-pressed={selected === 'OSD-546'} onClick={() => setSelected('OSD-546')}>Bone cells · OSD-546</button></div>
+    <div className="segmented" aria-label="Research study"><button type="button" aria-pressed={selected === 'OSD-195'} onClick={() => setSelected('OSD-195')}>Muscle · OSD-195</button><button type="button" aria-pressed={selected === 'OSD-546'} onClick={() => setSelected('OSD-546')}>Bone cells · OSD-546</button><button type="button" aria-pressed={selected === 'OSD-817'} onClick={() => setSelected('OSD-817')}>Optic nerve · OSD-817</button></div>
     <div className="context-grid"><div><span className="tag research">NASA RESEARCH</span><h3>{study.title}</h3><p>{study.explanation}</p><p className="muted small">Classification: {detail?.study_type ?? study.classification}</p>{detail?.measured && <p className="muted small">Measured: {detail.measured}</p>}{(detail?.not_a_measurement_of?.length ?? 0) > 0 && <p className="muted small">Does not measure: {detail?.not_a_measurement_of?.join(', ')}</p>}<a href={detail?.source_url ?? study.source} target="_blank" rel="noreferrer">NASA study source ↗</a></div>
     <div><p><strong>Import status:</strong> {detail?.status ?? (busy ? 'Checking local research API…' : 'Unavailable')}</p>{detail?.status_reason && <p className="muted small">{detail.status_reason}</p>}{detail && !detail.body_systems?.includes(expectedSystem) && <p className="status error">The backend did not classify this study for the selected body system.</p>}{detail?.experimental_context && <p className="muted small">{detail.experimental_context}</p>}{detail?.limitations?.map(item => <p className="muted small" key={item}>{item}</p>)}{error && <p className="status error">{error}</p>}{detail?.status !== 'IMPORTED' && <p className="empty">No numerical results shown. This study has not been reported as imported by the backend.</p>}</div></div>
-    {detail?.status === 'IMPORTED' && <><p className="muted small">{selected === 'OSD-546' ? 'Example: processed TSPAN6 expression across imported cell samples. These values are not astronaut bone-density measurements.' : 'Processed research values from the local backend.'}</p><ExpressionResults page={page} /></>}
+    {detail?.status === 'IMPORTED' && (selected === 'OSD-817' ? page?.record_schema === 'HISTOLOGY_COUNTS_V1' && <HistologyResults page={page} /> : <><p className="muted small">{selected === 'OSD-546' ? 'Example: processed TSPAN6 expression across imported cell samples. These values are not astronaut bone-density measurements.' : 'Processed research values from the local backend.'}</p><ExpressionResults page={page} /></>)}
   </section>
 }
 

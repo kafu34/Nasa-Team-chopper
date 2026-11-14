@@ -5,6 +5,8 @@ type Region = BodySelection & { x: number; y: number; w: number; h: number }
 
 const FRONT: Region[] = [
   { regionId: 'head', laterality: 'midline', label: 'Head', x: 88, y: 16, w: 44, h: 43 },
+  { regionId: 'eyes', laterality: 'right', label: 'Right eye', x: 93, y: 31, w: 13, h: 10 },
+  { regionId: 'eyes', laterality: 'left', label: 'Left eye', x: 114, y: 31, w: 13, h: 10 },
   { regionId: 'chest', laterality: 'right', label: 'Right chest', x: 73, y: 74, w: 34, h: 48 },
   { regionId: 'chest', laterality: 'left', label: 'Left chest', x: 113, y: 74, w: 34, h: 48 },
   { regionId: 'abdomen', laterality: 'right', label: 'Right abdomen', x: 77, y: 127, w: 30, h: 53 },
@@ -18,7 +20,7 @@ const FRONT: Region[] = [
   { regionId: 'lower_leg_foot', laterality: 'right', label: 'Right lower leg and foot', x: 79, y: 259, w: 28, h: 75 },
   { regionId: 'lower_leg_foot', laterality: 'left', label: 'Left lower leg and foot', x: 113, y: 259, w: 28, h: 75 },
 ]
-const BACK: Region[] = FRONT.map(region => ({ ...region, regionId: region.regionId === 'chest' ? 'upper_back' : region.regionId === 'abdomen' ? 'lower_back' : region.regionId, label: region.label.replace('chest', 'upper back').replace('abdomen', 'lower back') }))
+const BACK: Region[] = FRONT.filter(region => region.regionId !== 'eyes').map(region => ({ ...region, regionId: region.regionId === 'chest' ? 'upper_back' : region.regionId === 'abdomen' ? 'lower_back' : region.regionId, label: region.label.replace('chest', 'upper back').replace('abdomen', 'lower back') }))
 
 export function BodyMap({ value, onChange }: { value: BodySelection | null; onChange: (selection: BodySelection) => void }) {
   const [side, setSide] = useState<'front' | 'back'>('front')

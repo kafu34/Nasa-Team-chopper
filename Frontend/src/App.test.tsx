@@ -1,9 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 describe('offline-safe screens', () => {
   it('opens emergency assistance even when mission bootstrap fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('backend offline')))
@@ -23,5 +23,18 @@ describe('offline-safe screens', () => {
     expect(screen.getByText('mmol/L')).toBeInTheDocument()
     expect(screen.getByText('C001')).toBeInTheDocument()
     expect(screen.getByText('L-92')).toBeInTheDocument()
+  })
+  it('loads RadLab through timeseries and displays a single historical detector', async () => {
+    const fetchMock = vi.fn((path: string) => {
+      const data = path.includes('/radiation/timeseries?') ? { dataset_id: 'NASA-RADLAB', metric: 'absorbed_dose_rate', unit: 'μGy/hour', total: 2, data_category: 'NASA_RESEARCH', available_instruments: ['DosTel1'], points: [{ timestamp: '2022-04-01T00:00:00Z', value: 9.5, unit: 'μGy/hour', instrument_id: 'DosTel1', module: 'Columbus' }] } : path.endsWith('/NASA-RADLAB') ? { dataset_id: 'NASA-RADLAB', status: 'IMPORTED', record_schema: 'RADIATION_TIMESERIES_V1', records_available: 2847, study_type: 'SPACEFLIGHT_ENVIRONMENT' } : path.endsWith('/datasets') ? { datasets: [{ dataset_id: 'NASA-RADLAB', status: 'IMPORTED' }] } : { dataset_id: 'OSD-575', status: 'NOT_DOWNLOADED' }
+      return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(data) })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter initialEntries={['/research']}><App /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: /NASA-RADLAB/ }))
+    await waitFor(() => expect(screen.getByText('9.5')).toBeInTheDocument())
+    expect(fetchMock.mock.calls.some(call => call[0].includes('/radiation/timeseries?'))).toBe(true)
+    expect(fetchMock.mock.calls.some(call => call[0].includes('/NASA-RADLAB/records'))).toBe(false)
+    expect(screen.getByText(/not live HAB-01 readings or a crew member’s personal dose/i)).toBeInTheDocument()
   })
 })

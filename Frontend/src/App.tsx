@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom'
-import { api, DATASET_IDS, DEMO, display, type ApiObject, type BootstrapOut, type CaseOut, type CaseSummary, type LocationEstimate, type EquipmentRecommendation, type ProcedureOut, type SessionOut, type MeasurementResult, type EmergencyOut, type DatasetSummary, type DatasetDetail, type ResearchRecord, type ResearchRecordsPage } from './api'
+import { api, DATASET_IDS, DEMO, display, type ApiObject, type BootstrapOut, type CaseOut, type CaseSummary, type LocationEstimate, type EquipmentRecommendation, type ProcedureOut, type SessionOut, type MeasurementResult, type EmergencyOut, type DatasetSummary, type DatasetDetail, type ResearchRecord, type ResearchRecordsPage, type TimeseriesPage } from './api'
 import { BodyMap, type BodySelection } from './BodyMap'
 import { trendRecords } from './research'
 import { AnatomyResearchPanel, ExpressionResults } from './AnatomyResearchPanel'
 import { AssayResults } from './AssayResults'
+import { HistologyResults, RadiationResults } from './ResearchSpecialResults'
 
 type Work = { busy: boolean; error: string | null; notice: string | null }
 const initialWork: Work = { busy: false, error: null, notice: null }
@@ -152,18 +153,34 @@ function Research() {
   const [catalogue, setCatalogue] = useState<DatasetSummary[]>([])
   const [dataset, setDataset] = useState<DatasetDetail | null>(null)
   const [page, setPage] = useState<ResearchRecordsPage | null>(null)
+  const [radiation, setRadiation] = useState<TimeseriesPage | null>(null)
+  const [instrument, setInstrument] = useState('DosTel1')
   const [selected, setSelected] = useState<string>(DEMO.datasetId)
+  const requestNumber = useRef(0)
   const catalogueRequest = useRequest(), datasetRequest = useRequest()
   useEffect(() => { void catalogueRequest.run(api.datasets).then(result => { if (result) setCatalogue(result.datasets) }); void loadDataset(DEMO.datasetId) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   async function loadDataset(id: string) {
-    setSelected(id); setDataset(null); setPage(null)
+    const current = ++requestNumber.current
+    setSelected(id); setDataset(null); setPage(null); setRadiation(null)
     const detail = await datasetRequest.run(() => api.dataset(id))
-    if (!detail) return
+    if (!detail || current !== requestNumber.current) return
     setDataset(detail)
     if (detail.status !== 'IMPORTED') return
+    if (id === 'NASA-RADLAB') {
+      setInstrument('DosTel1')
+      const result = await datasetRequest.run(() => api.radiation('DosTel1'))
+      if (result && current === requestNumber.current) setRadiation(result)
+      return
+    }
     const query = id === 'OSD-656' ? { analyte: 'il6', measure: 'concentration_npq' } : id === 'OSD-546' ? { gene_symbol: 'TSPAN6' } : { limit: 1000 }
     const result = await datasetRequest.run(() => api.records(id, query))
-    if (result) setPage(result)
+    if (result && current === requestNumber.current) setPage(result)
+  }
+  async function loadInstrument(id: string) {
+    const current = ++requestNumber.current
+    setInstrument(id); setRadiation(null)
+    const result = await datasetRequest.run(() => api.radiation(id))
+    if (result && current === requestNumber.current) setRadiation(result)
   }
   const records: ResearchRecord[] = page?.records ?? []
   const selectedMetadata = dataset ?? catalogue.find(item => item.dataset_id === selected) ?? null
@@ -175,7 +192,7 @@ function Research() {
   const min = values.length ? Math.min(...values) : 0, max = values.length ? Math.max(...values) : 1
   const points = values.map((value, index) => `${20 + index * (440 / Math.max(values.length - 1, 1))},${170 - (value - min) / (max - min || 1) * 130}`).join(' ')
   return <><PageTitle eyebrow="Scientific context / 05" title="NASA research">Explore imported study records with provenance. Research participants are never the fictional mission patient.</PageTitle><div className="status info">NASA_RESEARCH · Research-use data only. Reference ranges are not astronaut diagnostic thresholds.</div><div className="two-column research-top"><DataCard title="Dataset catalogue"><div className="dataset-list">{DATASET_IDS.map(id => { const item = catalogue.find(entry => entry.dataset_id === id); return <button key={id} className={`dataset-item ${selected === id ? 'active' : ''}`} onClick={() => void loadDataset(id)}><strong>{id}</strong><span>{id === 'OSD-654' ? 'Animal research · ' : ''}{item?.status ?? 'Status unavailable'}</span></button> })}</div><Feedback {...catalogueRequest} /></DataCard><DataCard title="Study provenance"><Field label="Dataset ID" value={selectedMetadata?.dataset_id ?? selected} /><Field label="Availability" value={selectedMetadata?.status} /><Field label="Reason" value={selectedMetadata?.status_reason} /><Field label="Study type" value={selectedMetadata?.study_type} /><Field label="Human-health track" value={selectedMetadata?.human_health_analysis} /><Field label="Measured" value={studyContext} />{selectedMetadata?.not_a_measurement_of?.length ? <p className="muted small">Not a measurement of: {selectedMetadata.not_a_measurement_of.join(", ")}</p> : null}<Field label="Source file" value={page?.source_file} /><Field label="Record count" value={selectedMetadata?.records_available} /><Field label="Record schema" value={selectedMetadata?.record_schema} /><p className="muted small">Only imported datasets can populate numerical views. Missing values remain missing.</p>{sourceUrl && <a href={sourceUrl} target="_blank" rel="noreferrer">NASA source ↗</a>}<Feedback {...datasetRequest} /></DataCard></div>
-    <DataCard title="Actual measurements"><div className="research-header"><p className="muted">{selected === DEMO.datasetId ? 'OSD-575 comprehensive metabolic panel' : selected}</p><span className="tag research">NASA RESEARCH</span></div>{!imported ? <Empty text="Numerical records unavailable until the backend reports this dataset as IMPORTED." /> : page?.record_schema === "GENE_EXPRESSION_V1" ? <ExpressionResults page={page} /> : page?.record_schema === "BIO_ASSAY_TABLE" ? <AssayResults page={page} /> : !records.length ? <Empty text="No numerical records returned by the local research API." /> : <><div className="chart-wrap">{values.length > 1 ? <svg viewBox="0 0 480 190" role="img" aria-label={`Trend of ${trend[0].analyte} for ${trend[0].subject} in ${trend[0].unit}; source order`}><line x1="20" y1="170" x2="465" y2="170" className="axis" /><polyline points={points} className="trend" />{points.split(' ').map((point, i) => { const [cx, cy] = point.split(','); return <circle key={i} cx={cx} cy={cy} r="4" className="trend-point" /> })}</svg> : <Empty text="At least two comparable numeric records are needed for a trend chart." />}</div>{values.length > 1 && <p className="muted small">{trend[0].analyte} · subject {trend[0].subject} · {trend[0].unit}. Source order; timepoint labels remain in the table.</p>}<div className="table-scroll"><table><thead><tr><th>Analyte</th><th>Value</th><th>Unit</th><th>Subject</th><th>Timepoint</th></tr></thead><tbody>{records.slice(0, 30).map((record, i) => <tr key={i}><td>{display(record.analyte ?? record.ANALYTE)}</td><td>{display(record.value ?? record.VALUE)}</td><td>{display(record.unit ?? record.units ?? record.UNITS)}</td><td>{display(record.subject_id ?? record.SUBJECT_ID)}</td><td>{display(record.timepoint)}</td></tr>)}</tbody></table></div></>}</DataCard></>
+    <DataCard title="Actual measurements"><div className="research-header"><p className="muted">{selected === DEMO.datasetId ? 'OSD-575 comprehensive metabolic panel' : selected}</p><span className="tag research">NASA RESEARCH</span></div>{!imported ? <Empty text="Numerical records unavailable until the backend reports this dataset as IMPORTED." /> : selected === 'NASA-RADLAB' ? radiation ? <RadiationResults page={radiation} instrument={instrument} onInstrument={value => void loadInstrument(value)} /> : <Empty text={datasetRequest.error ? 'RadLab readings could not be loaded from the local backend.' : 'Loading historical RadLab readings from the local backend.'} /> : page?.record_schema === "GENE_EXPRESSION_V1" ? <ExpressionResults page={page} /> : page?.record_schema === "BIO_ASSAY_TABLE" ? <AssayResults page={page} /> : page?.record_schema === "HISTOLOGY_COUNTS_V1" ? <HistologyResults page={page} /> : !records.length ? <Empty text="No numerical records returned by the local research API." /> : <><div className="chart-wrap">{values.length > 1 ? <svg viewBox="0 0 480 190" role="img" aria-label={`Trend of ${trend[0].analyte} for ${trend[0].subject} in ${trend[0].unit}; source order`}><line x1="20" y1="170" x2="465" y2="170" className="axis" /><polyline points={points} className="trend" />{points.split(' ').map((point, i) => { const [cx, cy] = point.split(','); return <circle key={i} cx={cx} cy={cy} r="4" className="trend-point" /> })}</svg> : <Empty text="At least two comparable numeric records are needed for a trend chart." />}</div>{values.length > 1 && <p className="muted small">{trend[0].analyte} · subject {trend[0].subject} · {trend[0].unit}. Source order; timepoint labels remain in the table.</p>}<div className="table-scroll"><table><thead><tr><th>Analyte</th><th>Value</th><th>Unit</th><th>Subject</th><th>Timepoint</th></tr></thead><tbody>{records.slice(0, 30).map((record, i) => <tr key={i}><td>{display(record.analyte ?? record.ANALYTE)}</td><td>{display(record.value ?? record.VALUE)}</td><td>{display(record.unit ?? record.units ?? record.UNITS)}</td><td>{display(record.subject_id ?? record.SUBJECT_ID)}</td><td>{display(record.timepoint)}</td></tr>)}</tbody></table></div></>}</DataCard></>
 }
 
 function CaseView({ caseId, currentCase, error, onRefresh, onReset }: { caseId: string | null; currentCase: CaseOut | CaseSummary | null; error: string | null; onRefresh: () => void; onReset: () => Promise<void> }) {

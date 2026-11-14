@@ -21,4 +21,13 @@ describe('local API errors', () => {
     expect(bodies[2].source).toBe('SIMULATED_MANUAL_ENTRY')
     expect(bodies[3].trigger).toBe('crew_collapse')
   })
+  it('uses the dedicated RadLab timeseries endpoint and detector filter', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => '{}' })
+    vi.stubGlobal('fetch', fetchMock)
+    await api.radiation('REM-Lid')
+    const url = new URL(fetchMock.mock.calls[0][0], 'http://localhost')
+    expect(url.pathname).toBe('/api/v1/radiation/timeseries')
+    expect(url.searchParams.get('dataset_id')).toBe('NASA-RADLAB')
+    expect(url.searchParams.get('instrument_id')).toBe('REM-Lid')
+  })
 })

@@ -8,6 +8,8 @@ The client now follows the committed `shared/openapi.yaml` v2.1.0 and `shared/fi
 
 Version 2.2 adds OSD-195 muscle and OSD-546 skeletal/bone-cell research panels to the Anatomical Twin. The checked-in OpenAPI contract includes both IDs and the additive `GENE_EXPRESSION_V1` response fields while retaining contract version `2.1.0`. The OSD-546 bone-cell panel requests `gene_symbol=TSPAN6` and displays imported processed expression values with sample, condition, published scale, normalization, and comparison-readiness context. These are cell measurements, never astronaut bone-density results. OSD-195 remains `NOT_DOWNLOADED` and shows its status message without values.
 
+The next backend update adds OSD-817 ex vivo donor-eye TUNEL/CTB counts and a historical NASA RadLab ISS snapshot. The eye selection and optic-nerve panel show `HISTOLOGY_COUNTS_V1` values, source notes, and published group numbers without assigning unverified pressure/tilt conditions. NASA Research requests RadLab through `/api/v1/radiation/timeseries`, shows one detector at a time in the backend unit, and identifies the readings as historical ISS area dosimetry rather than live habitat or personal exposure.
+
 ## Run
 
 ```powershell
@@ -23,7 +25,7 @@ npm.cmd run build
 npm.cmd run test
 ```
 
-With the local backend running, run `npm.cmd run test:integration` from `Frontend/`. It resets synthetic demo state, tests the P0 API scenario, checks real OSD-575 records and unavailable datasets, then resets synthetic state again. NASA research records are not reset.
+With the local backend running, run `npm.cmd run test:integration` from `Frontend/`. It resets synthetic demo state, tests the P0 API scenario, checks imported OSD-575, OSD-656, OSD-546, OSD-817 and NASA-RADLAB records plus unavailable OSD-195, then resets synthetic state again. NASA research records are not reset.
 
 ## Integration handoff
 
@@ -47,6 +49,9 @@ SENTINEL AI is a research prototype, not a clinically validated medical device. 
 - OSD-656: backend now reports `IMPORTED` with 8,888 urine inflammation assay values. The research screen uses `assay_records[]` and labels NPQ as relative assay units, not clinical concentrations.
 - OSD-546: backend reports `IMPORTED` with 432,861 processed expression values. The `gene_symbol=TSPAN6` query returned 13 records, one per cell sample, with published scale and condition labels. The frontend displays these as human-derived cell research only.
 - OSD-195: backend reports `NOT_DOWNLOADED` and zero records. The backend handoff says only raw CEL files were supplied; no processed numerical import or comparison is claimed. The raw `.CEL.gz` file is not used as a ready-to-display table.
+- OSD-817: backend reports `IMPORTED` with 72 TUNEL and CTB count values in `histology_records[]`. The frontend shows donor-eye samples, group numbers, units, and image notes without attributing measurements to astronauts or mapping groups to unverified pressure/tilt conditions.
+- NASA-RADLAB: backend reports `IMPORTED` with 2,847 historical ISS readings. The frontend queries `instrument_id=DosTel1` initially, then allows selection from the backend instrument list. It charts one detector at a time and shows the published μGy/hour unit.
+- Follow-up verification: production build, 14 frontend tests, and the live HTTP integration test passed on 14 November 2026 against the updated local backend. The integration test confirmed 72 OSD-817 values and RadLab's dedicated timeseries endpoint.
 - Browser screenshot and visual QA: attempted, but the local browser could not open `http://127.0.0.1:5173/` (`ERR_CONNECTION_TIMED_OUT`) despite Vite reporting ready. No screenshot was captured.
 
 ## 30-second demonstration storyboard
@@ -79,3 +84,5 @@ Steps 1–10 were reviewed against the master prompt and v2.1 amendment. The res
 Steps 11–20 were reviewed against the same requirements. The independent emergency route is verified under bootstrap failure. Source files and documentation remain inside `Frontend/`. The browser preview timed out, so visual capture is still pending.
 
 Version 2.2 delta steps 1–10 were reviewed on 14 November 2026. The frontend follows the P0 schemas and additive expression and assay record fields; the complete local P0 HTTP scenario passed. Nine frontend tests and the production build pass. The research screen renders imported OSD-656 assay values in their published relative units. The bone-cell panel uses imported OSD-546 TSPAN6 sample values, while the muscle panel withholds OSD-195 numbers. OSD-654 is identified as animal research. Reflection: the remaining P1 data dependency is verified processed OSD-195 source files and sample metadata. The UI exposes import status and comparison-readiness reasons; raw microarray interpretation remains outside the frontend scope.
+
+Follow-up steps 1–10 were reviewed on 14 November 2026 against the new backend branch's handoff and live responses. The dedicated RadLab endpoint and OSD-817 `histology_records[]` were adopted within `Frontend/`; OSD-195 and OSD-546 behavior stayed intact. Reflection: reusing the existing research catalogue and body-system panel kept this update small. Checking one real record before finalizing caught the precise published units and the optic-nerve body-system key. The backend branch currently deletes `Frontend/` in its diff against `main`, so it should not be merged wholesale without resolving that deletion.
