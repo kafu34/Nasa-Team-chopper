@@ -11,8 +11,8 @@ from .. import models as m
 from ..db import as_utc, get_db
 from ..errors import ApiError
 from ..schemas.common import error_responses
-from ..importers import osd656, radlab
-from ..schemas.research import (AssayRecord, CmpRecord, ComparisonReadiness, DatasetDetail, DatasetList, GeneExpressionRecord,
+from ..importers import osd656, osd817, radlab
+from ..schemas.research import (AssayRecord, CmpRecord, HistologyRecord, ComparisonReadiness, DatasetDetail, DatasetList, GeneExpressionRecord,
                                 Provenance, ResearchRecordsPage, ResearchSample, StudyTypeInfo, TimeseriesPage,
                                 TimeseriesPoint)
 from ..services import datasets as ds
@@ -196,6 +196,50 @@ def _assay_page(db: Session, settings, dataset_id: str, subject_id: Optional[str
                                       if k not in ("record_id", "dataset_id", "data_category")}) for r in rows])
 
 
+def _histology_page(db: Session, settings, dataset_id: str, subject_id: Optional[str], analyte: Optional[str],
+                    measure: Optional[str], limit: int, offset: int) -> ResearchRecordsPage:
+    H = m.HistologyCount
+    imp = db.scalars(select(m.DatasetImport).where(m.DatasetImport.dataset_id == dataset_id,
+                                                   m.DatasetImport.status == "IMPORTED")
+                     .order_by(m.DatasetImport.started_at.desc())).first()
+    if imp is None or ds.record_count(db, dataset_id) == 0:
+        raise _unavailable(db, settings, dataset_id)
+    where = H.dataset_id == dataset_id
+    donors = sorted(db.scalars(select(H.donor_id).where(where).distinct()), key=int)
+    assays = sorted(db.scalars(select(H.assay).where(where).distinct()))
+    measures = sorted(db.scalars(select(H.measure).where(where).distinct()))
+    for name, val, allowed in (("subject_id", subject_id, donors), ("analyte", analyte, assays),
+                               ("measure", measure, measures)):
+        if val is not None and val not in allowed:
+            raise ApiError(422, "UNKNOWN_FILTER_VALUE", f"{name} '{val}' is not present in {dataset_id}.",
+                           {"parameter": name, "allowed_values": allowed})
+    base = select(H).where(where)
+    for col, val in ((H.donor_id, subject_id), (H.assay, analyte), (H.measure, measure)):
+        if val:
+            base = base.where(col == val)
+    total = db.scalar(select(func.count()).select_from(base.subquery()))
+    rows = db.scalars(base.order_by(H.assay, H.source_row_number, H.measure).limit(limit).offset(offset)).all()
+    meta = ds.REGISTRY[dataset_id]
+    files = imp.summary.get("files_sha256", {})
+    provs = []
+    for name, sha in files.items():
+        p = _provenance(dataset_id, imp, osd817.TRANSFORMATION)
+        p.source_file, p.sha256 = name, sha
+        provs.append(p)
+    return ResearchRecordsPage(
+        dataset_id=dataset_id, title=meta["title"], source_url=meta["source_url"], source_file=imp.source_file,
+        record_schema=meta["record_schema"], provenance=_provenance(dataset_id, imp, osd817.TRANSFORMATION),
+        total=total, limit=limit, offset=offset,
+        filters_applied={"subject_id": subject_id, "analyte": analyte, "measure": measure},
+        available_subjects=donors, available_analytes=assays, available_timepoints=[], available_measures=measures,
+        limitations=meta["limitations"], records=[], study_type=ds.CLASSIFICATION[dataset_id]["study_type"],
+        source_files=provs,
+        histology_records=[HistologyRecord(record_id=r.id, dataset_id=dataset_id, unit=osd817.UNITS[r.measure],
+                                           **{k: getattr(r, k) for k in HistologyRecord.model_fields
+                                              if k not in ("record_id", "dataset_id", "data_category", "unit")})
+                           for r in rows])
+
+
 def _records_page(db: Session, settings, dataset_id: str, subject_id: Optional[str], analyte: Optional[str],
                   timepoint: Optional[str], limit: int, offset: int, sample_id: Optional[str] = None,
                   probe_id: Optional[str] = None, gene_symbol: Optional[str] = None,
@@ -215,6 +259,9 @@ def _records_page(db: Session, settings, dataset_id: str, subject_id: Optional[s
     _wrong_filter(dataset_id, {"sample_id": sample_id, "probe_id": probe_id, "gene_symbol": gene_symbol})
     if schema == "BIO_ASSAY_TABLE":
         return _assay_page(db, settings, dataset_id, subject_id, analyte, timepoint, measure, limit, offset)
+    if schema == "HISTOLOGY_COUNTS_V1":
+        _wrong_filter(dataset_id, {"timepoint": timepoint})
+        return _histology_page(db, settings, dataset_id, subject_id, analyte, measure, limit, offset)
     _wrong_filter(dataset_id, {"measure": measure})
     imp = db.scalars(select(m.DatasetImport).where(m.DatasetImport.dataset_id == dataset_id,
                                                    m.DatasetImport.status == "IMPORTED")

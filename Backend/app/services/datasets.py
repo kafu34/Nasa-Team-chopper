@@ -162,13 +162,26 @@ REGISTRY: dict[str, dict] = {
                     "used as a ground model of spaceflight-associated neuro-ocular syndrome (SANS).",
         source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-817",
         source_url_verified=True,
-        record_schema="OMICS_OR_IMAGING",
+        record_schema="HISTOLOGY_COUNTS_V1",
         priority="P2",
-        expected_files=["LSDS-135_microscopy_PPD_TRANSFORMED.csv"],
-        importer=False,
+        expected_files=["LSDS-135_immunostaining_TUNEL_TRANSFORMED.csv",
+                        "LSDS-135_immunostaining_CTB_TRANSFORMED.csv",
+                        "LSDS-135_immunostaining_Tunel Analysis_SUBMITTED.xlsx",
+                        "LSDS-135_immunostaining_CTB Analysis_SUBMITTED.xlsx"],
+        importer=True,
         experimental_context="Ground study on donated human tissue (no spaceflight); a laboratory model for "
                              "studying spaceflight-associated neuro-ocular syndrome.",
-        limitations=["No importer in P0.", "Imaging processing deferred (P2)."],
+        limitations=[
+            "Ex vivo culture of de-identified human donor eyes (ground study); not astronaut or spaceflight data.",
+            "9 donors x 2 eyes; one eye per group per donor; far too small for clinical conclusions.",
+            "Group numbers are kept as published in the NASA workbook and NOT mapped to pressure/tilt conditions: "
+            "the workbook normalises to Group 6, which the OSDR description defines as 15:16 mmHg with a 10-degree "
+            "tilt, so the numbering cannot be verified against the description.",
+            "Normalized counts are ratios to one reference eye per block of three donors, as published.",
+            "Several images were overexposed, missing or faint and were re-imaged (see notes per sample).",
+            "Microscopy images (TIFF) and PPD axon counts are not imported.",
+            "Research context only. Never used to diagnose SANS or assess a SENTINEL astronaut's eyes.",
+        ],
     ),
     "OSD-195": dict(
         title="Effects of 21 days of bedrest on human skeletal muscle gene expression",
@@ -313,7 +326,7 @@ def latest_import(db: Session, dataset_id: str) -> m.DatasetImport | None:
 
 def record_count(db: Session, dataset_id: str) -> int:
     table = {"GENE_EXPRESSION_V1": m.GeneExpressionValue, "BIO_ASSAY_TABLE": m.AssayMeasurement,
-             "RADIATION_TIMESERIES_V1": m.TimeseriesValue, "ENVIRONMENT_TIMESERIES_V1": m.TimeseriesValue}.get(
+             "RADIATION_TIMESERIES_V1": m.TimeseriesValue, "HISTOLOGY_COUNTS_V1": m.HistologyCount, "ENVIRONMENT_TIMESERIES_V1": m.TimeseriesValue}.get(
         REGISTRY[dataset_id]["record_schema"], m.ResearchMeasurement)
     return db.scalar(select(func.count()).select_from(table).where(table.dataset_id == dataset_id)) or 0
 

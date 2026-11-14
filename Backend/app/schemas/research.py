@@ -11,7 +11,7 @@ DatasetId = Literal["OSD-575", "OSD-656", "NASA-EDA", "NASA-RADLAB", "OSD-654", 
                     "OSD-195", "OSD-546"]
 RecordSchema = Literal[
     "CMP_ANALYTE_V1", "BIO_ASSAY_TABLE", "ENVIRONMENT_TIMESERIES_V1", "RADIATION_TIMESERIES_V1",
-    "OMICS_OR_IMAGING", "GENE_EXPRESSION_V1",
+    "OMICS_OR_IMAGING", "GENE_EXPRESSION_V1", "HISTOLOGY_COUNTS_V1",
 ]
 
 
@@ -181,6 +181,32 @@ class AssayRecord(BaseModel):
     data_category: DataCategory = "NASA_RESEARCH"
 
 
+class HistologyRecord(BaseModel):
+    """One count from a histology/immunostaining table (HISTOLOGY_COUNTS_V1), e.g. OSD-817 TUNEL / CTB."""
+
+    record_id: int
+    dataset_id: DatasetId
+    sample_name: str = Field(description="Sample Name exactly as in the source, e.g. 7346_OD_FN.")
+    donor_id: str = Field(description="De-identified donor number as published.")
+    eye: Literal["OD", "OS"] = Field(description="OD = right eye, OS = left eye.")
+    fixation: str = Field(description="FN = formalin-fixed; PFA = paraformaldehyde/glutaraldehyde-fixed.")
+    assay: str = Field(description="TUNEL (DNA fragmentation / apoptosis) or CTB (cholera toxin B axonal transport).")
+    measure: Literal["counts", "normalized_counts"]
+    value: Optional[float]
+    value_raw: str
+    unit: str
+    group_number: Optional[str] = Field(description="Group number exactly as in the NASA SUBMITTED workbook. Not "
+                                                    "mapped to a pressure/tilt condition (see limitations).")
+    days_on_system: Optional[int]
+    donor_sex: Optional[str]
+    donor_age: Optional[int]
+    notes: Optional[str] = Field(description="Image-quality notes from the NASA workbook, verbatim.")
+    source_file: str
+    source_row_number: int
+    annotation_file: Optional[str]
+    data_category: DataCategory = "NASA_RESEARCH"
+
+
 class ResearchRecordsPage(BaseModel):
     dataset_id: DatasetId
     title: str
@@ -205,6 +231,8 @@ class ResearchRecordsPage(BaseModel):
     samples: list[ResearchSample] = Field(default_factory=list, description="Sample metadata (expression datasets).")
     assay_records: list[AssayRecord] = Field(
         default_factory=list, description="BIO_ASSAY_TABLE records (OSD-656). Empty for other schemas.")
+    histology_records: list[HistologyRecord] = Field(
+        default_factory=list, description="HISTOLOGY_COUNTS_V1 records (OSD-817). Empty for other schemas.")
     available_measures: list[str] = Field(default_factory=list,
                                           description="BIO_ASSAY_TABLE measure names present in the dataset.")
     comparison_readiness: Optional[ComparisonReadiness] = None

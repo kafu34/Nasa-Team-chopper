@@ -3,6 +3,23 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## OSD-817 importer, run 2026-11-14
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **146 passed, 0 failed** (adds 11 in `test_l_osd817.py`) |
+| `scripts/http_smoke.py` | **23/23** (adds an OSD-817 check; reported `IMPORTED`) |
+| Live server spot check | 34085_OD_FN TUNEL counts = 1560 and 34085_OS_FN = 682, both equal to the CSV |
+
+`test_l_osd817.py` covers:
+- the not-downloaded state, and nothing imported when only one of the two CSVs is present;
+- an import without workbooks (group stays null and nothing is invented), and NA → null;
+- filters, including 422 for a wrong-schema filter, and duplicate imports;
+- 4 malformed-file cases that must fail atomically;
+- separation from the patient workflow, and reset safety;
+- the **real NASA files**: all 72 values equal the CSVs, the workbook annotation joins correctly (group, age,
+  sex, days, notes), all six group numbers are present, and 4 source files are listed with their hashes.
+
 ## RadLab snapshot (NASA-RADLAB), run 2026-11-14
 
 Run in the separate backend worktree (`Chopper/Nasa-Team-chopper-backend`, branch `backend/p0-v2.1`).

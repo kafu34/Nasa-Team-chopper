@@ -381,3 +381,35 @@ class TimeseriesValue(Base):
     latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     altitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+
+class HistologyCount(Base):
+    """One count from a NASA histology/immunostaining table (HISTOLOGY_COUNTS_V1), e.g. OSD-817 TUNEL / CTB.
+
+    Ex vivo human donor tissue; research data only (NASA_RESEARCH).
+    """
+
+    __tablename__ = "histology_counts"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "source_file", "source_row_number", "measure", name="uq_histology_cell"),
+        Index("ix_histology_assay", "dataset_id", "assay", "donor_id"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(String, index=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey("dataset_imports.import_id"))
+    source_file: Mapped[str] = mapped_column(String)
+    source_row_number: Mapped[int] = mapped_column(Integer)
+    sample_name: Mapped[str] = mapped_column(String)
+    donor_id: Mapped[str] = mapped_column(String)
+    eye: Mapped[str] = mapped_column(String)
+    fixation: Mapped[str] = mapped_column(String)
+    assay: Mapped[str] = mapped_column(String)
+    measure: Mapped[str] = mapped_column(String)
+    value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    value_raw: Mapped[str] = mapped_column(String)
+    group_number: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    days_on_system: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    donor_sex: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    donor_age: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    annotation_file: Mapped[Optional[str]] = mapped_column(String, nullable=True)

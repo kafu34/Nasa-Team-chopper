@@ -93,6 +93,8 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   (PREFLIGHT|POSTFLIGHT), timepoint_day_offset, timepoint_order, source_file, source_row_number, data_category`.
 - `GET /api/v1/environment/timeseries?dataset_id=NASA-EDA&metric&start&end&limit&offset` → `TimeseriesPage`
   (503 until an EDA importer exists).
+- OSD-817 (`record_schema: HISTOLOGY_COUNTS_V1`) uses the records endpoint with filters `subject_id` (donor),
+  `analyte` (TUNEL/CTB) and `measure`. It fills `histology_records[]`.
 - `GET /api/v1/radiation/timeseries?dataset_id=NASA-RADLAB|NASA-EDA&metric&instrument_id&start&end&limit&offset`
   → `TimeseriesPage`, served from the saved RadLab ISS snapshot of 2022-04-01 (2,847 readings).
   - `metric` defaults to `absorbed_dose_rate` (μGy/hour).

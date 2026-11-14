@@ -73,7 +73,9 @@ def startup(app: FastAPI) -> None:
             from .importers.expression import import_all_available
 
             log.info("OSD-656 auto-import: %s", osd656.import_if_available(db, settings).outcome)
-            from .importers import radlab
+            from .importers import osd817, radlab
+
+            log.info("OSD-817 auto-import: %s", osd817.import_if_available(db, settings).outcome)
 
             log.info("NASA-RADLAB auto-import: %s", radlab.import_if_available(db, settings).outcome)
 

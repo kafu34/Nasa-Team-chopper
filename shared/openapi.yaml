@@ -1785,6 +1785,7 @@ components:
           - RADIATION_TIMESERIES_V1
           - OMICS_OR_IMAGING
           - GENE_EXPRESSION_V1
+          - HISTOLOGY_COUNTS_V1
           title: Record Schema
         priority:
           type: string
@@ -1999,6 +2000,7 @@ components:
           - RADIATION_TIMESERIES_V1
           - OMICS_OR_IMAGING
           - GENE_EXPRESSION_V1
+          - HISTOLOGY_COUNTS_V1
           title: Record Schema
         priority:
           type: string
@@ -2786,6 +2788,135 @@ components:
       - offline_capable
       - server_time
       title: HealthOut
+    HistologyRecord:
+      properties:
+        record_id:
+          type: integer
+          title: Record Id
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          - OSD-195
+          - OSD-546
+          title: Dataset Id
+        sample_name:
+          type: string
+          title: Sample Name
+          description: Sample Name exactly as in the source, e.g. 7346_OD_FN.
+        donor_id:
+          type: string
+          title: Donor Id
+          description: De-identified donor number as published.
+        eye:
+          type: string
+          enum:
+          - OD
+          - OS
+          title: Eye
+          description: OD = right eye, OS = left eye.
+        fixation:
+          type: string
+          title: Fixation
+          description: FN = formalin-fixed; PFA = paraformaldehyde/glutaraldehyde-fixed.
+        assay:
+          type: string
+          title: Assay
+          description: TUNEL (DNA fragmentation / apoptosis) or CTB (cholera toxin B axonal transport).
+        measure:
+          type: string
+          enum:
+          - counts
+          - normalized_counts
+          title: Measure
+        value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Value
+        value_raw:
+          type: string
+          title: Value Raw
+        unit:
+          type: string
+          title: Unit
+        group_number:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Number
+          description: Group number exactly as in the NASA SUBMITTED workbook. Not mapped to a pressure/tilt condition (see
+            limitations).
+        days_on_system:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Days On System
+        donor_sex:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Donor Sex
+        donor_age:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Donor Age
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+          description: Image-quality notes from the NASA workbook, verbatim.
+        source_file:
+          type: string
+          title: Source File
+        source_row_number:
+          type: integer
+          title: Source Row Number
+        annotation_file:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Annotation File
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+      type: object
+      required:
+      - record_id
+      - dataset_id
+      - sample_name
+      - donor_id
+      - eye
+      - fixation
+      - assay
+      - measure
+      - value
+      - value_raw
+      - unit
+      - group_number
+      - days_on_system
+      - donor_sex
+      - donor_age
+      - notes
+      - source_file
+      - source_row_number
+      - annotation_file
+      title: HistologyRecord
+      description: One count from a histology/immunostaining table (HISTOLOGY_COUNTS_V1), e.g. OSD-817 TUNEL / CTB.
     ImportInfo:
       properties:
         import_id:
@@ -3635,6 +3766,7 @@ components:
           - RADIATION_TIMESERIES_V1
           - OMICS_OR_IMAGING
           - GENE_EXPRESSION_V1
+          - HISTOLOGY_COUNTS_V1
           title: Record Schema
         data_category:
           type: string
@@ -3720,6 +3852,12 @@ components:
           type: array
           title: Assay Records
           description: BIO_ASSAY_TABLE records (OSD-656). Empty for other schemas.
+        histology_records:
+          items:
+            $ref: '#/components/schemas/HistologyRecord'
+          type: array
+          title: Histology Records
+          description: HISTOLOGY_COUNTS_V1 records (OSD-817). Empty for other schemas.
         available_measures:
           items:
             type: string

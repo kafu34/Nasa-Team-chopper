@@ -85,7 +85,7 @@ def main() -> int:
         check("GET /api/v1/research/datasets/OSD-575/records",
               len(c.get("/api/v1/research/datasets/OSD-575/records", params={"limit": 5}).json()["records"]) == 5)
         for ds_id, st in (("OSD-195", "HUMAN_GROUND_ANALOGUE"), ("OSD-546", "HUMAN_DERIVED_CELLS"),
-                          ("OSD-656", "HUMAN_SPACEFLIGHT")):
+                          ("OSD-656", "HUMAN_SPACEFLIGHT"), ("OSD-817", "HUMAN_DERIVED_CELLS")):
             d = c.get(f"/api/v1/research/datasets/{ds_id}").json()
             check(f"GET /api/v1/research/datasets/{ds_id}", d["study_type"] == st, d["status"])
         check("GET /api/v1/environment/timeseries (503 expected)", c.get("/api/v1/environment/timeseries").status_code == 503)

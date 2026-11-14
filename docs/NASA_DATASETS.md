@@ -229,6 +229,53 @@ the SUBMITTED CSV already imported.
 - Four crew members only.
 - Never used as SENTINEL astronaut data.
 
+## 2e. OSD-817: ex vivo human optic nerve (SANS model), TUNEL and CTB counts (imported)
+
+`HUMAN_DERIVED_CELLS`; OSDR Project Type "Ground Study". Record schema `HISTOLOGY_COUNTS_V1`. Importer:
+`Backend/app/importers/osd817.py`. Served by `GET /api/v1/research/datasets/OSD-817/records` in
+`histology_records[]`.
+
+**What the study did** (from the OSDR description and protocols):
+- De-identified human donor eyes were cultured for 14 days in a translaminar autonomous system, a ground model of
+  spaceflight-associated neuro-ocular syndrome (SANS).
+- Six groups combined ICP:IOP pressures (12:16, 15:16, 12:21→12:16 and 21:16 mmHg) with 0°, 6° or 10° optic-nerve
+  tilt.
+- **TUNEL** marks DNA fragmentation (apoptotic cells).
+- **CTB** (cholera toxin B, perfused for 48 h) measures retrograde axonal transport through the optic nerve head.
+- Counts were made by a masked observer.
+
+| File in `data/nasa/raw/OSD-817/` | SHA-256 |
+|---|---|
+| `LSDS-135_immunostaining_TUNEL_TRANSFORMED.csv` | `bf64e59178ff076d60ae3ea5c52094ff27787ca13055a43f3ca706abbc502fea` |
+| `LSDS-135_immunostaining_CTB_TRANSFORMED.csv` | `b1e6ec9c5518c6d03f71a4e5664b1b080cf171c8b25fa835aa3a8069a165ea2d` |
+| `LSDS-135_immunostaining_Tunel Analysis_SUBMITTED.xlsx` | `68a53b52cbd09730d4a48735c75e6555cb91d936d5b8d8f6254875ebc921bf1d` |
+| `LSDS-135_immunostaining_CTB Analysis_SUBMITTED.xlsx` | `7290682b8f0ac224b1960ce7040a9573850883219216fb4543b099d0a1d10694` |
+
+**What was imported**
+- **72 values:** 2 assays × 18 formalin-fixed eyes (9 donors × right/left) × counts and normalized counts. There
+  are no missing values.
+- **Annotation:** each eye also gets its group number, days on system, donor sex and age, and image-quality notes
+  (for example "Image overexposed; New image taken" or "Missing; Very faint stain - had to repeat") from the
+  NASA SUBMITTED workbooks.
+- **Checks:** every workbook count equals the CSV count. Every workbook normalized value rounds to the CSV value;
+  for example, the workbook holds 2.4449999 and the CSV shows 2.45. A test compares all 72 values with the CSVs.
+
+**Group numbers are not mapped to conditions.**
+- The workbook's "Counts/Normalized to Control" column uses the Group 6 eye of each block of three donors as 1.0.
+- The OSDR description defines Group 6 as 15:16 mmHg with a 10° tilt, which is not an obvious control.
+- The group numbering therefore can't be verified against the description, so `group_number` is published
+  verbatim and no pressure or tilt label is attached.
+
+**Not imported**
+- `LSDS-135_Immunohistochemistry_07346_OD.zip` (61 MB): 16 microscopy TIFF images of one eye; these are images,
+  not numbers.
+- PPD axon counts: no file supplied.
+- Donor race: present in the workbook, but not needed.
+
+**Limitations**
+- Ex vivo donor tissue on the ground: not astronaut or spaceflight data, and never used to diagnose SANS.
+- One eye per group per donor; tiny sample.
+
 ## 2d. NASA-RADLAB: RadLab ISS radiation snapshot (P1, imported)
 
 `SPACEFLIGHT_ENVIRONMENT`. Record schema `RADIATION_TIMESERIES_V1`. Importer: `Backend/app/importers/radlab.py`.
