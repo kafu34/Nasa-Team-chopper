@@ -24,14 +24,23 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
 ### System and demo
 - `GET /healthz` → `{status, service, contract_version, database, offline_capable, server_time}`
 - `GET /api/v1/demo/bootstrap` → astronaut, responder, habitat (zones, connections), anchors, equipment,
-  procedures, scheduled assessments (`is_due`), observations, observation freshness
+  procedures, `surface_model` (3D twin site catalogue), scheduled assessments (`is_due`), observations, observation freshness
   (`current`/`stale`/`missing`), open cases, anatomical regions, laterality values, `demo_inputs`, research dataset
   catalogue.
 - `POST /api/v1/demo/reset` → `{reset, fixture_version, reset_at, research_records_before, research_records_after, message}`
 
 ### Cases and observations
-- `POST /api/v1/symptoms` — body `{astronaut_id, region_id, laterality, severity 0-10, onset, note?}` →
-  `{symptom_id, case_id, case_state, next_action, duplicate, data_category}`.
+- `POST /api/v1/symptoms` — body `{astronaut_id, region_id, laterality, severity 0-10, onset, note?, surface_point?}` →
+  `{symptom_id, case_id, case_state, next_action, duplicate, surface_point|null, data_category}`.
+  - `surface_point` (optional, v2.2) is a tapped point on the 3D Anatomical Twin:
+    `{model_id: "sentinel-body-v1", site_id, x, y, z}`, coordinates finite within ±5 model units.
+  - `site_id` must be one of `bootstrap.surface_model.sites` and must map to the request's `region_id` and
+    `laterality`. Errors (422): `UNKNOWN_SURFACE_SITE`, `SURFACE_SITE_MISMATCH`, `SURFACE_POINT_WRONG_SIDE`
+    (right is negative x, left positive, tolerance 0.1); bad model ID, range or extra fields → `VALIDATION_ERROR`.
+  - It is stored and returned as `{model_id, site_id, site_label, x, y, z}` on the symptom and in the case.
+    Rules still use only the broad region; the point is a diagram location, not a measurement or a diagnosis.
+  - Duplicate detection (R-SYM-01) also compares `site_id`, so a shoulder and an elbow report in `upper_arm`
+    are kept apart.
 - `GET /api/v1/cases/{case_id}` → full case: `state`, `priority`, `attention {priority, interrupt, reason}`,
   `evidence[]`, `requested_assessment`, `next_action`, `follow_up_status`, `follow_ups[]`, `symptoms[]`,
   `session_ids[]`, `measurements[]`, `audit[]`, `ruleset_version`.
@@ -93,7 +102,12 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   (PREFLIGHT|POSTFLIGHT), timepoint_day_offset, timepoint_order, source_file, source_row_number, data_category`.
 - `GET /api/v1/environment/timeseries?dataset_id=NASA-EDA&metric&start&end&limit&offset` → `TimeseriesPage`
   (503 until an EDA importer exists).
-- `GET /api/v1/radiation/timeseries?dataset_id=NASA-RADLAB|NASA-EDA&metric&start&end&limit&offset` → `TimeseriesPage`
-  (503 until imported).
+- OSD-817 (`record_schema: HISTOLOGY_COUNTS_V1`) uses the records endpoint with filters `subject_id` (donor),
+  `analyte` (TUNEL/CTB) and `measure`. It fills `histology_records[]`.
+- `GET /api/v1/radiation/timeseries?dataset_id=NASA-RADLAB|NASA-EDA&metric&instrument_id&start&end&limit&offset`
+  → `TimeseriesPage`, served from the saved RadLab ISS snapshot of 2022-04-01 (2,847 readings).
+  - `metric` defaults to `absorbed_dose_rate` (μGy/hour).
+  - Points carry `instrument_id`, `module` and ISS `latitude`/`longitude`/`altitude`.
+  - Returns 503 if the snapshot is not imported.
 
 Full example payloads: `docs/INTEGRATION_HANDOFF.md` section 6.

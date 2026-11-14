@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import CONTRACT_VERSION, Settings
-from .db import Base, make_engine, make_session_factory
+from .db import Base, add_missing_columns, make_engine, make_session_factory
 from .errors import install_error_handlers
 from .seed import is_seeded, load_fixture, seed_demo
 
@@ -57,6 +57,8 @@ def startup(app: FastAPI) -> None:
     settings: Settings = app.state.settings
     engine = make_engine(settings.db_url)
     Base.metadata.create_all(engine)
+    for column in add_missing_columns(engine):
+        log.info("Added column %s to an existing database", column)
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.fixture = load_fixture(settings.fixture_path)
@@ -73,6 +75,11 @@ def startup(app: FastAPI) -> None:
             from .importers.expression import import_all_available
 
             log.info("OSD-656 auto-import: %s", osd656.import_if_available(db, settings).outcome)
+            from .importers import osd817, radlab
+
+            log.info("OSD-817 auto-import: %s", osd817.import_if_available(db, settings).outcome)
+
+            log.info("NASA-RADLAB auto-import: %s", radlab.import_if_available(db, settings).outcome)
 
             for dataset_id, results in import_all_available(db, settings).items():
                 log.info("%s auto-import: %s", dataset_id, [r.outcome for r in results])

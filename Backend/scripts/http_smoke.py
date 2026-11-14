@@ -85,11 +85,13 @@ def main() -> int:
         check("GET /api/v1/research/datasets/OSD-575/records",
               len(c.get("/api/v1/research/datasets/OSD-575/records", params={"limit": 5}).json()["records"]) == 5)
         for ds_id, st in (("OSD-195", "HUMAN_GROUND_ANALOGUE"), ("OSD-546", "HUMAN_DERIVED_CELLS"),
-                          ("OSD-656", "HUMAN_SPACEFLIGHT")):
+                          ("OSD-656", "HUMAN_SPACEFLIGHT"), ("OSD-817", "HUMAN_DERIVED_CELLS")):
             d = c.get(f"/api/v1/research/datasets/{ds_id}").json()
             check(f"GET /api/v1/research/datasets/{ds_id}", d["study_type"] == st, d["status"])
         check("GET /api/v1/environment/timeseries (503 expected)", c.get("/api/v1/environment/timeseries").status_code == 503)
-        check("GET /api/v1/radiation/timeseries (503 expected)", c.get("/api/v1/radiation/timeseries").status_code == 503)
+        rad = c.get("/api/v1/radiation/timeseries", params={"instrument_id": "DosTel1", "limit": 5})
+        check("GET /api/v1/radiation/timeseries (RadLab snapshot)", rad.status_code == 200
+              and len(rad.json()["points"]) == 5, f"total={rad.json().get('total')}")
         emg = c.post("/api/v1/emergencies", json=boot["demo_inputs"]["emergency"])
         check("POST /api/v1/emergencies", emg.status_code == 201 and emg.json()["priority"] == "urgent")
         cors = c.options("/api/v1/demo/bootstrap", headers={"Origin": "http://127.0.0.1:5173",

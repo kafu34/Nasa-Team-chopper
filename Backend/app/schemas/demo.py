@@ -100,6 +100,20 @@ class RegionOut(BaseModel):
     lateral: bool
 
 
+class SurfaceSiteOut(BaseModel):
+    site_id: str
+    label: str
+    region_id: str
+    laterality: Laterality
+
+
+class SurfaceModelOut(BaseModel):
+    model_id: str
+    coordinate_limit: float
+    coordinate_note: str
+    sites: list[SurfaceSiteOut]
+
+
 class BleObservationTemplate(BaseModel):
     anchor_id: str
     rssi_dbm: int
@@ -135,6 +149,7 @@ class BootstrapOut(BaseModel):
     open_cases: list[CaseSummary]
     anatomical_regions: list[RegionOut]
     laterality_values: list[Laterality]
+    surface_model: SurfaceModelOut
     demo_inputs: DemoInputs
     research_datasets: list[DatasetSummary]
 

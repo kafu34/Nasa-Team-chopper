@@ -121,7 +121,12 @@ workflows itself if the server is unavailable.
 
 ## Deferred (not implemented)
 
-P1: EDA, OSD-656 and RadLab importers and visualisation; additional OSD-575 assays; multiple habitats; more
-procedures and observation categories; symptom-history analysis; richer attention scheduling.
+Done since P0: OSD-656, RadLab (saved ISS snapshot), OSD-546 and OSD-817 importers; the OSD-195 importer
+(waiting for NASA's processed files); the optional 3D `surface_point` on symptoms.
+
+P1 still open: NASA-EDA importer (`/environment/timeseries` returns 503); OSD-195 data; additional OSD-575
+assays; multiple habitats; more procedures and observation categories; symptom-history analysis; richer
+attention scheduling.
+
 P2: real wearables/BLE/UWB, live AR, body-scan twin, advanced clinical models, medical data compression and
-DTN networking, onboard mission integration. The timeseries endpoints exist in the contract but return 503.
+DTN networking, onboard mission integration; OSD-654, OSD-684 and OSD-573 importers.

@@ -3,6 +3,67 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## 3D Anatomical Twin `surface_point`, run 2026-11-14
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` with `SENTINEL_FRONTEND_SITES` pointing at Codex's `anatomy-sites.ts` (aa25e6b) | **165 passed, 0 failed** (adds 19 in `test_m_surface_point.py`) |
+| Same suite without that file | the frontend-match test is skipped; all others pass |
+| `scripts/export_openapi.py --check` | matches the app |
+| `scripts/http_smoke.py` | **23/23** |
+| Live server restart on the existing database | `symptom_reports.surface_point` column added; bootstrap lists 35 sites |
+
+`test_m_surface_point.py` covers:
+- the point is stored, returned on create and in the case, kept separate from the user's note, and recorded in
+  evidence and audit;
+- old clients without the field are unchanged, and the rules still use only the broad region;
+- shoulder and elbow reports in one region are not deduplicated against each other, while a repeat of the same
+  site is;
+- 10 rejection cases (unknown site, region or side mismatch, wrong side of the model, unknown model, out of range,
+  infinite, missing coordinate, extra field), none of which stores anything;
+- midline sites and the chest inner-edge tolerance;
+- the bootstrap catalogue, and the same 35 site IDs and region mapping as the frontend file;
+- persistence across restart, reset, and upgrading a database created before the column existed.
+
+## OSD-817 importer, run 2026-11-14
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **146 passed, 0 failed** (adds 11 in `test_l_osd817.py`) |
+| `scripts/http_smoke.py` | **23/23** (adds an OSD-817 check; reported `IMPORTED`) |
+| Live server spot check | 34085_OD_FN TUNEL counts = 1560 and 34085_OS_FN = 682, both equal to the CSV |
+
+`test_l_osd817.py` covers:
+- the not-downloaded state, and nothing imported when only one of the two CSVs is present;
+- an import without workbooks (group stays null and nothing is invented), and NA → null;
+- filters, including 422 for a wrong-schema filter, and duplicate imports;
+- 4 malformed-file cases that must fail atomically;
+- separation from the patient workflow, and reset safety;
+- the **real NASA files**: all 72 values equal the CSVs, the workbook annotation joins correctly (group, age,
+  sex, days, notes), all six group numbers are present, and 4 source files are listed with their hashes.
+
+## RadLab snapshot (NASA-RADLAB), run 2026-11-14
+
+Run in the separate backend worktree (`Chopper/Nasa-Team-chopper-backend`, branch `backend/p0-v2.1`).
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **135 passed, 0 failed** (adds 12 in `test_k_radlab.py`) |
+| `scripts/http_smoke.py` | **22/22**: `/radiation/timeseries` now returns 200 (DosTel1: 1,192 readings) |
+| `scripts/export_openapi.py` | contract regenerated (additive fields only) |
+
+`test_k_radlab.py` covers:
+- a 503 when the snapshot is missing;
+- units, ISS position, `timestamp_raw`, and the query URL as provenance;
+- the dose-equivalent metric, and the `instrument_id` / `start` / `end` / paging filters;
+- unknown filter values (422) and the records endpoint redirect (422);
+- duplicate imports;
+- 5 malformed or tampered snapshot cases (missing `query.json`, hash mismatch, bad timestamp, non-numeric
+  value, missing columns), each failing atomically;
+- repeated readings kept as published, separation from the patient workflow, and reset safety;
+- the **real snapshot**: all 2,847 readings equal their source rows, and the 3 repeated DosTel1 timestamps
+  are recorded.
+
 ## OSD-656 importer, run 2026-11-14
 
 | Suite | Result |
@@ -51,7 +112,7 @@ Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
   files with the same layout.
 - **OSD-195:** the parser has only been tested on synthetic files, because no real processed file was supplied.
 
-## Results
+## P0 baseline results (first run, superseded by the sections above)
 
 | Suite | Command | Result |
 |---|---|---|
@@ -75,6 +136,8 @@ Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
 - Frontend integration (Codex's UI against this backend) — not run by the backend; the frontend must verify it
   displays the same OSD-575 values and units.
-- Timeseries endpoints with real data (no EDA/RadLab importer; only the 503 path is tested).
+- `/environment/timeseries` with real data (no EDA importer; only the 503 path is tested). RadLab is covered
+  by `test_k_radlab.py`.
+- OSD-195 with real NASA files (only synthetic files; the processed files have not been supplied).
 - Linux/macOS case-sensitive file systems (developed on Windows; see folder-casing note in the handoff).
 - Concurrent multi-client load.

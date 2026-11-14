@@ -21,14 +21,15 @@ router = APIRouter(prefix="/api/v1", tags=["cases"])
 @router.post("/symptoms", response_model=SymptomCreated, status_code=201, responses=error_responses(404, 422),
              summary="Report a symptom from the Anatomical Twin; creates or updates a fictional case",
              description="201 when a new report is stored. 200 with duplicate=true when an identical report "
-                         "(same region, laterality and severity) was already received within 10 minutes.")
+                         "(same region, laterality, severity and surface site) was already received within 10 minutes. "
+                         "surface_point is optional; when sent, its site_id must belong to region_id/laterality.")
 def create_symptom(body: SymptomCreate, request: Request, response: Response,
                    db: Session = Depends(get_db)) -> SymptomCreated:
     sym, case, duplicate = rules.report_symptom(db, request.app.state.fixture, body)
     if duplicate:
         response.status_code = 200
     return SymptomCreated(symptom_id=sym.symptom_id, case_id=case.case_id, case_state=case.state,
-                          next_action=case.next_action, duplicate=duplicate)
+                          next_action=case.next_action, duplicate=duplicate, surface_point=sym.surface_point)
 
 
 @router.get("/cases/{case_id}", response_model=CaseOut, responses=error_responses(404),

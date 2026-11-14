@@ -142,6 +142,7 @@ class SymptomReport(Base):
     severity: Mapped[int] = mapped_column(Integer)
     onset: Mapped[datetime] = mapped_column(UTCDateTime)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    surface_point: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     reported_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     case_id: Mapped[str] = mapped_column(ForeignKey("medical_cases.case_id"), index=True)
 
@@ -350,3 +351,66 @@ class AssayMeasurement(Base):
     gene_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     uniprot_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     protein_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class TimeseriesValue(Base):
+    """One reading of one metric from a NASA telemetry snapshot (e.g. RadLab radiation dosimetry).
+
+    Research/context data only (NASA_RESEARCH). Never a SENTINEL habitat (HAB-01) or astronaut reading.
+    """
+
+    __tablename__ = "timeseries_values"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "source_file", "source_row_number", "metric", name="uq_timeseries_cell"),
+        Index("ix_timeseries_metric_time", "dataset_id", "metric", "timestamp"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(String, index=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey("dataset_imports.import_id"))
+    source_file: Mapped[str] = mapped_column(String)
+    source_row_number: Mapped[int] = mapped_column(Integer)
+    timestamp: Mapped[datetime] = mapped_column(UTCDateTime)
+    timestamp_raw: Mapped[str] = mapped_column(String)
+    instrument_id: Mapped[str] = mapped_column(String)
+    instrument_family: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    spacecraft: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    module: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    metric: Mapped[str] = mapped_column(String)
+    value: Mapped[float] = mapped_column(Float)
+    value_raw: Mapped[str] = mapped_column(String)
+    unit: Mapped[str] = mapped_column(String)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    altitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+
+class HistologyCount(Base):
+    """One count from a NASA histology/immunostaining table (HISTOLOGY_COUNTS_V1), e.g. OSD-817 TUNEL / CTB.
+
+    Ex vivo human donor tissue; research data only (NASA_RESEARCH).
+    """
+
+    __tablename__ = "histology_counts"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "source_file", "source_row_number", "measure", name="uq_histology_cell"),
+        Index("ix_histology_assay", "dataset_id", "assay", "donor_id"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(String, index=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey("dataset_imports.import_id"))
+    source_file: Mapped[str] = mapped_column(String)
+    source_row_number: Mapped[int] = mapped_column(Integer)
+    sample_name: Mapped[str] = mapped_column(String)
+    donor_id: Mapped[str] = mapped_column(String)
+    eye: Mapped[str] = mapped_column(String)
+    fixation: Mapped[str] = mapped_column(String)
+    assay: Mapped[str] = mapped_column(String)
+    measure: Mapped[str] = mapped_column(String)
+    value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    value_raw: Mapped[str] = mapped_column(String)
+    group_number: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    days_on_system: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    donor_sex: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    donor_age: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    annotation_file: Mapped[Optional[str]] = mapped_column(String, nullable=True)

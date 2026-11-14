@@ -91,18 +91,31 @@ look before and after a short spaceflight, with units and reference ranges as pu
 ## 2. Catalogue datasets (not imported)
 
 These identifiers are in the shared registry (`GET /api/v1/research/datasets`) with honest status
-`NOT_DOWNLOADED`. No importer exists yet; no values are shown. Fields marked unverified were not confirmed
-verbatim from NASA pages during this build and must be checked before quoting.
+`NOT_DOWNLOADED`. No importer exists yet, so no values are shown.
 
-| ID | Priority | What it contains (from the OSDR metadata API unless noted) | Title verified | Source URL |
-|---|---|---|---|---|
-| `OSD-656` | P1 | **Now imported — see §2c.** Inspiration4 crew urine, NULISA-seq 200-plex inflammation panel, pre/post flight | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-656 |
-| `NASA-EDA` | P1 | Environmental Data App: ISS cabin/hardware telemetry (temperature, humidity, CO2) and radiation summaries | Yes ("Environmental Data App") | https://visualization.osdr.nasa.gov/eda/ |
-| `NASA-RADLAB` | P1 | Space radiation dosimetry data — portal name and URL **not confirmed** | No | https://visualization.osdr.nasa.gov/radlab/ (unconfirmed lead) |
-| `OSD-654` | P2 | Mouse tibia bone DXA and micro-CT, hindlimb-unloading ground analogue | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-654 |
-| `OSD-684` | P2 | "Human skeletal muscle tissue chip autonomous payload reveals changes in fiber type and metabolic gene expression due to spaceflight" — bulk RNA-seq | Yes | https://osdr.nasa.gov/bio/repo/data/studies/OSD-684 |
-| `OSD-573` | P2 | Inspiration4 Dragon capsule environmental shotgun metagenomics | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-573 |
-| `OSD-817` | P2 | Human donor optic nerve tissue histology and immunostaining | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-817 |
+### Verified titles (2026-11-14)
+
+Every title in the registry is now `title_verified: true`.
+- **OSD studies:** read verbatim from the study `title` field of the NASA OSDR metadata API,
+  `https://osdr.nasa.gov/osdr/data/osd/meta/<n>`. Project type and mission come from the same record.
+- **NASA-EDA and NASA-RADLAB:** read from the OSDR visualization home page and the portal pages.
+
+| ID | Exact title | Project type / mission (OSDR) | Organism |
+|---|---|---|---|
+| `OSD-575` | SpaceX Inspiration4 Blood Serum Metabolic Panel and Immune/Cardiac Cytokine Arrays (Comprehensive Metabolic Panel and Multiplex) | Spaceflight Study, SpaceX Inspiration4 (09/16–09/18/2021) | Homo sapiens |
+| `OSD-656` | SpaceX Inspiration4 Urine Inflammation Panel (Multiplex, NULISAseq) | Spaceflight Study, SpaceX Inspiration4 (09/16–09/18/2021) | Homo sapiens |
+| `OSD-195` | Effects of 21 days of bedrest on human skeletal muscle gene expression | Ground Study | Homo sapiens |
+| `OSD-546` | SCD – Stem Cell Differentiation Toward Osteoblast Onboard the International Space Station | Spaceflight Study, Soyuz TMA-15M / TMA-16M (Italian Space Agency) | Homo sapiens (cells) |
+| `OSD-654` | Toward countering muscle and bone loss with spaceflight: GSK3 as a potential target (Tibia, RR9 and HLU, MicroCT and DXA Scanning) | Spaceflight Study, SpaceX-12 / Rodent Research-9 on the ISS (08/14–09/17/2017), plus hindlimb unloading on the ground | Mus musculus |
+| `OSD-684` | Human skeletal muscle tissue chip autonomous payload reveals changes in fiber type and metabolic gene expression due to spaceflight | listed as "Ground Study" in OSDR although the payload flew on SpaceX-21 (12/2020–01/2021) | Homo sapiens (tissue chips) |
+| `OSD-573` | SpaceX Inspiration4 Dragon Capsule Metagenomic and Metatranscriptomic Microbial Swabs | Spaceflight Study, SpaceX Inspiration4 | microbial communities |
+| `OSD-817` | The ex vivo human translaminar autonomous system to study spaceflight associated neuro-ocular syndrome pathogenesis (Optic Nerve, Histology and Microscopy) | Ground Study (donor tissue) | Homo sapiens |
+| `NASA-EDA` | Environmental Data App (EDA) | portal, https://visualization.osdr.nasa.gov/eda/ | — |
+| `NASA-RADLAB` | RadLab | portal, https://visualization.osdr.nasa.gov/radlab/ ("a single point of access to radiation telemetry data from multiple databases maintained by multiple space agencies") | — |
+
+**Correction:** OSD-654 was earlier described as a ground-analogue study only. Its NASA record shows that it
+includes **mice flown on the ISS** (Rodent Research-9) as well as hindlimb-unloaded mice. It remains
+`ANIMAL_RESEARCH` and is still excluded from the human-health analysis.
 
 To add one later: place files in `data/nasa/raw/<ID>/`, write an importer, and its status will move from
 `NOT_DOWNLOADED` → `UNSUPPORTED_FORMAT` (files present, no importer) → `IMPORTED`.
@@ -141,9 +154,10 @@ the SUBMITTED CSV already imported.
   Affymetrix microarray. 24 samples GSM2813727–GSM2813750; factor `Bed Rest` = `Before Bed Rest` /
   `After Bed Rest` (verified per sample). Subject numbers 1–14 with gaps.
 - GSM2813749 (subject 14, Before Bed Rest) and GSM2813750 (subject 14, After Bed Rest) are a matched pair.
-- Title "Effects of 21 days of bedrest on human skeletal muscle gene expression" and the RMA normalisation
-  (Affymetrix Expression Console 1.4.1) come from a summary of the OSDR page, **not verified verbatim**.
-  So `normalization_verified=false` and `comparison_readiness.ready=false`.
+- The title "Effects of 21 days of bedrest on human skeletal muscle gene expression" is verified verbatim
+  (OSDR Project Type "Ground Study").
+- The RMA normalisation (Affymetrix Expression Console 1.4.1) comes only from a summary of the OSDR page and
+  is **not verified verbatim**. So `normalization_verified=false` and `comparison_readiness.ready=false`.
 - Files the importer needs (place in `data/nasa/raw/OSD-195/`):
   `GLDS-195_microarray_GSM2813749_processed.txt` (1,173,625 bytes per OSDR) and
   `GLDS-195_microarray_GSM2813750_processed.txt` (1,173,747 bytes). Any other
@@ -214,6 +228,98 @@ the SUBMITTED CSV already imported.
   reference ranges.
 - Four crew members only.
 - Never used as SENTINEL astronaut data.
+
+## 2e. OSD-817: ex vivo human optic nerve (SANS model), TUNEL and CTB counts (imported)
+
+`HUMAN_DERIVED_CELLS`; OSDR Project Type "Ground Study". Record schema `HISTOLOGY_COUNTS_V1`. Importer:
+`Backend/app/importers/osd817.py`. Served by `GET /api/v1/research/datasets/OSD-817/records` in
+`histology_records[]`.
+
+**What the study did** (from the OSDR description and protocols):
+- De-identified human donor eyes were cultured for 14 days in a translaminar autonomous system, a ground model of
+  spaceflight-associated neuro-ocular syndrome (SANS).
+- Six groups combined ICP:IOP pressures (12:16, 15:16, 12:21→12:16 and 21:16 mmHg) with 0°, 6° or 10° optic-nerve
+  tilt.
+- **TUNEL** marks DNA fragmentation (apoptotic cells).
+- **CTB** (cholera toxin B, perfused for 48 h) measures retrograde axonal transport through the optic nerve head.
+- Counts were made by a masked observer.
+
+| File in `data/nasa/raw/OSD-817/` | SHA-256 |
+|---|---|
+| `LSDS-135_immunostaining_TUNEL_TRANSFORMED.csv` | `bf64e59178ff076d60ae3ea5c52094ff27787ca13055a43f3ca706abbc502fea` |
+| `LSDS-135_immunostaining_CTB_TRANSFORMED.csv` | `b1e6ec9c5518c6d03f71a4e5664b1b080cf171c8b25fa835aa3a8069a165ea2d` |
+| `LSDS-135_immunostaining_Tunel Analysis_SUBMITTED.xlsx` | `68a53b52cbd09730d4a48735c75e6555cb91d936d5b8d8f6254875ebc921bf1d` |
+| `LSDS-135_immunostaining_CTB Analysis_SUBMITTED.xlsx` | `7290682b8f0ac224b1960ce7040a9573850883219216fb4543b099d0a1d10694` |
+
+**What was imported**
+- **72 values:** 2 assays × 18 formalin-fixed eyes (9 donors × right/left) × counts and normalized counts. There
+  are no missing values.
+- **Annotation:** each eye also gets its group number, days on system, donor sex and age, and image-quality notes
+  (for example "Image overexposed; New image taken" or "Missing; Very faint stain - had to repeat") from the
+  NASA SUBMITTED workbooks.
+- **Checks:** every workbook count equals the CSV count. Every workbook normalized value rounds to the CSV value;
+  for example, the workbook holds 2.4449999 and the CSV shows 2.45. A test compares all 72 values with the CSVs.
+
+**Group numbers are not mapped to conditions.**
+- The workbook's "Counts/Normalized to Control" column uses the Group 6 eye of each block of three donors as 1.0.
+- The OSDR description defines Group 6 as 15:16 mmHg with a 10° tilt, which is not an obvious control.
+- The group numbering therefore can't be verified against the description, so `group_number` is published
+  verbatim and no pressure or tilt label is attached.
+
+**Not imported**
+- `LSDS-135_Immunohistochemistry_07346_OD.zip` (61 MB): 16 microscopy TIFF images of one eye; these are images,
+  not numbers.
+- PPD axon counts: no file supplied.
+- Donor race: present in the workbook, but not needed.
+
+**Limitations**
+- Ex vivo donor tissue on the ground: not astronaut or spaceflight data, and never used to diagnose SANS.
+- One eye per group per donor; tiny sample.
+
+## 2d. NASA-RADLAB: RadLab ISS radiation snapshot (P1, imported)
+
+`SPACEFLIGHT_ENVIRONMENT`. Record schema `RADIATION_TIMESERIES_V1`. Importer: `Backend/app/importers/radlab.py`.
+Served by `GET /api/v1/radiation/timeseries`.
+
+**Source:** the public RadLab data API (no key; docs https://visualization.osdr.nasa.gov/radlab/gui/data-api/).
+One query was saved unchanged on 2026-11-14 and downloaded twice, byte-identical both times:
+
+```
+https://visualization.osdr.nasa.gov/radlab/api/?spacecraft=ISS&timestamp%3E=2022-04-01T00%3A00&timestamp%3C2022-04-02T00%3A00&module&instrument_family&absorbed_dose_rate&dose_equivalent_rate&latitude&longitude&altitude&format=csv
+```
+
+| File in `data/nasa/raw/NASA-RADLAB/` | Content |
+|---|---|
+| `radlab_ISS_2022-04-01.csv` | API output, SHA-256 `ed71c71ed9ec7684520dcd9a444ce2713809af2f4147e744bdb348b2cfc04733`, 2,847 rows, 293 KB |
+| `radlab_ISS_2022-04-01.query.json` | the exact query URL, retrieval time and SHA-256 (the importer refuses a CSV whose hash differs) |
+
+**What was imported**
+- **2,847 absorbed dose-rate readings** (μGy/hour, unit from the RadLab API docs) on 2022-04-01, from the ISS
+  Columbus module:
+
+  | Instrument | Readings |
+  |---|---|
+  | DosTel1 | 1,192 |
+  | DosTel2 | 1,197 |
+  | Lidal | 288 |
+  | REM-Lid | 170 |
+
+- Each reading carries the ISS latitude, longitude and altitude at that time.
+- **Verified:** every reading equals its source row (automated test), and the provenance `source_url` is the
+  exact query URL.
+
+**Data quirks, kept honest**
+- **Dose-equivalent rate (μSv/hour) is empty** for every row that day, so it is not stored. Its 2,847 empty
+  cells are counted in the import summary.
+- **Three DosTel1 timestamps appear twice** with different values: 04:45:00, 09:10:00 and 09:15:00. Both
+  readings are kept as published, neither picked nor averaged, and the pairs are listed in
+  `summary.repeated_readings`.
+- **RadLab timestamps carry no timezone.** SENTINEL treats them as UTC, because ISS operations run on UTC.
+  This is an assumption; the original text stays in `timestamp_raw`.
+
+**Limitations:** one historical day only. These are area dosimeters in one ISS module, not live data, not
+HAB-01 readings, and not any crew member's personal dose. Instruments differ in design and placement. No
+radiation limits, alerts or health interpretation are derived from the values.
 
 ### Transformation
 
