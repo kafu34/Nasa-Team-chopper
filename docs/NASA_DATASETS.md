@@ -8,8 +8,25 @@ SENTINEL AI keeps three strictly separated data categories:
 | `SIMULATED_ASTRONAUT` | Fictional DEMO-001/DEMO-002 health data, symptoms, cases and measurements. |
 | `SIMULATED_ENVIRONMENT_OR_DEVICE` | Fictional habitat HAB-01, wireless anchors, BLE signals and equipment. |
 
-NASA measurements are stored in their own tables (`research_measurements`, `dataset_imports`) and are never
-copied into astronaut records or used as personal medical thresholds.
+NASA measurements are stored in their own tables (`research_measurements`, `gene_expression_values`,
+`dataset_imports`) and are never copied into astronaut records or used as personal medical thresholds.
+
+### Scientific classification (v2.2)
+
+Every dataset carries a `study_type`, `organism`, `human_health_analysis`, `body_systems`, `measured` and
+`not_a_measurement_of`. `astronaut_specific_findings_allowed` is always `false`.
+
+| `study_type` | Meaning | Datasets |
+|---|---|---|
+| `HUMAN_SPACEFLIGHT` | People who flew (samples may be taken before launch / after return) | OSD-575, OSD-656 |
+| `HUMAN_GROUND_ANALOGUE` | Human volunteers in an Earth analogue (bed rest); nobody flew | OSD-195 |
+| `HUMAN_DERIVED_CELLS` | Human cells or tissue in culture, not a person | OSD-546, OSD-684, OSD-817 |
+| `ANIMAL_RESEARCH` | Non-human organisms; kept separate (`SEPARATE_ANIMAL_RESEARCH`) | OSD-654 (mouse) |
+| `SPACEFLIGHT_ENVIRONMENT` | Cabin telemetry, radiation, spacecraft microbiology (`ENVIRONMENT_CONTEXT`) | NASA-EDA, NASA-RADLAB, OSD-573 |
+| `FICTIONAL_DEMONSTRATION` | SENTINEL's fictional astronauts, habitat and devices | demo data (`SIMULATED_*` categories) |
+
+Only `PRIMARY_HUMAN_RESEARCH` datasets belong in the human-health research panels. OSD-654 stays listed as
+animal research and never produces astronaut-specific findings.
 
 ## 1. OSD-575 (P0, imported)
 
@@ -89,6 +106,88 @@ verbatim from NASA pages during this build and must be checked before quoting.
 
 To add one later: place files in `data/nasa/raw/<ID>/`, write an importer, and its status will move from
 `NOT_DOWNLOADED` → `UNSUPPORTED_FORMAT` (files present, no importer) → `IMPORTED`.
+
+## 2b. Human bone and muscle research (P1, v2.2): OSD-195 and OSD-546
+
+Importer: `Backend/app/importers/expression.py` (record schema `GENE_EXPRESSION_V1`). Sample metadata:
+`Backend/app/importers/expression_metadata.py`, read from the NASA OSDR metadata API
+(`https://osdr.nasa.gov/osdr/data/osd/meta/195`, `.../files/195`, `.../meta/546`, `.../files/546`) on 2026-11-14.
+
+**Current import status (2026-11-14):**
+
+| Dataset | Status | Records | Source file in repo |
+|---|---|---|---|
+| OSD-546 | `IMPORTED` | 432,861 values (33,297 probesets × 13 samples, 0 missing) | `data/nasa/raw/OSD-546/GLDS-546_array_normalized_expression_probeset.csv` (SHA-256 `e211cce1ed17eefb434eb56b6c15389cb41357b558b946fa2ded399caa8c19e6`) + `GLDS-546_array_SampleTable.csv` (SHA-256 `21d90843856899cbb3223858382010c0248691d96d73a0dc8537780472adc6e3`) |
+| OSD-195 | `NOT_DOWNLOADED` | 0 | none: only raw `.CEL.gz` files were supplied |
+
+The owner supplied the files in `Backend/Nasa Data/` (1.3 GB, git-ignored). The two OSD-546 files the importer
+needs were copied byte-for-byte into `data/nasa/raw/OSD-546/`. Checked against the source: TSPAN6
+(probeset 8173941), GSM2696758 = `9.35429261997248` in both. 11,985 probesets have `SYMBOL = NA` in the NASA file
+(for example, probesets that map to several Ensembl genes); their `gene_symbol` is `null`.
+
+For OSD-195, the folder holds 23 of the 24 raw CEL files (GSM2813727 missing; GSM2813728 and GSM2813750 also
+have duplicate "(1)" copies) and **no `*_processed.txt` files**. Raw Affymetrix data is deliberately not processed
+(P2), so OSD-195 shows no values.
+
+Supplied but not yet imported: `GLDS-546_array_differential_expression.csv` (NASA's limma results),
+`GLDS-546_array_contrasts.csv`, the probe-level intensity tables, the runsheet, and the OSD-656 files
+`LSDS-64_Multiplex_urine.immune.AlamarPanel_TRANSFORMED.csv` / `_SUBMITTED (1).xlsx` / `200plex v1-Target
+Information.csv`. `LSDS-8_Comprehensive_Metabolic_Panel_CMP_TRANSFORMED.csv` is an alternative OSD-575 table;
+SENTINEL keeps the SUBMITTED CSV already imported.
+
+### OSD-195 — human skeletal muscle, bed rest (`HUMAN_GROUND_ANALOGUE`)
+
+- Homo sapiens, 12 healthy men, vastus lateralis biopsies, before and after 21 days of bed rest (PlanHab).
+  Affymetrix microarray. 24 samples GSM2813727–GSM2813750; factor `Bed Rest` = `Before Bed Rest` /
+  `After Bed Rest` (verified per sample). Subject numbers 1–14 with gaps.
+- GSM2813749 (subject 14, Before Bed Rest) and GSM2813750 (subject 14, After Bed Rest) are a matched pair.
+- Title "Effects of 21 days of bedrest on human skeletal muscle gene expression" and the RMA normalisation
+  (Affymetrix Expression Console 1.4.1) come from a summary of the OSDR page, **not verified verbatim**.
+  So `normalization_verified=false` and `comparison_readiness.ready=false`.
+- Files the importer needs (place in `data/nasa/raw/OSD-195/`):
+  `GLDS-195_microarray_GSM2813749_processed.txt` (1,173,625 bytes per OSDR) and
+  `GLDS-195_microarray_GSM2813750_processed.txt` (1,173,747 bytes). Any other
+  `GLDS-195_microarray_GSM<id>_processed.txt` from the study is accepted. Note: OSDR lists GSM2813732
+  (994,010 bytes) and GSM2813734 (677,399 bytes) as much smaller than the others; check them before use.
+- The exact column layout of these processed files was not visible from the metadata. The importer accepts a
+  probe-ID column plus exactly one value column (`VALUE` preferred), tab- or comma-separated, and rejects
+  anything ambiguous with `IMPORT_FAILED` instead of guessing.
+- Not a measurement of astronaut muscle mass, strength or deterioration. One sample, or one pair, does not
+  show a general effect of bed rest.
+
+### OSD-546 — human bone-marrow stem cells on the ISS (`HUMAN_DERIVED_CELLS`)
+
+- Title (verified): "SCD – Stem Cell Differentiation Toward Osteoblast Onboard the International Space
+  Station". Human bone-marrow mesenchymal stem cells, about 2 weeks on the ISS (Soyuz TMA-15M/TMA-16M), in
+  osteogenic or standard medium, versus ground controls. Affymetrix Human Gene 1.0 ST.
+- Processing (verified): GeneLab NF_MAAffymetrix v1.0.0, R 4.1.3, oligo 1.58.0, background correction, quantile
+  normalisation, RMA summarisation. `normalization_verified=true`.
+- 13 samples GSM2696758–GSM2696770 in four groups:
+
+  | Spaceflight | Treatment | Samples |
+  |---|---|---|
+  | Space Flight | osteogenic | 3 |
+  | Space Flight | standard | 4 |
+  | Ground Control | osteogenic | 3 |
+  | Ground Control | standard | 3 |
+
+  Both factors are verified from NASA GeneLab's `GLDS-546_array_SampleTable.csv` (for example
+  `(Space Flight & osteogenic)`) and the runsheet column `Factor Value[Treatment]`. The importer re-checks every
+  sample against the SampleTable and fails on any disagreement.
+- Files the importer needs (place in `data/nasa/raw/OSD-546/`):
+  `GLDS-546_array_normalized_expression_probeset.csv` (19,811,541 bytes) and
+  `GLDS-546_array_SampleTable.csv` (574 bytes). The importer matches sample columns to verified GSM IDs or file
+  codes and fails if the SampleTable group disagrees with the verified flight/ground factor.
+- Not a measurement of astronaut bone density, bone mineral density or fracture risk. SENTINEL does not
+  recompute or reinterpret differential expression.
+
+### Transformation
+
+One record per probe/probeset per sample. Values are parsed to numbers with the original text kept in
+`value_raw`. NA/NaN/empty values are stored as `null`, never 0. Probe IDs and gene symbols are kept verbatim
+(a symbol only when it is in the NASA file, never inferred). Each file import is atomic and deduplicated by
+SHA-256, and a JSON log is written to `Backend/var/import_logs/`. No re-normalisation, fold change or
+statistics are computed.
 
 ## 3. Submission text (dataset section)
 

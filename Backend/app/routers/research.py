@@ -11,9 +11,11 @@ from .. import models as m
 from ..db import get_db
 from ..errors import ApiError
 from ..schemas.common import error_responses
-from ..schemas.research import (CmpRecord, DatasetDetail, DatasetList, Provenance, ResearchRecordsPage,
-                                TimeseriesPage)
+from ..schemas.research import (CmpRecord, ComparisonReadiness, DatasetDetail, DatasetList, GeneExpressionRecord,
+                                Provenance, ResearchRecordsPage, ResearchSample, StudyTypeInfo, TimeseriesPage)
 from ..services import datasets as ds
+from ..importers import expression as ex
+from ..importers.expression_metadata import SAMPLES
 from ..importers.osd575 import TRANSFORMATION
 
 router = APIRouter(prefix="/api/v1", tags=["research"])
@@ -33,11 +35,14 @@ def _unavailable(db: Session, settings, dataset_id: str) -> ApiError:
                      "source_url": ds.REGISTRY[dataset_id]["source_url"]})
 
 
-@router.get("/research/datasets", response_model=DatasetList, summary="Catalogue of the eight canonical NASA datasets")
+@router.get("/research/datasets", response_model=DatasetList,
+            summary="Catalogue of the canonical NASA datasets with scientific classification")
 def list_datasets(request: Request, db: Session = Depends(get_db)) -> DatasetList:
     st = request.app.state.settings
     return DatasetList(datasets=[ds.summary(db, st, d) for d in ds.CANONICAL_IDS], status_values=STATUS_VALUES,
-                       data_categories=["NASA_RESEARCH", "SIMULATED_ASTRONAUT", "SIMULATED_ENVIRONMENT_OR_DEVICE"])
+                       data_categories=["NASA_RESEARCH", "SIMULATED_ASTRONAUT", "SIMULATED_ENVIRONMENT_OR_DEVICE"],
+                       study_types=[StudyTypeInfo(study_type=t, label=lbl, description=d)
+                                    for t, lbl, d in ds.STUDY_TYPES])
 
 
 @router.get("/research/datasets/{dataset_id}", response_model=DatasetDetail, responses=error_responses(404),
@@ -48,10 +53,116 @@ def get_dataset(dataset_id: str, request: Request, db: Session = Depends(get_db)
     return ds.detail(db, request.app.state.settings, dataset_id)
 
 
+def _wrong_filter(dataset_id: str, given: dict[str, Optional[str]]) -> None:
+    bad = sorted(k for k, v in given.items() if v is not None)
+    if bad:
+        raise ApiError(422, "INVALID_FILTER_FOR_DATASET",
+                       f"Filter(s) {bad} do not apply to {dataset_id} ({ds.REGISTRY[dataset_id]['record_schema']}).",
+                       {"parameters": bad, "record_schema": ds.REGISTRY[dataset_id]["record_schema"]})
+
+
+def _provenance(dataset_id: str, imp: m.DatasetImport, transformation: str) -> Provenance:
+    meta = ds.REGISTRY[dataset_id]
+    return Provenance(dataset_id=dataset_id, title=meta["title"], organization=ds.OSDR, source_url=meta["source_url"],
+                      source_file=imp.source_file, sha256=imp.sha256, import_id=imp.import_id,
+                      imported_at=imp.finished_at or imp.started_at, transformation=transformation)
+
+
+def _readiness(dataset_id: str, imported: set[str]) -> ComparisonReadiness:
+    norm = ex.NORMALIZATION[dataset_id]
+    reasons = ["SENTINEL does not compute fold changes or statistics; any comparison is research context only."]
+    if dataset_id == "OSD-195":
+        by_subject: dict[str, set[str]] = {}
+        for gsm in imported:
+            meta = SAMPLES[dataset_id][gsm]
+            by_subject.setdefault(meta["subject_id"], set()).add(meta["factors"]["Bed Rest"])
+        pairs = sorted(s for s, phases in by_subject.items() if len(phases) == 2)
+        matched = bool(pairs)
+        reasons.append(f"Matched before/after bed-rest pairs imported for subject(s): {pairs}." if matched else
+                       "No subject has both its Before and After Bed Rest samples imported.")
+        if matched and len(pairs) == 1:
+            reasons.append("Only one subject: a single pair cannot show a general effect of bed rest.")
+    else:
+        f = [SAMPLES[dataset_id][g]["factors"] for g in imported]
+        media = [t for t in ("osteogenic", "standard")
+                 if {x["Spaceflight"] for x in f if x["Treatment"] == t} == {"Space Flight", "Ground Control"}]
+        matched = bool(media)
+        reasons.append(f"Space Flight and Ground Control samples imported in the same medium: {media}." if matched
+                       else "No medium has both Space Flight and Ground Control samples imported.")
+        reasons.append("Spaceflight and Treatment factors checked against NASA GLDS-546_array_SampleTable.csv.")
+        reasons.append("Cells in culture: results describe cell gene expression, not any person's bone health.")
+    reasons.append("Normalisation verified from NASA processing metadata." if norm["verified"] else
+                   "Normalisation not yet verified verbatim from NASA metadata.")
+    return ComparisonReadiness(ready=matched and norm["verified"], reasons=reasons)
+
+
+def _expression_page(db: Session, settings, dataset_id: str, subject_id: Optional[str], sample_id: Optional[str],
+                     probe_id: Optional[str], gene_symbol: Optional[str], limit: int, offset: int) -> ResearchRecordsPage:
+    G = m.GeneExpressionValue
+    imports = db.scalars(select(m.DatasetImport).where(m.DatasetImport.dataset_id == dataset_id,
+                                                       m.DatasetImport.status == "IMPORTED")
+                         .order_by(m.DatasetImport.started_at.desc())).all()
+    live = {s for s in db.scalars(select(G.source_file).where(G.dataset_id == dataset_id).distinct())}
+    current = {}
+    for imp in imports:  # newest first: keep the latest successful import of each file still holding rows
+        if imp.source_file in live and imp.source_file not in current:
+            current[imp.source_file] = imp
+    if not current:
+        raise _unavailable(db, settings, dataset_id)
+    meta, norm, samples_meta = ds.REGISTRY[dataset_id], ex.NORMALIZATION[dataset_id], SAMPLES[dataset_id]
+    imported = set(db.scalars(select(G.sample_id).where(G.dataset_id == dataset_id).distinct()))
+    subjects = sorted({samples_meta[g]["subject_id"] for g in imported if samples_meta[g]["subject_id"]}, key=int)
+    for name, val, allowed in (("subject_id", subject_id, subjects), ("sample_id", sample_id, sorted(imported))):
+        if val is not None and val not in allowed:
+            raise ApiError(422, "UNKNOWN_FILTER_VALUE", f"{name} '{val}' is not present in {dataset_id}.",
+                           {"parameter": name, "allowed_values": allowed})
+    base = select(G).where(G.dataset_id == dataset_id)
+    if subject_id:
+        base = base.where(G.sample_id.in_([g for g in imported if samples_meta[g]["subject_id"] == subject_id]))
+    if sample_id:
+        base = base.where(G.sample_id == sample_id)
+    if probe_id:
+        base = base.where(G.probe_id == probe_id)
+    if gene_symbol:
+        base = base.where(G.gene_symbol == gene_symbol)
+    total = db.scalar(select(func.count()).select_from(base.subquery()))
+    rows = db.scalars(base.order_by(G.source_file, G.source_row_number, G.sample_id).limit(limit).offset(offset)).all()
+    latest = next(iter(current.values()))
+    file_of = {g: (samples_meta[g]["processed_file"] or ex.OSD546_EXPRESSION) for g in samples_meta}
+    return ResearchRecordsPage(
+        dataset_id=dataset_id, title=meta["title"], source_url=meta["source_url"], source_file=latest.source_file,
+        record_schema=meta["record_schema"], provenance=_provenance(dataset_id, latest, ex.TRANSFORMATION),
+        total=total, limit=limit, offset=offset,
+        filters_applied={"subject_id": subject_id, "sample_id": sample_id, "probe_id": probe_id,
+                         "gene_symbol": gene_symbol},
+        available_subjects=subjects, available_analytes=[], available_timepoints=[],
+        limitations=meta["limitations"], records=[],
+        study_type=ds.CLASSIFICATION[dataset_id]["study_type"],
+        expression_records=[GeneExpressionRecord(
+            record_id=r.id, dataset_id=dataset_id, sample_id=r.sample_id,
+            subject_id=samples_meta[r.sample_id]["subject_id"],
+            condition_label=samples_meta[r.sample_id]["condition_label"], probe_id=r.probe_id,
+            gene_symbol=r.gene_symbol, value=r.value, value_raw=r.value_raw, value_unit=norm["value_unit"],
+            normalization=norm["text"], normalization_verified=norm["verified"], source_file=r.source_file,
+            source_row_number=r.source_row_number, source_column=r.source_column) for r in rows],
+        samples=[ResearchSample(sample_id=g, subject_id=s["subject_id"],
+                                study_type=ds.CLASSIFICATION[dataset_id]["study_type"], factors=s["factors"],
+                                factors_verified=s["factors_verified"], condition_label=s["condition_label"],
+                                source_file_name=file_of[g], imported=g in imported)
+                 for g, s in samples_meta.items()],
+        comparison_readiness=_readiness(dataset_id, imported),
+        source_files=[_provenance(dataset_id, imp, ex.TRANSFORMATION) for imp in current.values()])
+
+
 def _records_page(db: Session, settings, dataset_id: str, subject_id: Optional[str], analyte: Optional[str],
-                  timepoint: Optional[str], limit: int, offset: int) -> ResearchRecordsPage:
+                  timepoint: Optional[str], limit: int, offset: int, sample_id: Optional[str] = None,
+                  probe_id: Optional[str] = None, gene_symbol: Optional[str] = None) -> ResearchRecordsPage:
     if dataset_id not in ds.REGISTRY:
         raise _unknown_dataset(dataset_id)
+    if ds.REGISTRY[dataset_id]["record_schema"] == "GENE_EXPRESSION_V1":
+        _wrong_filter(dataset_id, {"analyte": analyte, "timepoint": timepoint})
+        return _expression_page(db, settings, dataset_id, subject_id, sample_id, probe_id, gene_symbol, limit, offset)
+    _wrong_filter(dataset_id, {"sample_id": sample_id, "probe_id": probe_id, "gene_symbol": gene_symbol})
     imp = db.scalars(select(m.DatasetImport).where(m.DatasetImport.dataset_id == dataset_id,
                                                    m.DatasetImport.status == "IMPORTED")
                      .order_by(m.DatasetImport.started_at.desc())).first()
@@ -81,10 +192,9 @@ def _records_page(db: Session, settings, dataset_id: str, subject_id: Optional[s
     return ResearchRecordsPage(
         dataset_id=dataset_id, title=meta["title"], source_url=meta["source_url"], source_file=imp.source_file,
         record_schema=meta["record_schema"],
-        provenance=Provenance(dataset_id=dataset_id, title=meta["title"], organization=ds.OSDR,
-                              source_url=meta["source_url"], source_file=imp.source_file, sha256=imp.sha256,
-                              import_id=imp.import_id, imported_at=imp.finished_at or imp.started_at,
-                              transformation=TRANSFORMATION),
+        provenance=_provenance(dataset_id, imp, TRANSFORMATION),
+        study_type=ds.CLASSIFICATION[dataset_id]["study_type"],
+        source_files=[_provenance(dataset_id, imp, TRANSFORMATION)],
         total=total, limit=limit, offset=offset,
         filters_applied={"subject_id": subject_id, "analyte": analyte, "timepoint": timepoint},
         available_subjects=subjects, available_analytes=analytes, available_timepoints=tps,
@@ -96,13 +206,21 @@ def _records_page(db: Session, settings, dataset_id: str, subject_id: Optional[s
 @router.get("/research/datasets/{dataset_id}/records", response_model=ResearchRecordsPage,
             responses=error_responses(404, 422, 503),
             summary="Numerical records of an imported dataset (paginated, filterable)",
-            description="503 DATASET_UNAVAILABLE (details.status, details.source_url) when not imported.")
+            description="503 DATASET_UNAVAILABLE (details.status, details.source_url) when not imported. "
+                        "CMP_ANALYTE_V1 datasets fill `records` (filters subject_id, analyte, timepoint). "
+                        "GENE_EXPRESSION_V1 datasets (OSD-195, OSD-546) fill `expression_records`, `samples` and "
+                        "`comparison_readiness` (filters subject_id, sample_id, probe_id, gene_symbol). A filter "
+                        "that does not apply to the dataset's schema returns 422 INVALID_FILTER_FOR_DATASET.")
 def dataset_records(dataset_id: str, request: Request, db: Session = Depends(get_db),
                     subject_id: Optional[str] = Query(None, examples=["C001"]),
                     analyte: Optional[str] = Query(None, examples=["GLUCOSE"]),
                     timepoint: Optional[str] = Query(None, examples=["L-92"]),
+                    sample_id: Optional[str] = Query(None, examples=["GSM2813750"]),
+                    probe_id: Optional[str] = Query(None),
+                    gene_symbol: Optional[str] = Query(None, examples=["MSTN"]),
                     limit: int = Query(100, ge=1, le=1000), offset: int = Query(0, ge=0)) -> ResearchRecordsPage:
-    return _records_page(db, request.app.state.settings, dataset_id, subject_id, analyte, timepoint, limit, offset)
+    return _records_page(db, request.app.state.settings, dataset_id, subject_id, analyte, timepoint, limit, offset,
+                         sample_id, probe_id, gene_symbol)
 
 
 @router.get("/research/osd-575", response_model=ResearchRecordsPage, responses=error_responses(422, 503),

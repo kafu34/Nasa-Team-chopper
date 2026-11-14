@@ -80,10 +80,13 @@ def main() -> int:
         check("GET /api/v1/cases/{id}", case["state"] == "monitoring" and len(case["follow_ups"]) == 1)
         res = c.get("/api/v1/research/osd-575").json()
         check("GET /api/v1/research/osd-575", res.get("total") == 531, f"total={res.get('total')}")
-        check("GET /api/v1/research/datasets", len(c.get("/api/v1/research/datasets").json()["datasets"]) == 8)
+        check("GET /api/v1/research/datasets", len(c.get("/api/v1/research/datasets").json()["datasets"]) == 10)
         check("GET /api/v1/research/datasets/OSD-575", c.get("/api/v1/research/datasets/OSD-575").json()["status"] == "IMPORTED")
         check("GET /api/v1/research/datasets/OSD-575/records",
               len(c.get("/api/v1/research/datasets/OSD-575/records", params={"limit": 5}).json()["records"]) == 5)
+        for ds_id, st in (("OSD-195", "HUMAN_GROUND_ANALOGUE"), ("OSD-546", "HUMAN_DERIVED_CELLS")):
+            d = c.get(f"/api/v1/research/datasets/{ds_id}").json()
+            check(f"GET /api/v1/research/datasets/{ds_id}", d["study_type"] == st, d["status"])
         check("GET /api/v1/environment/timeseries (503 expected)", c.get("/api/v1/environment/timeseries").status_code == 503)
         check("GET /api/v1/radiation/timeseries (503 expected)", c.get("/api/v1/radiation/timeseries").status_code == 503)
         emg = c.post("/api/v1/emergencies", json=boot["demo_inputs"]["emergency"])
@@ -92,7 +95,7 @@ def main() -> int:
                                                             "Access-Control-Request-Method": "GET"})
         check("CORS preflight from 127.0.0.1:5173", cors.headers.get("access-control-allow-origin") == "http://127.0.0.1:5173")
         reset = c.post("/api/v1/demo/reset").json()
-        check("POST /api/v1/demo/reset", reset["research_records_after"] == 531)
+        check("POST /api/v1/demo/reset", reset["research_records_after"] == reset["research_records_before"] >= 531)
     finally:
         proc.terminate()
         proc.wait(timeout=10)

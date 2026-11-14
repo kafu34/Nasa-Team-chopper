@@ -137,10 +137,13 @@ def seed_demo(db: Session, fx: dict, now: datetime | None = None) -> None:
 
 def reset_demo(db: Session, fx: dict) -> dict:
     """Delete every synthetic record and re-seed. Research tables are not touched."""
-    research_before = db.query(m.ResearchMeasurement).count()
+    def research_count() -> int:  # CMP records plus gene-expression values (all NASA_RESEARCH tables)
+        return db.query(m.ResearchMeasurement).count() + db.query(m.GeneExpressionValue).count()
+
+    research_before = research_count()
     for table in m.SYNTHETIC_TABLES:
         db.execute(delete(table))
     db.commit()
     seed_demo(db, fx)
-    research_after = db.query(m.ResearchMeasurement).count()
+    research_after = research_count()
     return {"research_records_before": research_before, "research_records_after": research_after}

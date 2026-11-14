@@ -470,7 +470,7 @@ paths:
     get:
       tags:
       - research
-      summary: Catalogue of the eight canonical NASA datasets
+      summary: Catalogue of the canonical NASA datasets with scientific classification
       operationId: list_datasets_api_v1_research_datasets_get
       responses:
         '200':
@@ -516,7 +516,10 @@ paths:
       tags:
       - research
       summary: Numerical records of an imported dataset (paginated, filterable)
-      description: 503 DATASET_UNAVAILABLE (details.status, details.source_url) when not imported.
+      description: 503 DATASET_UNAVAILABLE (details.status, details.source_url) when not imported. CMP_ANALYTE_V1 datasets
+        fill `records` (filters subject_id, analyte, timepoint). GENE_EXPRESSION_V1 datasets (OSD-195, OSD-546) fill `expression_records`,
+        `samples` and `comparison_readiness` (filters subject_id, sample_id, probe_id, gene_symbol). A filter that does not
+        apply to the dataset's schema returns 422 INVALID_FILTER_FOR_DATASET.
       operationId: dataset_records_api_v1_research_datasets__dataset_id__records_get
       parameters:
       - name: dataset_id
@@ -555,6 +558,34 @@ paths:
           examples:
           - L-92
           title: Timepoint
+      - name: sample_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - GSM2813750
+          title: Sample Id
+      - name: probe_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Probe Id
+      - name: gene_symbol
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - MSTN
+          title: Gene Symbol
       - name: limit
         in: query
         required: false
@@ -1370,6 +1401,8 @@ components:
           - OSD-684
           - OSD-573
           - OSD-817
+          - OSD-195
+          - OSD-546
           title: Dataset Id
         subject_id:
           type: string
@@ -1474,6 +1507,22 @@ components:
       - source_row_number
       title: CmpRecord
       description: One analyte value from LSDS-8_Comprehensive_Metabolic_Panel_CMP.upload_SUBMITTED.csv.
+    ComparisonReadiness:
+      properties:
+        ready:
+          type: boolean
+          title: Ready
+          description: True only when matched samples and verified normalisation are both present.
+        reasons:
+          items:
+            type: string
+          type: array
+          title: Reasons
+      type: object
+      required:
+      - ready
+      - reasons
+      title: ComparisonReadiness
     CompletedStep:
       properties:
         step_id:
@@ -1540,6 +1589,8 @@ components:
           - OSD-684
           - OSD-573
           - OSD-817
+          - OSD-195
+          - OSD-546
           title: Dataset Id
         title:
           type: string
@@ -1578,6 +1629,7 @@ components:
           - ENVIRONMENT_TIMESERIES_V1
           - RADIATION_TIMESERIES_V1
           - OMICS_OR_IMAGING
+          - GENE_EXPRESSION_V1
           title: Record Schema
         priority:
           type: string
@@ -1612,6 +1664,50 @@ components:
           - type: 'null'
           title: Records Endpoint
           description: Endpoint returning numerical records, when IMPORTED.
+        study_type:
+          type: string
+          enum:
+          - HUMAN_SPACEFLIGHT
+          - HUMAN_GROUND_ANALOGUE
+          - HUMAN_DERIVED_CELLS
+          - ANIMAL_RESEARCH
+          - SPACEFLIGHT_ENVIRONMENT
+          - FICTIONAL_DEMONSTRATION
+          title: Study Type
+        organism:
+          type: string
+          title: Organism
+          description: Organism studied, e.g. 'Homo sapiens', 'Mus musculus', or 'not applicable'.
+        human_health_analysis:
+          type: string
+          enum:
+          - PRIMARY_HUMAN_RESEARCH
+          - SEPARATE_ANIMAL_RESEARCH
+          - ENVIRONMENT_CONTEXT
+          title: Human Health Analysis
+          description: PRIMARY_HUMAN_RESEARCH for human studies; animal and environment sources are kept separate.
+        astronaut_specific_findings_allowed:
+          type: boolean
+          const: false
+          title: Astronaut Specific Findings Allowed
+          description: 'Always false: no NASA research dataset generates findings about a SENTINEL astronaut.'
+          default: false
+        body_systems:
+          items:
+            type: string
+          type: array
+          title: Body Systems
+          description: Anatomical Twin research panels this dataset informs, e.g. skeletal_muscle, bone, blood_chemistry.
+        measured:
+          type: string
+          title: Measured
+          description: Plain statement of what the experiment actually measured.
+        not_a_measurement_of:
+          items:
+            type: string
+          type: array
+          title: Not A Measurement Of
+          description: Things this dataset must never be displayed as.
         experimental_context:
           type: string
           title: Experimental Context
@@ -1644,6 +1740,12 @@ components:
       - expected_files
       - records_available
       - records_endpoint
+      - study_type
+      - organism
+      - human_health_analysis
+      - body_systems
+      - measured
+      - not_a_measurement_of
       - experimental_context
       - limitations
       - latest_import
@@ -1676,6 +1778,12 @@ components:
             - SIMULATED_ENVIRONMENT_OR_DEVICE
           type: array
           title: Data Categories
+        study_types:
+          items:
+            $ref: '#/components/schemas/StudyTypeInfo'
+          type: array
+          title: Study Types
+          description: v2.2 classification legend.
       type: object
       required:
       - datasets
@@ -1695,6 +1803,8 @@ components:
           - OSD-684
           - OSD-573
           - OSD-817
+          - OSD-195
+          - OSD-546
           title: Dataset Id
         title:
           type: string
@@ -1733,6 +1843,7 @@ components:
           - ENVIRONMENT_TIMESERIES_V1
           - RADIATION_TIMESERIES_V1
           - OMICS_OR_IMAGING
+          - GENE_EXPRESSION_V1
           title: Record Schema
         priority:
           type: string
@@ -1767,6 +1878,50 @@ components:
           - type: 'null'
           title: Records Endpoint
           description: Endpoint returning numerical records, when IMPORTED.
+        study_type:
+          type: string
+          enum:
+          - HUMAN_SPACEFLIGHT
+          - HUMAN_GROUND_ANALOGUE
+          - HUMAN_DERIVED_CELLS
+          - ANIMAL_RESEARCH
+          - SPACEFLIGHT_ENVIRONMENT
+          - FICTIONAL_DEMONSTRATION
+          title: Study Type
+        organism:
+          type: string
+          title: Organism
+          description: Organism studied, e.g. 'Homo sapiens', 'Mus musculus', or 'not applicable'.
+        human_health_analysis:
+          type: string
+          enum:
+          - PRIMARY_HUMAN_RESEARCH
+          - SEPARATE_ANIMAL_RESEARCH
+          - ENVIRONMENT_CONTEXT
+          title: Human Health Analysis
+          description: PRIMARY_HUMAN_RESEARCH for human studies; animal and environment sources are kept separate.
+        astronaut_specific_findings_allowed:
+          type: boolean
+          const: false
+          title: Astronaut Specific Findings Allowed
+          description: 'Always false: no NASA research dataset generates findings about a SENTINEL astronaut.'
+          default: false
+        body_systems:
+          items:
+            type: string
+          type: array
+          title: Body Systems
+          description: Anatomical Twin research panels this dataset informs, e.g. skeletal_muscle, bone, blood_chemistry.
+        measured:
+          type: string
+          title: Measured
+          description: Plain statement of what the experiment actually measured.
+        not_a_measurement_of:
+          items:
+            type: string
+          type: array
+          title: Not A Measurement Of
+          description: Things this dataset must never be displayed as.
       type: object
       required:
       - dataset_id
@@ -1783,6 +1938,12 @@ components:
       - expected_files
       - records_available
       - records_endpoint
+      - study_type
+      - organism
+      - human_health_analysis
+      - body_systems
+      - measured
+      - not_a_measurement_of
       title: DatasetSummary
     DemoInputs:
       properties:
@@ -2295,6 +2456,101 @@ components:
       - interrupt
       - created_at
       title: FollowUpOut
+    GeneExpressionRecord:
+      properties:
+        record_id:
+          type: integer
+          title: Record Id
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          - OSD-195
+          - OSD-546
+          title: Dataset Id
+        sample_id:
+          type: string
+          title: Sample Id
+        subject_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject Id
+        condition_label:
+          type: string
+          title: Condition Label
+        probe_id:
+          type: string
+          title: Probe Id
+          description: Probe/probeset/transcript-cluster ID, verbatim.
+        gene_symbol:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Gene Symbol
+          description: Gene symbol when present in the NASA file; never inferred.
+        value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Value
+          description: Processed expression value; null when the source cell is missing.
+        value_raw:
+          type: string
+          title: Value Raw
+        value_unit:
+          type: string
+          title: Value Unit
+          description: Scale of the value as published by NASA (e.g. RMA, log2 scale).
+        normalization:
+          type: string
+          title: Normalization
+        normalization_verified:
+          type: boolean
+          title: Normalization Verified
+        source_file:
+          type: string
+          title: Source File
+        source_row_number:
+          type: integer
+          title: Source Row Number
+        source_column:
+          type: string
+          title: Source Column
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+      type: object
+      required:
+      - record_id
+      - dataset_id
+      - sample_id
+      - subject_id
+      - condition_label
+      - probe_id
+      - gene_symbol
+      - value
+      - value_raw
+      - value_unit
+      - normalization
+      - normalization_verified
+      - source_file
+      - source_row_number
+      - source_column
+      title: GeneExpressionRecord
+      description: 'One processed expression value: one probe/probeset in one research sample (GENE_EXPRESSION_V1).'
     HTTPValidationError:
       properties:
         detail:
@@ -3088,6 +3344,8 @@ components:
           - OSD-684
           - OSD-573
           - OSD-817
+          - OSD-195
+          - OSD-546
           title: Dataset Id
         title:
           type: string
@@ -3201,6 +3459,8 @@ components:
           - OSD-684
           - OSD-573
           - OSD-817
+          - OSD-195
+          - OSD-546
           title: Dataset Id
         title:
           type: string
@@ -3219,6 +3479,7 @@ components:
           - ENVIRONMENT_TIMESERIES_V1
           - RADIATION_TIMESERIES_V1
           - OMICS_OR_IMAGING
+          - GENE_EXPRESSION_V1
           title: Record Schema
         data_category:
           type: string
@@ -3273,6 +3534,41 @@ components:
             $ref: '#/components/schemas/CmpRecord'
           type: array
           title: Records
+          description: CMP_ANALYTE_V1 records (OSD-575). Empty for other schemas.
+        study_type:
+          anyOf:
+          - type: string
+            enum:
+            - HUMAN_SPACEFLIGHT
+            - HUMAN_GROUND_ANALOGUE
+            - HUMAN_DERIVED_CELLS
+            - ANIMAL_RESEARCH
+            - SPACEFLIGHT_ENVIRONMENT
+            - FICTIONAL_DEMONSTRATION
+          - type: 'null'
+          title: Study Type
+        expression_records:
+          items:
+            $ref: '#/components/schemas/GeneExpressionRecord'
+          type: array
+          title: Expression Records
+          description: GENE_EXPRESSION_V1 records. Empty for other schemas.
+        samples:
+          items:
+            $ref: '#/components/schemas/ResearchSample'
+          type: array
+          title: Samples
+          description: Sample metadata (expression datasets).
+        comparison_readiness:
+          anyOf:
+          - $ref: '#/components/schemas/ComparisonReadiness'
+          - type: 'null'
+        source_files:
+          items:
+            $ref: '#/components/schemas/Provenance'
+          type: array
+          title: Source Files
+          description: Provenance of every imported file (multi-file datasets).
       type: object
       required:
       - dataset_id
@@ -3291,6 +3587,65 @@ components:
       - limitations
       - records
       title: ResearchRecordsPage
+    ResearchSample:
+      properties:
+        sample_id:
+          type: string
+          title: Sample Id
+          description: GEO sample accession used by NASA OSDR, e.g. GSM2813750.
+        subject_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subject Id
+          description: Anonymised research subject number as published; null for cells.
+        study_type:
+          type: string
+          enum:
+          - HUMAN_SPACEFLIGHT
+          - HUMAN_GROUND_ANALOGUE
+          - HUMAN_DERIVED_CELLS
+          - ANIMAL_RESEARCH
+          - SPACEFLIGHT_ENVIRONMENT
+          - FICTIONAL_DEMONSTRATION
+          title: Study Type
+        factors:
+          additionalProperties:
+            type: string
+          type: object
+          title: Factors
+          description: Experimental factor values, verbatim from OSDR metadata.
+        factors_verified:
+          additionalProperties:
+            type: boolean
+          type: object
+          title: Factors Verified
+          description: 'Per factor: true when read verbatim from the OSDR sample table; false when derived (e.g. from file
+            names).'
+        condition_label:
+          type: string
+          title: Condition Label
+        source_file_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source File Name
+          description: Name of the NASA file this sample's values came from.
+        imported:
+          type: boolean
+          title: Imported
+      type: object
+      required:
+      - sample_id
+      - subject_id
+      - study_type
+      - factors
+      - factors_verified
+      - condition_label
+      - source_file_name
+      - imported
+      title: ResearchSample
+      description: Verified sample metadata for an expression dataset (from the NASA OSDR study metadata).
     ResetOut:
       properties:
         reset:
@@ -3534,6 +3889,30 @@ components:
       - step_id
       - completion_source
       title: StepConfirm
+    StudyTypeInfo:
+      properties:
+        study_type:
+          type: string
+          enum:
+          - HUMAN_SPACEFLIGHT
+          - HUMAN_GROUND_ANALOGUE
+          - HUMAN_DERIVED_CELLS
+          - ANIMAL_RESEARCH
+          - SPACEFLIGHT_ENVIRONMENT
+          - FICTIONAL_DEMONSTRATION
+          title: Study Type
+        label:
+          type: string
+          title: Label
+        description:
+          type: string
+          title: Description
+      type: object
+      required:
+      - study_type
+      - label
+      - description
+      title: StudyTypeInfo
     SymptomCreate:
       properties:
         astronaut_id:
@@ -3682,6 +4061,8 @@ components:
           - OSD-684
           - OSD-573
           - OSD-817
+          - OSD-195
+          - OSD-546
           title: Dataset Id
         metric:
           type: string

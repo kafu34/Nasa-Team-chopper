@@ -1,4 +1,5 @@
-"""Registry of the eight canonical NASA dataset identifiers and their availability status.
+"""Registry of the canonical NASA dataset identifiers (eight from v2.1, OSD-195 and OSD-546 from v2.2),
+their scientific classification and availability status.
 
 Metadata marked *_verified=False has not been confirmed verbatim from the NASA source and must be
 checked before it is quoted in the submission.
@@ -93,8 +94,10 @@ REGISTRY: dict[str, dict] = {
         priority="P2",
         expected_files=["LSDS-66_microCT_uCT_TRANSFORMED.csv", "LSDS-66_Bone_Biomechanical_DXA_tibia_TRANSFORMED.csv"],
         importer=False,
-        experimental_context="Animal ground-analogue study; not human data.",
-        limitations=["No importer in P0.", "Mouse data; not transferable to astronaut thresholds."],
+        experimental_context="Animal ground-analogue study; not human data. Kept separately identified as animal "
+                             "research and excluded from SENTINEL's primary human-health analysis (v2.2).",
+        limitations=["No importer in P0.", "Mouse data; not transferable to astronaut thresholds.",
+                     "Animal research: never used to generate astronaut-specific medical findings."],
     ),
     "OSD-684": dict(
         title="Human skeletal muscle tissue chip autonomous payload reveals changes in fiber type and metabolic "
@@ -136,7 +139,124 @@ REGISTRY: dict[str, dict] = {
         experimental_context="Donor tissue study; relevance to spaceflight eye changes not yet verified here.",
         limitations=["No importer in P0.", "Imaging processing deferred (P2)."],
     ),
+    "OSD-195": dict(
+        title="Effects of 21 days of bedrest on human skeletal muscle gene expression (title pending verification)",
+        title_verified=False,
+        description="Skeletal-muscle (vastus lateralis) gene expression in 12 healthy male volunteers before and "
+                    "after 21 days of bed rest, Affymetrix microarrays. One processed (normalised) expression file "
+                    "per sample (24 samples).",
+        source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-195",
+        source_url_verified=True,
+        record_schema="GENE_EXPRESSION_V1",
+        priority="P1",
+        expected_files=["GLDS-195_microarray_GSM2813749_processed.txt",
+                        "GLDS-195_microarray_GSM2813750_processed.txt",
+                        "(any other GLDS-195_microarray_GSM<id>_processed.txt from OSDR)"],
+        importer=True,
+        experimental_context="Human ground analogue: bed rest on Earth. Nobody in this study flew in space. "
+                             "Sample pairs are matched per subject (Before Bed Rest / After Bed Rest), verified "
+                             "from the NASA OSDR sample metadata.",
+        limitations=[
+            "Ground-analogue (bed rest) study, not an astronaut or spaceflight dataset.",
+            "Gene expression (mRNA abundance) only; it is not a measurement of muscle mass, strength or function.",
+            "12 healthy male volunteers; not representative of all crew members.",
+            "Normalisation method stated in the OSDR summary (RMA) is not yet verified verbatim; no cross-sample "
+            "comparison is computed by SENTINEL.",
+            "Raw .CEL microarray files are not processed by SENTINEL (P2).",
+            "Research context only. Never used to diagnose or assess a SENTINEL astronaut.",
+        ],
+    ),
+    "OSD-546": dict(
+        title="SCD – Stem Cell Differentiation Toward Osteoblast Onboard the International Space Station",
+        title_verified=True,
+        description="Human bone-marrow mesenchymal stem cells cultured about 2 weeks aboard the ISS (Soyuz "
+                    "TMA-15M/TMA-16M) in osteogenic or standard medium, versus ground controls; Affymetrix Human "
+                    "Gene 1.0 ST microarrays processed by the NASA GeneLab pipeline.",
+        source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-546",
+        source_url_verified=True,
+        record_schema="GENE_EXPRESSION_V1",
+        priority="P1",
+        expected_files=["GLDS-546_array_normalized_expression_probeset.csv", "GLDS-546_array_SampleTable.csv"],
+        importer=True,
+        experimental_context="Spaceflight experiment on human-derived cells in culture (13 samples: 7 flight, "
+                             "6 ground control). No astronaut was measured. Spaceflight (Space Flight / Ground "
+                             "Control) and Treatment (osteogenic / standard medium) verified from NASA GeneLab's "
+                             "GLDS-546_array_SampleTable.csv and runsheet.",
+        limitations=[
+            "Human-derived cells in culture, not a measurement of any person's bone density or bone health.",
+            "Gene expression only; not bone mineral density, fracture risk or osteoporosis status.",
+            "Small groups: 3-4 cell-culture replicates per flight/medium group.",
+            "No differential-expression result is recomputed or reinterpreted by SENTINEL.",
+            "Research context only. Never used to diagnose or assess a SENTINEL astronaut.",
+        ],
+    ),
 }
+
+# v2.2 scientific classification. human_health_analysis keeps animal and environment sources out of the
+# primary human-health analysis. No dataset may generate astronaut-specific findings.
+CLASSIFICATION: dict[str, dict] = {
+    "OSD-575": dict(study_type="HUMAN_SPACEFLIGHT", organism="Homo sapiens",
+                    human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["blood_chemistry"],
+                    measured="Blood serum chemistry (comprehensive metabolic panel) of the four Inspiration4 crew "
+                             "members, sampled on the ground before launch and after return.",
+                    not_a_measurement_of=["SENTINEL astronaut DEMO-001 or DEMO-002", "in-flight blood chemistry"]),
+    "OSD-656": dict(study_type="HUMAN_SPACEFLIGHT", organism="Homo sapiens",
+                    human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["immune_inflammation"],
+                    measured="Urine inflammation protein panel of the Inspiration4 crew, pre- and post-flight.",
+                    not_a_measurement_of=["SENTINEL astronaut DEMO-001 or DEMO-002"]),
+    "NASA-EDA": dict(study_type="SPACEFLIGHT_ENVIRONMENT", organism="not applicable",
+                     human_health_analysis="ENVIRONMENT_CONTEXT", body_systems=[],
+                     measured="ISS cabin environmental telemetry for specific research missions.",
+                     not_a_measurement_of=["live HAB-01 habitat readings", "any person's physiology"]),
+    "NASA-RADLAB": dict(study_type="SPACEFLIGHT_ENVIRONMENT", organism="not applicable",
+                        human_health_analysis="ENVIRONMENT_CONTEXT", body_systems=[],
+                        measured="Space radiation dosimetry (source pending verification).",
+                        not_a_measurement_of=["live HAB-01 dosimeter readings", "an astronaut's personal dose"]),
+    "OSD-654": dict(study_type="ANIMAL_RESEARCH", organism="Mus musculus",
+                    human_health_analysis="SEPARATE_ANIMAL_RESEARCH", body_systems=["bone"],
+                    measured="Mouse tibia bone measurements (DXA, micro-CT).",
+                    not_a_measurement_of=["human or astronaut bone density"]),
+    "OSD-684": dict(study_type="HUMAN_DERIVED_CELLS", organism="Homo sapiens",
+                    human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["skeletal_muscle"],
+                    measured="Gene expression of human skeletal-muscle tissue chips, spaceflight vs ground.",
+                    not_a_measurement_of=["astronaut muscle mass or strength"]),
+    "OSD-573": dict(study_type="SPACEFLIGHT_ENVIRONMENT", organism="microbial communities (metagenomics)",
+                    human_health_analysis="ENVIRONMENT_CONTEXT", body_systems=[],
+                    measured="Microbial DNA from Inspiration4 capsule surface swabs.",
+                    not_a_measurement_of=["an astronaut infection or microbiome diagnosis"]),
+    "OSD-817": dict(study_type="HUMAN_DERIVED_CELLS", organism="Homo sapiens",
+                    human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["eye_optic_nerve"],
+                    measured="Histology of human donor optic-nerve tissue in culture (pending verification).",
+                    not_a_measurement_of=["astronaut eye health or vision"]),
+    "OSD-195": dict(study_type="HUMAN_GROUND_ANALOGUE", organism="Homo sapiens",
+                    human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["skeletal_muscle"],
+                    measured="mRNA expression in thigh-muscle biopsies of volunteers before and after 21 days of "
+                             "bed rest on Earth.",
+                    not_a_measurement_of=["astronaut muscle mass", "muscle strength",
+                                          "muscle deterioration of any SENTINEL astronaut", "spaceflight data"]),
+    "OSD-546": dict(study_type="HUMAN_DERIVED_CELLS", organism="Homo sapiens",
+                    human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["bone"],
+                    measured="mRNA expression of human bone-marrow stem cells cultured aboard the ISS versus on "
+                             "the ground, in osteogenic or standard medium.",
+                    not_a_measurement_of=["astronaut bone density", "bone mineral density", "fracture risk",
+                                          "any person's bone health"]),
+}
+
+STUDY_TYPES = [
+    ("HUMAN_SPACEFLIGHT", "Human spaceflight measurements",
+     "Measurements from people who flew in space (samples may be collected before launch or after return)."),
+    ("HUMAN_GROUND_ANALOGUE", "Human ground-analogue experiment",
+     "Human volunteers in an Earth-based analogue of spaceflight, such as bed rest. Nobody flew."),
+    ("HUMAN_DERIVED_CELLS", "Human-derived cells or tissue",
+     "Experiments on human cells or tissue in culture (in flight or on the ground), not on a person."),
+    ("ANIMAL_RESEARCH", "Animal research",
+     "Non-human organisms. Kept separate and never used for astronaut-specific findings."),
+    ("SPACEFLIGHT_ENVIRONMENT", "Spacecraft environment",
+     "Cabin telemetry, radiation or spacecraft microbiology. Not a body measurement."),
+    ("FICTIONAL_DEMONSTRATION", "Fictional demonstration data",
+     "SENTINEL's fictional astronauts, habitat and devices (data categories SIMULATED_ASTRONAUT and "
+     "SIMULATED_ENVIRONMENT_OR_DEVICE). Not real measurements."),
+]
 
 CANONICAL_IDS = list(REGISTRY)
 
@@ -159,8 +279,9 @@ def latest_import(db: Session, dataset_id: str) -> m.DatasetImport | None:
 
 
 def record_count(db: Session, dataset_id: str) -> int:
-    return db.scalar(select(func.count()).select_from(m.ResearchMeasurement)
-                     .where(m.ResearchMeasurement.dataset_id == dataset_id)) or 0
+    table = m.GeneExpressionValue if REGISTRY[dataset_id]["record_schema"] == "GENE_EXPRESSION_V1" \
+        else m.ResearchMeasurement
+    return db.scalar(select(func.count()).select_from(table).where(table.dataset_id == dataset_id)) or 0
 
 
 def compute_status(db: Session, settings: Settings, dataset_id: str) -> tuple[str, str]:
@@ -172,6 +293,10 @@ def compute_status(db: Session, settings: Settings, dataset_id: str) -> tuple[st
     if last is not None and last.status == "IMPORT_FAILED":
         return "IMPORT_FAILED", last.message
     folder = raw_dir_for(settings, dataset_id)
+    if meta["record_schema"] == "GENE_EXPRESSION_V1":
+        from ..importers import expression
+
+        return expression.file_status(settings, dataset_id, folder)
     if meta["importer"]:
         if (folder / meta["expected_files"][0]).is_file():
             return "READY_TO_IMPORT", "Source file present; run the importer."
@@ -199,6 +324,7 @@ def _base(db: Session, settings: Settings, dataset_id: str) -> dict:
         expected_files=meta["expected_files"],
         records_available=record_count(db, dataset_id),
         records_endpoint=f"/api/v1/research/datasets/{dataset_id}/records" if status == "IMPORTED" else None,
+        **CLASSIFICATION[dataset_id],
     )
 
 

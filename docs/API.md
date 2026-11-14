@@ -72,7 +72,15 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   {reviewed_procedure_available: false, limitation, crew_actions[]}, equipment_assistance, next_action}`.
 
 ### Research (NASA)
-- `GET /api/v1/research/datasets` → `{datasets[], status_values[], data_categories[]}`.
+- `GET /api/v1/research/datasets` → `{datasets[], status_values[], data_categories[], study_types[]}`.
+  v2.2 adds `OSD-195` and `OSD-546` (10 datasets total). Each dataset also has `study_type`, `organism`,
+  `human_health_analysis`, `astronaut_specific_findings_allowed` (always false), `body_systems`, `measured` and
+  `not_a_measurement_of`.
+- Gene-expression datasets (`record_schema: GENE_EXPRESSION_V1`: OSD-195, OSD-546) use the same records
+  endpoint with filters `subject_id`, `sample_id`, `probe_id` and `gene_symbol`. The page fills
+  `expression_records[]`, `samples[]`, `comparison_readiness` and `source_files[]`, and leaves `records[]`
+  empty. A filter of the wrong schema returns 422 `INVALID_FILTER_FOR_DATASET`. Details:
+  `docs/INTEGRATION_HANDOFF.md` §11.
 - `GET /api/v1/research/datasets/{dataset_id}` → summary + `experimental_context`, `limitations`, `latest_import`, `raw_dir`.
 - `GET /api/v1/research/datasets/{dataset_id}/records?subject_id&analyte&timepoint&limit(1-1000, default 100)&offset`
 - `GET /api/v1/research/osd-575?subject_id&analyte&timepoint&limit(1-1000, default 1000)&offset`

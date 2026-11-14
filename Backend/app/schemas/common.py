@@ -10,6 +10,16 @@ from ..db import as_utc
 
 DataCategory = Literal["NASA_RESEARCH", "SIMULATED_ASTRONAUT", "SIMULATED_ENVIRONMENT_OR_DEVICE"]
 DatasetStatus = Literal["NOT_DOWNLOADED", "READY_TO_IMPORT", "IMPORTED", "IMPORT_FAILED", "UNSUPPORTED_FORMAT"]
+# v2.2 scientific classification of a data source (what kind of evidence it is).
+StudyType = Literal[
+    "HUMAN_SPACEFLIGHT",        # measurements from humans who flew (samples may be collected on the ground pre/post flight)
+    "HUMAN_GROUND_ANALOGUE",    # human volunteers in a ground analogue such as bed rest; nobody flew
+    "HUMAN_DERIVED_CELLS",      # human cells or tissue (in flight or on ground), not a person
+    "ANIMAL_RESEARCH",          # non-human organisms; never used for astronaut-specific findings
+    "SPACEFLIGHT_ENVIRONMENT",  # spacecraft environment, telemetry, radiation or microbiome; not a body measurement
+    "FICTIONAL_DEMONSTRATION",  # SENTINEL's fictional demo astronaut, habitat and device data
+]
+HumanHealthAnalysis = Literal["PRIMARY_HUMAN_RESEARCH", "SEPARATE_ANIMAL_RESEARCH", "ENVIRONMENT_CONTEXT"]
 CaseState = Literal[
     "detected",
     "investigating",

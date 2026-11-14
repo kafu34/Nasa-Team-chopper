@@ -18,7 +18,8 @@ def test_bootstrap_shared_identifiers(client):
     assert len(b["equipment"]) + len(b["anchors"]) >= 6
     assert any(e["capability"] == "blood_pressure" and e["readiness"] == "verified_ready" for e in b["equipment"])
     assert {d["dataset_id"] for d in b["research_datasets"]} == {
-        "OSD-575", "OSD-656", "NASA-EDA", "NASA-RADLAB", "OSD-654", "OSD-684", "OSD-573", "OSD-817"}
+        "OSD-575", "OSD-656", "NASA-EDA", "NASA-RADLAB", "OSD-654", "OSD-684", "OSD-573", "OSD-817",
+        "OSD-195", "OSD-546"}
 
 
 def test_bootstrap_scheduled_assessment_is_due(client):

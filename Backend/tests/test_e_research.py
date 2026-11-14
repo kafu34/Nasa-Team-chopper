@@ -142,10 +142,11 @@ def test_malformed_csv_marks_import_failed(harness):
     assert c.get("/api/v1/research/osd-575").status_code == 503
 
 
-def test_registry_lists_eight_canonical_ids(imported):
+def test_registry_lists_canonical_ids_v22(imported):
     b = imported.get("/api/v1/research/datasets").json()
     ids = [d["dataset_id"] for d in b["datasets"]]
-    assert ids == ["OSD-575", "OSD-656", "NASA-EDA", "NASA-RADLAB", "OSD-654", "OSD-684", "OSD-573", "OSD-817"]
+    assert ids == ["OSD-575", "OSD-656", "NASA-EDA", "NASA-RADLAB", "OSD-654", "OSD-684", "OSD-573", "OSD-817",
+                   "OSD-195", "OSD-546"]
     st = {d["dataset_id"]: d["status"] for d in b["datasets"]}
     assert st["OSD-575"] == "IMPORTED" and all(v == "NOT_DOWNLOADED" for k, v in st.items() if k != "OSD-575")
     assert set(b["status_values"]) == {"NOT_DOWNLOADED", "READY_TO_IMPORT", "IMPORTED", "IMPORT_FAILED",

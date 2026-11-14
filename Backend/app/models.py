@@ -290,3 +290,28 @@ class ResearchMeasurement(Base):
     timepoint_phase: Mapped[str] = mapped_column(String)
     timepoint_day_offset: Mapped[int] = mapped_column(Integer)
     timepoint_order: Mapped[int] = mapped_column(Integer)
+
+
+class GeneExpressionValue(Base):
+    """One processed (normalised) expression value: one probe/probeset in one NASA research sample.
+
+    Research data only (NASA_RESEARCH). Never linked to a SENTINEL astronaut, case or measurement.
+    """
+
+    __tablename__ = "gene_expression_values"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "source_file", "source_row_number", "sample_id", name="uq_expression_cell"),
+        Index("ix_expression_sample_probe", "dataset_id", "sample_id", "probe_id"),
+        Index("ix_expression_gene", "dataset_id", "gene_symbol"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(String, index=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey("dataset_imports.import_id"))
+    source_file: Mapped[str] = mapped_column(String)
+    source_row_number: Mapped[int] = mapped_column(Integer)
+    source_column: Mapped[str] = mapped_column(String)
+    sample_id: Mapped[str] = mapped_column(String)
+    probe_id: Mapped[str] = mapped_column(String)
+    gene_symbol: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    value_raw: Mapped[str] = mapped_column(String)

@@ -3,6 +3,34 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## v2.2 update (OSD-195 / OSD-546), run 2026-11-14
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **111 passed, 0 failed** (86 earlier tests + 25 new in `test_i_expression.py`; two earlier tests updated for the 10-ID registry) |
+| `scripts/export_openapi.py --check` | matches the app |
+| `scripts/http_smoke.py` | **21/21** (adds OSD-195 and OSD-546 checks; OSD-546 reported `IMPORTED`) |
+| `scripts/import_nasa.py` with the real NASA files | OSD-546 `imported` 432,861 values / 13 samples in about 17 s; re-run `skipped_duplicate`. OSD-195 `not_found` (no processed files). OSD-575 unchanged (531). |
+| Spot check against the source | TSPAN6, probeset 8173941: all 13 API values equal the NASA CSV digit for digit |
+
+`test_i_expression.py` covers:
+- the classification of every dataset, OSD-654 kept apart as animal research, and the study-type legend;
+- missing files (503 responses and status messages), raw CEL-only → `UNSUPPORTED_FORMAT`, and a partial
+  OSD-546 download;
+- OSD-195 import:
+  - values, `value_raw`, NA → null, provenance and SHA-256;
+  - verified before/after pairing and `comparison_readiness`;
+  - duplicate imports, a changed file replacing only its own rows, and headerless files;
+  - malformed files failing atomically (4 cases) and unverified samples being rejected;
+- OSD-546 import with verified groups, failure when the SampleTable disagrees or lacks a sample;
+- schema-specific filters and unchanged OSD-575 response shape;
+- research values never appearing in case or bootstrap responses, and reset leaving them intact.
+
+**Not covered:**
+- **OSD-546:** the importer was run on the real NASA probeset table and SampleTable; the tests use synthetic
+  files with the same layout.
+- **OSD-195:** the parser has only been tested on synthetic files, because no real processed file was supplied.
+
 ## Results
 
 | Suite | Command | Result |

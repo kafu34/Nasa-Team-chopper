@@ -5,12 +5,13 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from .common import DataCategory, DatasetStatus
+from .common import DataCategory, DatasetStatus, HumanHealthAnalysis, StudyType
 
-DatasetId = Literal["OSD-575", "OSD-656", "NASA-EDA", "NASA-RADLAB", "OSD-654", "OSD-684", "OSD-573", "OSD-817"]
+DatasetId = Literal["OSD-575", "OSD-656", "NASA-EDA", "NASA-RADLAB", "OSD-654", "OSD-684", "OSD-573", "OSD-817",
+                    "OSD-195", "OSD-546"]
 RecordSchema = Literal[
     "CMP_ANALYTE_V1", "BIO_ASSAY_TABLE", "ENVIRONMENT_TIMESERIES_V1", "RADIATION_TIMESERIES_V1",
-    "OMICS_OR_IMAGING",
+    "OMICS_OR_IMAGING", "GENE_EXPRESSION_V1",
 ]
 
 
@@ -43,6 +44,17 @@ class DatasetSummary(BaseModel):
     expected_files: list[str]
     records_available: int
     records_endpoint: Optional[str] = Field(description="Endpoint returning numerical records, when IMPORTED.")
+    # v2.2 classification (additive fields)
+    study_type: StudyType
+    organism: str = Field(description="Organism studied, e.g. 'Homo sapiens', 'Mus musculus', or 'not applicable'.")
+    human_health_analysis: HumanHealthAnalysis = Field(
+        description="PRIMARY_HUMAN_RESEARCH for human studies; animal and environment sources are kept separate.")
+    astronaut_specific_findings_allowed: Literal[False] = Field(
+        False, description="Always false: no NASA research dataset generates findings about a SENTINEL astronaut.")
+    body_systems: list[str] = Field(description="Anatomical Twin research panels this dataset informs, "
+                                                "e.g. skeletal_muscle, bone, blood_chemistry.")
+    measured: str = Field(description="Plain statement of what the experiment actually measured.")
+    not_a_measurement_of: list[str] = Field(description="Things this dataset must never be displayed as.")
 
 
 class DatasetDetail(DatasetSummary):
@@ -52,10 +64,17 @@ class DatasetDetail(DatasetSummary):
     raw_dir: str = Field(description="Repository-relative folder the importer reads.")
 
 
+class StudyTypeInfo(BaseModel):
+    study_type: StudyType
+    label: str
+    description: str
+
+
 class DatasetList(BaseModel):
     datasets: list[DatasetSummary]
     status_values: list[DatasetStatus]
     data_categories: list[DataCategory]
+    study_types: list[StudyTypeInfo] = Field(default_factory=list, description="v2.2 classification legend.")
 
 
 class Provenance(BaseModel):
@@ -95,6 +114,46 @@ class CmpRecord(BaseModel):
     data_category: DataCategory = "NASA_RESEARCH"
 
 
+class ResearchSample(BaseModel):
+    """Verified sample metadata for an expression dataset (from the NASA OSDR study metadata)."""
+
+    sample_id: str = Field(description="GEO sample accession used by NASA OSDR, e.g. GSM2813750.")
+    subject_id: Optional[str] = Field(description="Anonymised research subject number as published; null for cells.")
+    study_type: StudyType
+    factors: dict[str, str] = Field(description="Experimental factor values, verbatim from OSDR metadata.")
+    factors_verified: dict[str, bool] = Field(description="Per factor: true when read verbatim from the OSDR "
+                                                          "sample table; false when derived (e.g. from file names).")
+    condition_label: str
+    source_file_name: Optional[str] = Field(description="Name of the NASA file this sample's values came from.")
+    imported: bool
+
+
+class ComparisonReadiness(BaseModel):
+    ready: bool = Field(description="True only when matched samples and verified normalisation are both present.")
+    reasons: list[str]
+
+
+class GeneExpressionRecord(BaseModel):
+    """One processed expression value: one probe/probeset in one research sample (GENE_EXPRESSION_V1)."""
+
+    record_id: int
+    dataset_id: DatasetId
+    sample_id: str
+    subject_id: Optional[str]
+    condition_label: str
+    probe_id: str = Field(description="Probe/probeset/transcript-cluster ID, verbatim.")
+    gene_symbol: Optional[str] = Field(description="Gene symbol when present in the NASA file; never inferred.")
+    value: Optional[float] = Field(description="Processed expression value; null when the source cell is missing.")
+    value_raw: str
+    value_unit: str = Field(description="Scale of the value as published by NASA (e.g. RMA, log2 scale).")
+    normalization: str
+    normalization_verified: bool
+    source_file: str
+    source_row_number: int
+    source_column: str
+    data_category: DataCategory = "NASA_RESEARCH"
+
+
 class ResearchRecordsPage(BaseModel):
     dataset_id: DatasetId
     title: str
@@ -111,7 +170,15 @@ class ResearchRecordsPage(BaseModel):
     available_analytes: list[str]
     available_timepoints: list[str] = Field(description="Chronologically ordered.")
     limitations: list[str]
-    records: list[CmpRecord]
+    records: list[CmpRecord] = Field(description="CMP_ANALYTE_V1 records (OSD-575). Empty for other schemas.")
+    # v2.2 additive fields for GENE_EXPRESSION_V1 datasets (OSD-195, OSD-546)
+    study_type: Optional[StudyType] = None
+    expression_records: list[GeneExpressionRecord] = Field(
+        default_factory=list, description="GENE_EXPRESSION_V1 records. Empty for other schemas.")
+    samples: list[ResearchSample] = Field(default_factory=list, description="Sample metadata (expression datasets).")
+    comparison_readiness: Optional[ComparisonReadiness] = None
+    source_files: list[Provenance] = Field(default_factory=list,
+                                           description="Provenance of every imported file (multi-file datasets).")
 
 
 class TimeseriesPoint(BaseModel):
