@@ -91,18 +91,31 @@ look before and after a short spaceflight, with units and reference ranges as pu
 ## 2. Catalogue datasets (not imported)
 
 These identifiers are in the shared registry (`GET /api/v1/research/datasets`) with honest status
-`NOT_DOWNLOADED`. No importer exists yet; no values are shown. Fields marked unverified were not confirmed
-verbatim from NASA pages during this build and must be checked before quoting.
+`NOT_DOWNLOADED`. No importer exists yet, so no values are shown.
 
-| ID | Priority | What it contains (from the OSDR metadata API unless noted) | Title verified | Source URL |
-|---|---|---|---|---|
-| `OSD-656` | P1 | **Now imported — see §2c.** Inspiration4 crew urine, NULISA-seq 200-plex inflammation panel, pre/post flight | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-656 |
-| `NASA-EDA` | P1 | Environmental Data App: ISS cabin/hardware telemetry (temperature, humidity, CO2) and radiation summaries | Yes ("Environmental Data App") | https://visualization.osdr.nasa.gov/eda/ |
-| `NASA-RADLAB` | P1 | Space radiation dosimetry data — portal name and URL **not confirmed** | No | https://visualization.osdr.nasa.gov/radlab/ (unconfirmed lead) |
-| `OSD-654` | P2 | Mouse tibia bone DXA and micro-CT, hindlimb-unloading ground analogue | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-654 |
-| `OSD-684` | P2 | "Human skeletal muscle tissue chip autonomous payload reveals changes in fiber type and metabolic gene expression due to spaceflight" — bulk RNA-seq | Yes | https://osdr.nasa.gov/bio/repo/data/studies/OSD-684 |
-| `OSD-573` | P2 | Inspiration4 Dragon capsule environmental shotgun metagenomics | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-573 |
-| `OSD-817` | P2 | Human donor optic nerve tissue histology and immunostaining | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-817 |
+### Verified titles (2026-11-14)
+
+Every title in the registry is now `title_verified: true`.
+- **OSD studies:** read verbatim from the study `title` field of the NASA OSDR metadata API,
+  `https://osdr.nasa.gov/osdr/data/osd/meta/<n>`. Project type and mission come from the same record.
+- **NASA-EDA and NASA-RADLAB:** read from the OSDR visualization home page and the portal pages.
+
+| ID | Exact title | Project type / mission (OSDR) | Organism |
+|---|---|---|---|
+| `OSD-575` | SpaceX Inspiration4 Blood Serum Metabolic Panel and Immune/Cardiac Cytokine Arrays (Comprehensive Metabolic Panel and Multiplex) | Spaceflight Study, SpaceX Inspiration4 (09/16–09/18/2021) | Homo sapiens |
+| `OSD-656` | SpaceX Inspiration4 Urine Inflammation Panel (Multiplex, NULISAseq) | Spaceflight Study, SpaceX Inspiration4 (09/16–09/18/2021) | Homo sapiens |
+| `OSD-195` | Effects of 21 days of bedrest on human skeletal muscle gene expression | Ground Study | Homo sapiens |
+| `OSD-546` | SCD – Stem Cell Differentiation Toward Osteoblast Onboard the International Space Station | Spaceflight Study, Soyuz TMA-15M / TMA-16M (Italian Space Agency) | Homo sapiens (cells) |
+| `OSD-654` | Toward countering muscle and bone loss with spaceflight: GSK3 as a potential target (Tibia, RR9 and HLU, MicroCT and DXA Scanning) | Spaceflight Study, SpaceX-12 / Rodent Research-9 on the ISS (08/14–09/17/2017), plus hindlimb unloading on the ground | Mus musculus |
+| `OSD-684` | Human skeletal muscle tissue chip autonomous payload reveals changes in fiber type and metabolic gene expression due to spaceflight | listed as "Ground Study" in OSDR although the payload flew on SpaceX-21 (12/2020–01/2021) | Homo sapiens (tissue chips) |
+| `OSD-573` | SpaceX Inspiration4 Dragon Capsule Metagenomic and Metatranscriptomic Microbial Swabs | Spaceflight Study, SpaceX Inspiration4 | microbial communities |
+| `OSD-817` | The ex vivo human translaminar autonomous system to study spaceflight associated neuro-ocular syndrome pathogenesis (Optic Nerve, Histology and Microscopy) | Ground Study (donor tissue) | Homo sapiens |
+| `NASA-EDA` | Environmental Data App (EDA) | portal, https://visualization.osdr.nasa.gov/eda/ | — |
+| `NASA-RADLAB` | RadLab | portal, https://visualization.osdr.nasa.gov/radlab/ ("a single point of access to radiation telemetry data from multiple databases maintained by multiple space agencies") | — |
+
+**Correction:** OSD-654 was earlier described as a ground-analogue study only. Its NASA record shows that it
+includes **mice flown on the ISS** (Rodent Research-9) as well as hindlimb-unloaded mice. It remains
+`ANIMAL_RESEARCH` and is still excluded from the human-health analysis.
 
 To add one later: place files in `data/nasa/raw/<ID>/`, write an importer, and its status will move from
 `NOT_DOWNLOADED` → `UNSUPPORTED_FORMAT` (files present, no importer) → `IMPORTED`.
@@ -141,9 +154,10 @@ the SUBMITTED CSV already imported.
   Affymetrix microarray. 24 samples GSM2813727–GSM2813750; factor `Bed Rest` = `Before Bed Rest` /
   `After Bed Rest` (verified per sample). Subject numbers 1–14 with gaps.
 - GSM2813749 (subject 14, Before Bed Rest) and GSM2813750 (subject 14, After Bed Rest) are a matched pair.
-- Title "Effects of 21 days of bedrest on human skeletal muscle gene expression" and the RMA normalisation
-  (Affymetrix Expression Console 1.4.1) come from a summary of the OSDR page, **not verified verbatim**.
-  So `normalization_verified=false` and `comparison_readiness.ready=false`.
+- The title "Effects of 21 days of bedrest on human skeletal muscle gene expression" is verified verbatim
+  (OSDR Project Type "Ground Study").
+- The RMA normalisation (Affymetrix Expression Console 1.4.1) comes only from a summary of the OSDR page and
+  is **not verified verbatim**. So `normalization_verified=false` and `comparison_readiness.ready=false`.
 - Files the importer needs (place in `data/nasa/raw/OSD-195/`):
   `GLDS-195_microarray_GSM2813749_processed.txt` (1,173,625 bytes per OSDR) and
   `GLDS-195_microarray_GSM2813750_processed.txt` (1,173,747 bytes). Any other

@@ -20,8 +20,9 @@ OSD575_FILE = "LSDS-8_Comprehensive_Metabolic_Panel_CMP.upload_SUBMITTED.csv"
 
 REGISTRY: dict[str, dict] = {
     "OSD-575": dict(
-        title="SpaceX Inspiration4 Blood Serum Metabolic Panel and Immune/Cardiac Cytokine Arrays",
-        title_verified=False,
+        title="SpaceX Inspiration4 Blood Serum Metabolic Panel and Immune/Cardiac Cytokine Arrays (Comprehensive "
+              "Metabolic Panel and Multiplex)",
+        title_verified=True,
         description="Serum from the four Inspiration4 crew members (C001-C004) collected before launch and after "
                     "return: comprehensive metabolic panel (CMP) plus immune and cardiovascular multiplex arrays.",
         source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-575",
@@ -42,12 +43,12 @@ REGISTRY: dict[str, dict] = {
         ],
     ),
     "OSD-656": dict(
-        title="OSD-656: Inspiration4 urine inflammation panel (title pending verification)",
-        title_verified=False,
+        title="SpaceX Inspiration4 Urine Inflammation Panel (Multiplex, NULISAseq)",
+        title_verified=True,
         description="Urine from the four Inspiration4 crew members, pre- and post-flight, NULISA-seq 200-plex "
                     "inflammation panel (Alamar Biosciences).",
         source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-656",
-        source_url_verified=False,
+        source_url_verified=True,
         record_schema="BIO_ASSAY_TABLE",
         priority="P1",
         expected_files=["LSDS-64_Multiplex_urine.immune.AlamarPanel_TRANSFORMED.csv",
@@ -81,32 +82,37 @@ REGISTRY: dict[str, dict] = {
         limitations=["No importer in P0.", "ISS telemetry must not be shown as live HAB-01 readings."],
     ),
     "NASA-RADLAB": dict(
-        title="NASA RadLab radiation data (title and URL pending verification)",
-        title_verified=False,
-        description="Space radiation dosimetry data. Exact portal name and URL not yet confirmed.",
+        title="RadLab",
+        title_verified=True,
+        description="NASA OSDR visualization portal giving a single point of access to radiation telemetry "
+                    "(dosimetry) data from databases maintained by multiple space agencies.",
         source_url="https://visualization.osdr.nasa.gov/radlab/",
-        source_url_verified=False,
+        source_url_verified=True,
         record_schema="RADIATION_TIMESERIES_V1",
         priority="P1",
         expected_files=["(RadLab export, CSV)"],
         importer=False,
-        experimental_context="Not yet confirmed.",
-        limitations=["No importer in P0.", "Source not yet verified.",
+        experimental_context="Radiation dosimetry from space missions, aggregated across agencies; not SENTINEL "
+                             "habitat data.",
+        limitations=["No importer in P0.",
                      "Must not be shown as live HAB-01 dosimeter readings."],
     ),
     "OSD-654": dict(
-        title="OSD-654: mouse tibia bone DXA and micro-CT (title pending verification)",
-        title_verified=False,
-        description="Mouse (C57BL/6J) tibia bone measurements by DXA and micro-CT, including hindlimb-unloading "
-                    "ground-analogue groups.",
+        title="Toward countering muscle and bone loss with spaceflight: GSK3 as a potential target (Tibia, RR9 and "
+              "HLU, MicroCT and DXA Scanning)",
+        title_verified=True,
+        description="Mouse (Mus musculus) tibia bone measurements by DXA and micro-CT from the Rodent Research-9 "
+                    "spaceflight mission (SpaceX-12, ISS, Aug-Sep 2017) and a hindlimb-unloading (HLU) ground "
+                    "analogue.",
         source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-654",
-        source_url_verified=False,
+        source_url_verified=True,
         record_schema="BIO_ASSAY_TABLE",
         priority="P2",
         expected_files=["LSDS-66_microCT_uCT_TRANSFORMED.csv", "LSDS-66_Bone_Biomechanical_DXA_tibia_TRANSFORMED.csv"],
         importer=False,
-        experimental_context="Animal ground-analogue study; not human data. Kept separately identified as animal "
-                             "research and excluded from SENTINEL's primary human-health analysis (v2.2).",
+        experimental_context="Animal study (mice): spaceflight on the ISS (Rodent Research-9) plus a hindlimb-unloading "
+                             "ground analogue. Not human data. Kept separately identified as animal research and "
+                             "excluded from SENTINEL's primary human-health analysis (v2.2).",
         limitations=["No importer in P0.", "Mouse data; not transferable to astronaut thresholds.",
                      "Animal research: never used to generate astronaut-specific medical findings."],
     ),
@@ -116,7 +122,7 @@ REGISTRY: dict[str, dict] = {
         title_verified=True,
         description="Bulk RNA-seq of human skeletal muscle tissue chips, spaceflight versus ground control.",
         source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-684",
-        source_url_verified=False,
+        source_url_verified=True,
         record_schema="OMICS_OR_IMAGING",
         priority="P2",
         expected_files=["GLDS-615_rna_seq_Normalized_Counts_GLbulkRNAseq.csv"],
@@ -125,11 +131,12 @@ REGISTRY: dict[str, dict] = {
         limitations=["No importer in P0.", "Large omics processing deferred (P2)."],
     ),
     "OSD-573": dict(
-        title="OSD-573: Inspiration4 capsule metagenomics (title pending verification)",
-        title_verified=False,
-        description="Shotgun metagenomic sequencing of environmental swabs from the Inspiration4 Dragon capsule.",
+        title="SpaceX Inspiration4 Dragon Capsule Metagenomic and Metatranscriptomic Microbial Swabs",
+        title_verified=True,
+        description="Metagenomic and metatranscriptomic sequencing of swabs from nine surfaces inside the SpaceX "
+                    "Inspiration4 Dragon capsule, plus an open-air control.",
         source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-573",
-        source_url_verified=False,
+        source_url_verified=True,
         record_schema="OMICS_OR_IMAGING",
         priority="P2",
         expected_files=["GLDS-565_GMetagenomics_README.txt"],
@@ -138,21 +145,24 @@ REGISTRY: dict[str, dict] = {
         limitations=["No importer in P0.", "Large sequence files; processing deferred (P2)."],
     ),
     "OSD-817": dict(
-        title="OSD-817: human optic nerve tissue study (title pending verification)",
-        title_verified=False,
-        description="Histology and immunostaining of human donor optic nerve tissue (organotypic culture).",
+        title="The ex vivo human translaminar autonomous system to study spaceflight associated neuro-ocular "
+              "syndrome pathogenesis (Optic Nerve, Histology and Microscopy)",
+        title_verified=True,
+        description="Histology and light microscopy of human donor optic-nerve tissue in organotypic culture, "
+                    "used as a ground model of spaceflight-associated neuro-ocular syndrome (SANS).",
         source_url="https://osdr.nasa.gov/bio/repo/data/studies/OSD-817",
-        source_url_verified=False,
+        source_url_verified=True,
         record_schema="OMICS_OR_IMAGING",
         priority="P2",
         expected_files=["LSDS-135_microscopy_PPD_TRANSFORMED.csv"],
         importer=False,
-        experimental_context="Donor tissue study; relevance to spaceflight eye changes not yet verified here.",
+        experimental_context="Ground study on donated human tissue (no spaceflight); a laboratory model for "
+                             "studying spaceflight-associated neuro-ocular syndrome.",
         limitations=["No importer in P0.", "Imaging processing deferred (P2)."],
     ),
     "OSD-195": dict(
-        title="Effects of 21 days of bedrest on human skeletal muscle gene expression (title pending verification)",
-        title_verified=False,
+        title="Effects of 21 days of bedrest on human skeletal muscle gene expression",
+        title_verified=True,
         description="Skeletal-muscle (vastus lateralis) gene expression in 12 healthy male volunteers before and "
                     "after 21 days of bed rest, Affymetrix microarrays. One processed (normalised) expression file "
                     "per sample (24 samples).",
@@ -221,11 +231,12 @@ CLASSIFICATION: dict[str, dict] = {
                      not_a_measurement_of=["live HAB-01 habitat readings", "any person's physiology"]),
     "NASA-RADLAB": dict(study_type="SPACEFLIGHT_ENVIRONMENT", organism="not applicable",
                         human_health_analysis="ENVIRONMENT_CONTEXT", body_systems=[],
-                        measured="Space radiation dosimetry (source pending verification).",
+                        measured="Space radiation dosimetry telemetry from multiple space agencies.",
                         not_a_measurement_of=["live HAB-01 dosimeter readings", "an astronaut's personal dose"]),
     "OSD-654": dict(study_type="ANIMAL_RESEARCH", organism="Mus musculus",
                     human_health_analysis="SEPARATE_ANIMAL_RESEARCH", body_systems=["bone"],
-                    measured="Mouse tibia bone measurements (DXA, micro-CT).",
+                    measured="Mouse tibia bone measurements (DXA, micro-CT) after ISS spaceflight (Rodent "
+                             "Research-9) or hindlimb unloading on the ground.",
                     not_a_measurement_of=["human or astronaut bone density"]),
     "OSD-684": dict(study_type="HUMAN_DERIVED_CELLS", organism="Homo sapiens",
                     human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["skeletal_muscle"],
@@ -237,7 +248,8 @@ CLASSIFICATION: dict[str, dict] = {
                     not_a_measurement_of=["an astronaut infection or microbiome diagnosis"]),
     "OSD-817": dict(study_type="HUMAN_DERIVED_CELLS", organism="Homo sapiens",
                     human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["eye_optic_nerve"],
-                    measured="Histology of human donor optic-nerve tissue in culture (pending verification).",
+                    measured="Histology and microscopy of human donor optic-nerve tissue in culture (ground model "
+                             "of spaceflight-associated neuro-ocular syndrome).",
                     not_a_measurement_of=["astronaut eye health or vision"]),
     "OSD-195": dict(study_type="HUMAN_GROUND_ANALOGUE", organism="Homo sapiens",
                     human_health_analysis="PRIMARY_HUMAN_RESEARCH", body_systems=["skeletal_muscle"],
