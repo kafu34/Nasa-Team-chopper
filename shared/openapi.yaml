@@ -1,0 +1,3797 @@
+# SENTINEL AI API contract v2.1 - GENERATED from backend/app by backend/scripts/export_openapi.py.
+# Do not edit by hand. Owner: backend (Claude). Consumer: frontend (Codex).
+openapi: 3.1.0
+info:
+  title: SENTINEL AI Backend API
+  description: 'SENTINEL AI research demonstration backend (NASA Space Apps Challenge 2026). Not a clinically validated medical
+    device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
+    NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
+    use the envelope {"error": {"code", "message", "details"}}.'
+  version: 2.1.0
+paths:
+  /healthz:
+    get:
+      tags:
+      - system
+      summary: Liveness and database check
+      operationId: healthz_healthz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthOut'
+  /api/v1/demo/bootstrap:
+    get:
+      tags:
+      - demo
+      summary: Load the fictional DEMO-001 / HAB-01 demonstration state
+      operationId: bootstrap_api_v1_demo_bootstrap_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapOut'
+  /api/v1/demo/reset:
+    post:
+      tags:
+      - demo
+      summary: Restore synthetic demo state; NASA research records are not altered
+      operationId: reset_api_v1_demo_reset_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetOut'
+  /api/v1/symptoms:
+    post:
+      tags:
+      - cases
+      summary: Report a symptom from the Anatomical Twin; creates or updates a fictional case
+      description: 201 when a new report is stored. 200 with duplicate=true when an identical report (same region, laterality
+        and severity) was already received within 10 minutes.
+      operationId: create_symptom_api_v1_symptoms_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SymptomCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SymptomCreated'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cases/{case_id}:
+    get:
+      tags:
+      - cases
+      summary: Get a case with evidence, follow-ups, measurements and audit history
+      operationId: get_case_api_v1_cases__case_id__get
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Case Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/cases/{case_id}/acknowledge:
+    post:
+      tags:
+      - cases
+      summary: Acknowledge a case alert (optional). Never changes state and never resolves the case.
+      operationId: acknowledge_case_api_v1_cases__case_id__acknowledge_post
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Case Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseAcknowledge'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/observations:
+    post:
+      tags:
+      - cases
+      - observations
+      summary: Submit a simulated health observation (optional endpoint)
+      description: Technical validation only (catalogue type, unit, plausible input range, time). Passing validation is not
+        a clinical judgement. 200 with duplicate=true for an identical resubmission.
+      operationId: create_observation_api_v1_observations_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObservationCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObservationCreated'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/location/estimate:
+    post:
+      tags:
+      - spatial
+      summary: Estimate the astronaut's zone from simulated BLE observations
+      description: Always 200 for a known astronaut. When no valid signal remains, zone_id is null, confidence is 0 and source
+        is 'unavailable'.
+      operationId: estimate_location_api_v1_location_estimate_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationEstimateRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationEstimateOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/location/confirm:
+    post:
+      tags:
+      - spatial
+      summary: Manually confirm the astronaut's zone (optional endpoint)
+      operationId: confirm_location_api_v1_location_confirm_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocationConfirmRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationEstimateOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/equipment/recommend:
+    post:
+      tags:
+      - equipment
+      summary: Recommend ready, supplied, accessible equipment and a zone route
+      description: 404 NO_SUITABLE_EQUIPMENT (details.excluded lists reasons) when nothing qualifies.
+      operationId: recommend_equipment_api_v1_equipment_recommend_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentRecommendRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentRecommendation'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/procedures/{procedure_id}:
+    get:
+      tags:
+      - procedures
+      summary: Get a versioned educational procedure definition
+      operationId: get_procedure_api_v1_procedures__procedure_id__get
+      parameters:
+      - name: procedure_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Procedure Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcedureOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/procedure-sessions:
+    post:
+      tags:
+      - procedures
+      summary: Start a procedure session for a case (self or responder mode)
+      description: 201 for a new session; 200 returns the existing in-progress session for the same case and procedure.
+      operationId: create_session_api_v1_procedure_sessions_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/procedure-sessions/{session_id}:
+    get:
+      tags:
+      - procedures
+      summary: Get a procedure session (optional endpoint)
+      operationId: get_session_api_v1_procedure_sessions__session_id__get
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/procedure-sessions/{session_id}/steps:
+    post:
+      tags:
+      - procedures
+      summary: Confirm the next procedure step (acknowledgement only)
+      description: Steps must be confirmed in order. Re-confirming a completed step is idempotent.
+      operationId: confirm_step_api_v1_procedure_sessions__session_id__steps_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepConfirm'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/measurements:
+    post:
+      tags:
+      - measurements
+      summary: Submit a simulated blood-pressure reading for a completed session
+      description: Technical validation only. Updates the case and creates a follow-up without duplicates.
+      operationId: create_measurement_api_v1_measurements_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeasurementCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeasurementResult'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/research/datasets:
+    get:
+      tags:
+      - research
+      summary: Catalogue of the eight canonical NASA datasets
+      operationId: list_datasets_api_v1_research_datasets_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetList'
+  /api/v1/research/datasets/{dataset_id}:
+    get:
+      tags:
+      - research
+      summary: Dataset metadata, provenance, availability status and latest import log
+      operationId: get_dataset_api_v1_research_datasets__dataset_id__get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dataset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetDetail'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/research/datasets/{dataset_id}/records:
+    get:
+      tags:
+      - research
+      summary: Numerical records of an imported dataset (paginated, filterable)
+      description: 503 DATASET_UNAVAILABLE (details.status, details.source_url) when not imported.
+      operationId: dataset_records_api_v1_research_datasets__dataset_id__records_get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dataset Id
+      - name: subject_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - C001
+          title: Subject Id
+      - name: analyte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - GLUCOSE
+          title: Analyte
+      - name: timepoint
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - L-92
+          title: Timepoint
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchRecordsPage'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dataset unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/research/osd-575:
+    get:
+      tags:
+      - research
+      summary: Actual OSD-575 CMP records (compatibility endpoint; default returns all 531 rows)
+      description: 503 DATASET_UNAVAILABLE when the CSV has not been imported. Never returns invented values.
+      operationId: osd575_api_v1_research_osd_575_get
+      parameters:
+      - name: subject_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - C001
+          title: Subject Id
+      - name: analyte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - GLUCOSE
+          title: Analyte
+      - name: timepoint
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - R+1
+          title: Timepoint
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 1000
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResearchRecordsPage'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dataset unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/environment/timeseries:
+    get:
+      tags:
+      - research
+      summary: NASA environmental telemetry timeseries (P1; returns 503 until imported)
+      operationId: environment_timeseries_api_v1_environment_timeseries_get
+      parameters:
+      - name: dataset_id
+        in: query
+        required: false
+        schema:
+          type: string
+          default: NASA-EDA
+          title: Dataset Id
+      - name: metric
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - co2
+          title: Metric
+      - name: start
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start
+      - name: end
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeseriesPage'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dataset unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/radiation/timeseries:
+    get:
+      tags:
+      - research
+      summary: NASA radiation dosimetry timeseries (P1; returns 503 until imported)
+      operationId: radiation_timeseries_api_v1_radiation_timeseries_get
+      parameters:
+      - name: dataset_id
+        in: query
+        required: false
+        schema:
+          type: string
+          default: NASA-RADLAB
+          title: Dataset Id
+      - name: metric
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - dose_rate
+          title: Metric
+      - name: start
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start
+      - name: end
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeseriesPage'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Dataset unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/emergencies:
+    post:
+      tags:
+      - emergency
+      summary: Activate the simulated emergency workflow (no localisation or equipment step required)
+      description: 201 for a new activation; 200 with duplicate=true if an emergency for the same astronaut was activated
+        within the last 10 minutes.
+      operationId: activate_emergency_api_v1_emergencies_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    AnchorOut:
+      properties:
+        anchor_id:
+          type: string
+          title: Anchor Id
+        zone_id:
+          type: string
+          title: Zone Id
+        enabled:
+          type: boolean
+          title: Enabled
+        verified_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Verified At
+        verified_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Verified By
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ENVIRONMENT_OR_DEVICE
+      type: object
+      required:
+      - anchor_id
+      - zone_id
+      - enabled
+      - verified_at
+      - verified_by
+      title: AnchorOut
+    AstronautOut:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        display_name:
+          type: string
+          title: Display Name
+        role:
+          type: string
+          title: Role
+        fictional:
+          type: boolean
+          title: Fictional
+        mission:
+          $ref: '#/components/schemas/Mission'
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+      type: object
+      required:
+      - astronaut_id
+      - display_name
+      - role
+      - fictional
+      - mission
+      title: AstronautOut
+    Attention:
+      properties:
+        priority:
+          type: string
+          enum:
+          - routine
+          - urgent
+          title: Priority
+        interrupt:
+          type: boolean
+          title: Interrupt
+          description: True only for urgent items; routine items are noninterruptive.
+        reason:
+          type: string
+          title: Reason
+      type: object
+      required:
+      - priority
+      - interrupt
+      - reason
+      title: Attention
+    AuditOut:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        actor:
+          type: string
+          title: Actor
+        action:
+          type: string
+          title: Action
+        entity_type:
+          type: string
+          title: Entity Type
+        entity_id:
+          type: string
+          title: Entity Id
+        details:
+          type: object
+          title: Details
+      type: object
+      required:
+      - timestamp
+      - actor
+      - action
+      - entity_type
+      - entity_id
+      - details
+      title: AuditOut
+    BleObservation:
+      properties:
+        anchor_id:
+          type: string
+          title: Anchor Id
+          examples:
+          - ANC-CQ-01
+        rssi_dbm:
+          type: integer
+          maximum: 0.0
+          minimum: -120.0
+          title: Rssi Dbm
+          description: Received signal strength in dBm.
+          examples:
+          - -52
+        observed_at:
+          type: string
+          format: date-time
+          title: Observed At
+      additionalProperties: false
+      type: object
+      required:
+      - anchor_id
+      - rssi_dbm
+      - observed_at
+      title: BleObservation
+    BleObservationTemplate:
+      properties:
+        anchor_id:
+          type: string
+          title: Anchor Id
+        rssi_dbm:
+          type: integer
+          title: Rssi Dbm
+        age_seconds:
+          type: integer
+          title: Age Seconds
+          description: Client sets observed_at = now - age_seconds.
+      type: object
+      required:
+      - anchor_id
+      - rssi_dbm
+      - age_seconds
+      title: BleObservationTemplate
+    BloodPressureValue:
+      properties:
+        systolic:
+          type: integer
+          title: Systolic
+          examples:
+          - 118
+        diastolic:
+          type: integer
+          title: Diastolic
+          examples:
+          - 76
+        pulse:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pulse
+          examples:
+          - 70
+      type: object
+      required:
+      - systolic
+      - diastolic
+      title: BloodPressureValue
+    BootstrapOut:
+      properties:
+        contract_version:
+          type: string
+          title: Contract Version
+        fixture_version:
+          type: string
+          title: Fixture Version
+        ruleset_version:
+          type: string
+          title: Ruleset Version
+        server_time:
+          type: string
+          format: date-time
+          title: Server Time
+        disclaimer:
+          type: string
+          title: Disclaimer
+        astronaut:
+          $ref: '#/components/schemas/AstronautOut'
+        responder:
+          $ref: '#/components/schemas/AstronautOut'
+        habitat:
+          $ref: '#/components/schemas/HabitatOut'
+        anchors:
+          items:
+            $ref: '#/components/schemas/AnchorOut'
+          type: array
+          title: Anchors
+        equipment:
+          items:
+            $ref: '#/components/schemas/EquipmentOut'
+          type: array
+          title: Equipment
+        procedures:
+          items:
+            $ref: '#/components/schemas/ProcedureSummary'
+          type: array
+          title: Procedures
+        scheduled_assessments:
+          items:
+            $ref: '#/components/schemas/ScheduledAssessmentOut'
+          type: array
+          title: Scheduled Assessments
+        observations:
+          items:
+            $ref: '#/components/schemas/ObservationOut'
+          type: array
+          title: Observations
+        observation_status:
+          items:
+            $ref: '#/components/schemas/ObservationStatus'
+          type: array
+          title: Observation Status
+        open_cases:
+          items:
+            $ref: '#/components/schemas/CaseSummary'
+          type: array
+          title: Open Cases
+        anatomical_regions:
+          items:
+            $ref: '#/components/schemas/RegionOut'
+          type: array
+          title: Anatomical Regions
+        laterality_values:
+          items:
+            type: string
+            enum:
+            - left
+            - right
+            - bilateral
+            - midline
+            - not_applicable
+          type: array
+          title: Laterality Values
+        demo_inputs:
+          $ref: '#/components/schemas/DemoInputs'
+        research_datasets:
+          items:
+            $ref: '#/components/schemas/DatasetSummary'
+          type: array
+          title: Research Datasets
+      type: object
+      required:
+      - contract_version
+      - fixture_version
+      - ruleset_version
+      - server_time
+      - disclaimer
+      - astronaut
+      - responder
+      - habitat
+      - anchors
+      - equipment
+      - procedures
+      - scheduled_assessments
+      - observations
+      - observation_status
+      - open_cases
+      - anatomical_regions
+      - laterality_values
+      - demo_inputs
+      - research_datasets
+      title: BootstrapOut
+    CaseAcknowledge:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-001
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      title: CaseAcknowledge
+    CaseOut:
+      properties:
+        case_id:
+          type: string
+          title: Case Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        kind:
+          type: string
+          enum:
+          - routine
+          - emergency
+          title: Kind
+        state:
+          type: string
+          enum:
+          - detected
+          - investigating
+          - awaiting_assessment
+          - awaiting_results
+          - action_required
+          - monitoring
+          - follow_up_due
+          - escalated
+          - resolved
+          title: State
+        priority:
+          type: string
+          enum:
+          - routine
+          - urgent
+          title: Priority
+        attention:
+          $ref: '#/components/schemas/Attention'
+        evidence:
+          items:
+            $ref: '#/components/schemas/EvidenceRef'
+          type: array
+          title: Evidence
+        requested_assessment:
+          anyOf:
+          - $ref: '#/components/schemas/RequestedAssessment'
+          - type: 'null'
+        next_action:
+          type: string
+          title: Next Action
+        follow_up_status:
+          type: string
+          enum:
+          - none
+          - scheduled
+          - due
+          - completed
+          title: Follow Up Status
+        follow_ups:
+          items:
+            $ref: '#/components/schemas/FollowUpOut'
+          type: array
+          title: Follow Ups
+        symptoms:
+          items:
+            $ref: '#/components/schemas/SymptomOut'
+          type: array
+          title: Symptoms
+        session_ids:
+          items:
+            type: string
+          type: array
+          title: Session Ids
+        measurements:
+          items:
+            $ref: '#/components/schemas/MeasurementOut'
+          type: array
+          title: Measurements
+        ruleset_version:
+          type: string
+          title: Ruleset Version
+        acknowledged_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Acknowledged At
+        acknowledged_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Acknowledged By
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        audit:
+          items:
+            $ref: '#/components/schemas/AuditOut'
+          type: array
+          title: Audit
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+        disclaimer:
+          type: string
+          title: Disclaimer
+          default: Fictional demonstration case. Not a diagnosis.
+      type: object
+      required:
+      - case_id
+      - astronaut_id
+      - kind
+      - state
+      - priority
+      - attention
+      - evidence
+      - requested_assessment
+      - next_action
+      - follow_up_status
+      - follow_ups
+      - symptoms
+      - session_ids
+      - measurements
+      - ruleset_version
+      - acknowledged_at
+      - acknowledged_by
+      - created_at
+      - updated_at
+      - audit
+      title: CaseOut
+    CaseSummary:
+      properties:
+        case_id:
+          type: string
+          title: Case Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        kind:
+          type: string
+          enum:
+          - routine
+          - emergency
+          title: Kind
+        state:
+          type: string
+          enum:
+          - detected
+          - investigating
+          - awaiting_assessment
+          - awaiting_results
+          - action_required
+          - monitoring
+          - follow_up_due
+          - escalated
+          - resolved
+          title: State
+        priority:
+          type: string
+          enum:
+          - routine
+          - urgent
+          title: Priority
+        next_action:
+          type: string
+          title: Next Action
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - case_id
+      - astronaut_id
+      - kind
+      - state
+      - priority
+      - next_action
+      - updated_at
+      title: CaseSummary
+    CmpRecord:
+      properties:
+        record_id:
+          type: integer
+          title: Record Id
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          title: Dataset Id
+        subject_id:
+          type: string
+          title: Subject Id
+          description: Anonymised research subject ID as published (e.g. C001).
+        sex:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sex
+        analyte:
+          type: string
+          title: Analyte
+          description: ANALYTE column, verbatim.
+        value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Value
+          description: Numeric VALUE; null when the source says NA.
+        value_raw:
+          type: string
+          title: Value Raw
+          description: VALUE column exactly as in the source file.
+        unit:
+          type: string
+          title: Unit
+          description: UNITS column, verbatim.
+        range_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Range Min
+        range_min_raw:
+          type: string
+          title: Range Min Raw
+        range_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Range Max
+          description: Null when the source says N/A (no upper bound).
+        range_max_raw:
+          type: string
+          title: Range Max Raw
+        test_type:
+          type: string
+          title: Test Type
+        timepoint:
+          type: string
+          title: Timepoint
+          description: Original label, e.g. L-92 (92 days before launch) or R+1 (1 day after return).
+        timepoint_phase:
+          type: string
+          enum:
+          - PREFLIGHT
+          - POSTFLIGHT
+          title: Timepoint Phase
+        timepoint_day_offset:
+          type: integer
+          title: Timepoint Day Offset
+          description: Signed days relative to launch (L) or return (R).
+        timepoint_order:
+          type: integer
+          title: Timepoint Order
+          description: Chronological sort key across all timepoints.
+        source_file:
+          type: string
+          title: Source File
+        source_row_number:
+          type: integer
+          title: Source Row Number
+          description: 1-based data row number in the source CSV (header excluded).
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+      type: object
+      required:
+      - record_id
+      - dataset_id
+      - subject_id
+      - sex
+      - analyte
+      - value
+      - value_raw
+      - unit
+      - range_min
+      - range_min_raw
+      - range_max
+      - range_max_raw
+      - test_type
+      - timepoint
+      - timepoint_phase
+      - timepoint_day_offset
+      - timepoint_order
+      - source_file
+      - source_row_number
+      title: CmpRecord
+      description: One analyte value from LSDS-8_Comprehensive_Metabolic_Panel_CMP.upload_SUBMITTED.csv.
+    CompletedStep:
+      properties:
+        step_id:
+          type: string
+          title: Step Id
+        completion_source:
+          type: string
+          title: Completion Source
+        confirmed_at:
+          type: string
+          format: date-time
+          title: Confirmed At
+      type: object
+      required:
+      - step_id
+      - completion_source
+      - confirmed_at
+      title: CompletedStep
+    ConnectionOut:
+      properties:
+        from_zone_id:
+          type: string
+          title: From Zone Id
+        to_zone_id:
+          type: string
+          title: To Zone Id
+        accessible:
+          type: boolean
+          title: Accessible
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - from_zone_id
+      - to_zone_id
+      - accessible
+      - note
+      title: ConnectionOut
+    CrewAlert:
+      properties:
+        status:
+          type: string
+          const: simulated_alert_raised
+          title: Status
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - status
+      - message
+      title: CrewAlert
+    DatasetDetail:
+      properties:
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          title: Dataset Id
+        title:
+          type: string
+          title: Title
+        title_verified:
+          type: boolean
+          title: Title Verified
+          description: False when the exact title has not been confirmed from the source.
+        description:
+          type: string
+          title: Description
+        source_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Url
+        source_url_verified:
+          type: boolean
+          title: Source Url Verified
+        organization:
+          type: string
+          title: Organization
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+        record_schema:
+          type: string
+          enum:
+          - CMP_ANALYTE_V1
+          - BIO_ASSAY_TABLE
+          - ENVIRONMENT_TIMESERIES_V1
+          - RADIATION_TIMESERIES_V1
+          - OMICS_OR_IMAGING
+          title: Record Schema
+        priority:
+          type: string
+          enum:
+          - P0
+          - P1
+          - P2
+          title: Priority
+        status:
+          type: string
+          enum:
+          - NOT_DOWNLOADED
+          - READY_TO_IMPORT
+          - IMPORTED
+          - IMPORT_FAILED
+          - UNSUPPORTED_FORMAT
+          title: Status
+        status_reason:
+          type: string
+          title: Status Reason
+        expected_files:
+          items:
+            type: string
+          type: array
+          title: Expected Files
+        records_available:
+          type: integer
+          title: Records Available
+        records_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Records Endpoint
+          description: Endpoint returning numerical records, when IMPORTED.
+        experimental_context:
+          type: string
+          title: Experimental Context
+        limitations:
+          items:
+            type: string
+          type: array
+          title: Limitations
+        latest_import:
+          anyOf:
+          - $ref: '#/components/schemas/ImportInfo'
+          - type: 'null'
+        raw_dir:
+          type: string
+          title: Raw Dir
+          description: Repository-relative folder the importer reads.
+      type: object
+      required:
+      - dataset_id
+      - title
+      - title_verified
+      - description
+      - source_url
+      - source_url_verified
+      - organization
+      - record_schema
+      - priority
+      - status
+      - status_reason
+      - expected_files
+      - records_available
+      - records_endpoint
+      - experimental_context
+      - limitations
+      - latest_import
+      - raw_dir
+      title: DatasetDetail
+    DatasetList:
+      properties:
+        datasets:
+          items:
+            $ref: '#/components/schemas/DatasetSummary'
+          type: array
+          title: Datasets
+        status_values:
+          items:
+            type: string
+            enum:
+            - NOT_DOWNLOADED
+            - READY_TO_IMPORT
+            - IMPORTED
+            - IMPORT_FAILED
+            - UNSUPPORTED_FORMAT
+          type: array
+          title: Status Values
+        data_categories:
+          items:
+            type: string
+            enum:
+            - NASA_RESEARCH
+            - SIMULATED_ASTRONAUT
+            - SIMULATED_ENVIRONMENT_OR_DEVICE
+          type: array
+          title: Data Categories
+      type: object
+      required:
+      - datasets
+      - status_values
+      - data_categories
+      title: DatasetList
+    DatasetSummary:
+      properties:
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          title: Dataset Id
+        title:
+          type: string
+          title: Title
+        title_verified:
+          type: boolean
+          title: Title Verified
+          description: False when the exact title has not been confirmed from the source.
+        description:
+          type: string
+          title: Description
+        source_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Url
+        source_url_verified:
+          type: boolean
+          title: Source Url Verified
+        organization:
+          type: string
+          title: Organization
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+        record_schema:
+          type: string
+          enum:
+          - CMP_ANALYTE_V1
+          - BIO_ASSAY_TABLE
+          - ENVIRONMENT_TIMESERIES_V1
+          - RADIATION_TIMESERIES_V1
+          - OMICS_OR_IMAGING
+          title: Record Schema
+        priority:
+          type: string
+          enum:
+          - P0
+          - P1
+          - P2
+          title: Priority
+        status:
+          type: string
+          enum:
+          - NOT_DOWNLOADED
+          - READY_TO_IMPORT
+          - IMPORTED
+          - IMPORT_FAILED
+          - UNSUPPORTED_FORMAT
+          title: Status
+        status_reason:
+          type: string
+          title: Status Reason
+        expected_files:
+          items:
+            type: string
+          type: array
+          title: Expected Files
+        records_available:
+          type: integer
+          title: Records Available
+        records_endpoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Records Endpoint
+          description: Endpoint returning numerical records, when IMPORTED.
+      type: object
+      required:
+      - dataset_id
+      - title
+      - title_verified
+      - description
+      - source_url
+      - source_url_verified
+      - organization
+      - record_schema
+      - priority
+      - status
+      - status_reason
+      - expected_files
+      - records_available
+      - records_endpoint
+      title: DatasetSummary
+    DemoInputs:
+      properties:
+        ble_observations:
+          items:
+            $ref: '#/components/schemas/BleObservationTemplate'
+          type: array
+          title: Ble Observations
+        expected_zone_id:
+          type: string
+          title: Expected Zone Id
+        symptom:
+          type: object
+          title: Symptom
+        measurement:
+          type: object
+          title: Measurement
+        emergency:
+          type: object
+          title: Emergency
+        expected_recommendation:
+          type: object
+          title: Expected Recommendation
+      type: object
+      required:
+      - ble_observations
+      - expected_zone_id
+      - symptom
+      - measurement
+      - emergency
+      - expected_recommendation
+      title: DemoInputs
+      description: Canonical demo inputs from shared/fixtures/demo_scenario.json, for the frontend to submit.
+    EmergencyCreate:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+          examples:
+          - DEMO-001
+        responder_id:
+          type: string
+          title: Responder Id
+          examples:
+          - DEMO-002
+        trigger:
+          type: string
+          enum:
+          - crew_collapse
+          - chest_pain_reported
+          - manual_activation
+          title: Trigger
+      additionalProperties: false
+      type: object
+      required:
+      - astronaut_id
+      - responder_id
+      - trigger
+      title: EmergencyCreate
+    EmergencyInformation:
+      properties:
+        reviewed_procedure_available:
+          type: boolean
+          title: Reviewed Procedure Available
+        limitation:
+          type: string
+          title: Limitation
+        crew_actions:
+          items:
+            type: string
+          type: array
+          title: Crew Actions
+          description: Escalation and coordination actions only. No treatment steps.
+      type: object
+      required:
+      - reviewed_procedure_available
+      - limitation
+      - crew_actions
+      title: EmergencyInformation
+    EmergencyOut:
+      properties:
+        emergency_id:
+          type: string
+          title: Emergency Id
+        case_id:
+          type: string
+          title: Case Id
+        case_state:
+          type: string
+          enum:
+          - detected
+          - investigating
+          - awaiting_assessment
+          - awaiting_results
+          - action_required
+          - monitoring
+          - follow_up_due
+          - escalated
+          - resolved
+          title: Case State
+        priority:
+          type: string
+          const: urgent
+          title: Priority
+        attention:
+          $ref: '#/components/schemas/Attention'
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        responder_id:
+          type: string
+          title: Responder Id
+        trigger:
+          type: string
+          title: Trigger
+        activated_at:
+          type: string
+          format: date-time
+          title: Activated At
+        duplicate:
+          type: boolean
+          title: Duplicate
+          description: True when an emergency for this astronaut was already active (<10 min).
+        localisation_required:
+          type: boolean
+          const: false
+          title: Localisation Required
+          default: false
+        crew_alert:
+          $ref: '#/components/schemas/CrewAlert'
+        flight_surgeon_escalation:
+          $ref: '#/components/schemas/FlightSurgeonEscalation'
+        emergency_information:
+          $ref: '#/components/schemas/EmergencyInformation'
+        equipment_assistance:
+          $ref: '#/components/schemas/EquipmentAssistance'
+        next_action:
+          type: string
+          title: Next Action
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+        disclaimer:
+          type: string
+          title: Disclaimer
+          default: Simulated emergency workflow in a research prototype. Not a medical device.
+      type: object
+      required:
+      - emergency_id
+      - case_id
+      - case_state
+      - priority
+      - attention
+      - astronaut_id
+      - responder_id
+      - trigger
+      - activated_at
+      - duplicate
+      - crew_alert
+      - flight_surgeon_escalation
+      - emergency_information
+      - equipment_assistance
+      - next_action
+      title: EmergencyOut
+    EquipmentAssistance:
+      properties:
+        available:
+          type: boolean
+          title: Available
+        required_to_start_response:
+          type: boolean
+          const: false
+          title: Required To Start Response
+          default: false
+        endpoint:
+          type: string
+          title: Endpoint
+        suggested_capabilities:
+          items:
+            type: string
+          type: array
+          title: Suggested Capabilities
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - available
+      - endpoint
+      - suggested_capabilities
+      - note
+      title: EquipmentAssistance
+    EquipmentOut:
+      properties:
+        equipment_id:
+          type: string
+          title: Equipment Id
+        device_model:
+          type: string
+          title: Device Model
+        capability:
+          type: string
+          title: Capability
+        zone_id:
+          type: string
+          title: Zone Id
+        readiness:
+          type: string
+          enum:
+          - verified_ready
+          - unknown
+          - needs_service
+          - in_use
+          title: Readiness
+        readiness_verified_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Readiness Verified At
+        supplies:
+          additionalProperties:
+            type: boolean
+          type: object
+          title: Supplies
+        required_supplies:
+          items:
+            type: string
+          type: array
+          title: Required Supplies
+        compatible_procedure_ids:
+          items:
+            type: string
+          type: array
+          title: Compatible Procedure Ids
+        status_updated_at:
+          type: string
+          format: date-time
+          title: Status Updated At
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ENVIRONMENT_OR_DEVICE
+      type: object
+      required:
+      - equipment_id
+      - device_model
+      - capability
+      - zone_id
+      - readiness
+      - readiness_verified_at
+      - supplies
+      - required_supplies
+      - compatible_procedure_ids
+      - status_updated_at
+      title: EquipmentOut
+    EquipmentRecommendRequest:
+      properties:
+        case_id:
+          type: string
+          title: Case Id
+        zone_id:
+          type: string
+          title: Zone Id
+          description: Current (estimated or confirmed) zone.
+          examples:
+          - crew-quarters
+        capability:
+          type: string
+          title: Capability
+          examples:
+          - blood_pressure
+      additionalProperties: false
+      type: object
+      required:
+      - case_id
+      - zone_id
+      - capability
+      title: EquipmentRecommendRequest
+    EquipmentRecommendation:
+      properties:
+        equipment_id:
+          type: string
+          title: Equipment Id
+        device_model:
+          type: string
+          title: Device Model
+        zone_id:
+          type: string
+          title: Zone Id
+        readiness:
+          type: string
+          enum:
+          - verified_ready
+          - unknown
+          - needs_service
+          - in_use
+          title: Readiness
+        readiness_verified_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Readiness Verified At
+        route_zone_ids:
+          items:
+            type: string
+          type: array
+          title: Route Zone Ids
+          description: Accessible route from the request zone to the device zone, inclusive.
+        route_hops:
+          type: integer
+          title: Route Hops
+        procedure_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Procedure Id
+        capability:
+          type: string
+          title: Capability
+        supplies:
+          additionalProperties:
+            type: boolean
+          type: object
+          title: Supplies
+        excluded:
+          items:
+            $ref: '#/components/schemas/ExcludedEquipment'
+          type: array
+          title: Excluded
+        explanation:
+          type: string
+          title: Explanation
+        readiness_note:
+          type: string
+          title: Readiness Note
+          default: Readiness comes from the equipment registry check, not from wireless detection. A detected advertisement
+            does not mean a device is medically ready.
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ENVIRONMENT_OR_DEVICE
+      type: object
+      required:
+      - equipment_id
+      - device_model
+      - zone_id
+      - readiness
+      - readiness_verified_at
+      - route_zone_ids
+      - route_hops
+      - procedure_id
+      - capability
+      - supplies
+      - excluded
+      - explanation
+      title: EquipmentRecommendation
+    ErrorBody:
+      properties:
+        code:
+          type: string
+          title: Code
+          examples:
+          - NOT_FOUND
+        message:
+          type: string
+          title: Message
+        details:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Details
+      type: object
+      required:
+      - code
+      - message
+      title: ErrorBody
+    ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+      type: object
+      required:
+      - error
+      title: ErrorResponse
+    EvidenceRef:
+      properties:
+        type:
+          type: string
+          enum:
+          - symptom
+          - observation
+          - measurement
+          - scheduled_assessment
+          - emergency
+          title: Type
+        id:
+          type: string
+          title: Id
+        summary:
+          type: string
+          title: Summary
+        recorded_at:
+          type: string
+          format: date-time
+          title: Recorded At
+      type: object
+      required:
+      - type
+      - id
+      - summary
+      - recorded_at
+      title: EvidenceRef
+    ExcludedEquipment:
+      properties:
+        equipment_id:
+          type: string
+          title: Equipment Id
+        zone_id:
+          type: string
+          title: Zone Id
+        reasons:
+          items:
+            type: string
+          type: array
+          title: Reasons
+      type: object
+      required:
+      - equipment_id
+      - zone_id
+      - reasons
+      title: ExcludedEquipment
+    FlightSurgeonEscalation:
+      properties:
+        status:
+          type: string
+          const: queued_for_transmission
+          title: Status
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - status
+      - note
+      title: FlightSurgeonEscalation
+    FollowUpConfig:
+      properties:
+        task_type:
+          type: string
+          title: Task Type
+        title:
+          type: string
+          title: Title
+        due_in_hours:
+          type: integer
+          title: Due In Hours
+      type: object
+      required:
+      - task_type
+      - title
+      - due_in_hours
+      title: FollowUpConfig
+    FollowUpOut:
+      properties:
+        follow_up_id:
+          type: string
+          title: Follow Up Id
+        task_type:
+          type: string
+          title: Task Type
+        title:
+          type: string
+          title: Title
+        due_at:
+          type: string
+          format: date-time
+          title: Due At
+        status:
+          type: string
+          title: Status
+        interrupt:
+          type: boolean
+          title: Interrupt
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - follow_up_id
+      - task_type
+      - title
+      - due_at
+      - status
+      - interrupt
+      - created_at
+      title: FollowUpOut
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HabitatOut:
+      properties:
+        habitat_id:
+          type: string
+          title: Habitat Id
+        name:
+          type: string
+          title: Name
+        map_version:
+          type: string
+          title: Map Version
+        zones:
+          items:
+            $ref: '#/components/schemas/ZoneOut'
+          type: array
+          title: Zones
+        connections:
+          items:
+            $ref: '#/components/schemas/ConnectionOut'
+          type: array
+          title: Connections
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ENVIRONMENT_OR_DEVICE
+      type: object
+      required:
+      - habitat_id
+      - name
+      - map_version
+      - zones
+      - connections
+      title: HabitatOut
+    HealthOut:
+      properties:
+        status:
+          type: string
+          const: ok
+          title: Status
+        service:
+          type: string
+          title: Service
+        contract_version:
+          type: string
+          title: Contract Version
+        database:
+          type: string
+          enum:
+          - ok
+          - error
+          title: Database
+        offline_capable:
+          type: boolean
+          title: Offline Capable
+        server_time:
+          type: string
+          format: date-time
+          title: Server Time
+      type: object
+      required:
+      - status
+      - service
+      - contract_version
+      - database
+      - offline_capable
+      - server_time
+      title: HealthOut
+    ImportInfo:
+      properties:
+        import_id:
+          type: string
+          title: Import Id
+        source_file:
+          type: string
+          title: Source File
+        sha256:
+          type: string
+          title: Sha256
+        status:
+          type: string
+          enum:
+          - IMPORTED
+          - IMPORT_FAILED
+          title: Status
+        started_at:
+          type: string
+          format: date-time
+          title: Started At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+        rows_read:
+          type: integer
+          title: Rows Read
+        rows_imported:
+          type: integer
+          title: Rows Imported
+        missing_values:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Missing Values
+          description: Count of missing (null) values per column.
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - import_id
+      - source_file
+      - sha256
+      - status
+      - started_at
+      - finished_at
+      - rows_read
+      - rows_imported
+      - missing_values
+      - message
+      title: ImportInfo
+    LocationConfirmRequest:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+          examples:
+          - DEMO-001
+        zone_id:
+          type: string
+          title: Zone Id
+          examples:
+          - crew-quarters
+        confirmed_by:
+          type: string
+          title: Confirmed By
+          examples:
+          - DEMO-001
+      additionalProperties: false
+      type: object
+      required:
+      - astronaut_id
+      - zone_id
+      - confirmed_by
+      title: LocationConfirmRequest
+    LocationEstimateOut:
+      properties:
+        estimate_id:
+          type: string
+          title: Estimate Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zone Id
+          description: Null when no valid signal is available.
+        confidence:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Confidence
+        source:
+          type: string
+          enum:
+          - ble_simulated
+          - ble_simulated_smoothed
+          - manual
+          - unavailable
+          title: Source
+        observed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Observed At
+          description: Timestamp of the newest observation used.
+        estimated_at:
+          type: string
+          format: date-time
+          title: Estimated At
+        method:
+          type: string
+          title: Method
+        used_anchor_ids:
+          items:
+            type: string
+          type: array
+          title: Used Anchor Ids
+        rejected:
+          items:
+            $ref: '#/components/schemas/RejectedObservation'
+          type: array
+          title: Rejected
+        zone_scores:
+          items:
+            $ref: '#/components/schemas/ZoneScore'
+          type: array
+          title: Zone Scores
+        explanation:
+          type: string
+          title: Explanation
+        limitation:
+          type: string
+          title: Limitation
+          default: Zone-level estimate from simulated signals. RSSI does not give exact distance.
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ENVIRONMENT_OR_DEVICE
+      type: object
+      required:
+      - estimate_id
+      - astronaut_id
+      - zone_id
+      - confidence
+      - source
+      - observed_at
+      - estimated_at
+      - method
+      - used_anchor_ids
+      - rejected
+      - zone_scores
+      - explanation
+      title: LocationEstimateOut
+    LocationEstimateRequest:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+          examples:
+          - DEMO-001
+        observations:
+          items:
+            $ref: '#/components/schemas/BleObservation'
+          type: array
+          maxItems: 100
+          title: Observations
+          description: Simulated BLE observations. May be empty.
+      additionalProperties: false
+      type: object
+      required:
+      - astronaut_id
+      - observations
+      title: LocationEstimateRequest
+    MeasurementCreate:
+      properties:
+        case_id:
+          type: string
+          title: Case Id
+        session_id:
+          type: string
+          title: Session Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+          examples:
+          - DEMO-001
+        type:
+          type: string
+          const: blood_pressure
+          title: Type
+        value:
+          $ref: '#/components/schemas/BloodPressureValue'
+        unit:
+          type: string
+          const: mmHg
+          title: Unit
+        source:
+          type: string
+          enum:
+          - SIMULATED_DEVICE
+          - SIMULATED_MANUAL_ENTRY
+          title: Source
+          description: Only simulated sources are accepted in this prototype.
+        observed_at:
+          type: string
+          format: date-time
+          title: Observed At
+      additionalProperties: false
+      type: object
+      required:
+      - case_id
+      - session_id
+      - astronaut_id
+      - type
+      - value
+      - unit
+      - source
+      - observed_at
+      title: MeasurementCreate
+    MeasurementOut:
+      properties:
+        measurement_id:
+          type: string
+          title: Measurement Id
+        case_id:
+          type: string
+          title: Case Id
+        session_id:
+          type: string
+          title: Session Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        type:
+          type: string
+          title: Type
+        value:
+          type: object
+          title: Value
+        unit:
+          type: string
+          title: Unit
+        source:
+          type: string
+          title: Source
+        simulated:
+          type: boolean
+          title: Simulated
+        observed_at:
+          type: string
+          format: date-time
+          title: Observed At
+        recorded_at:
+          type: string
+          format: date-time
+          title: Recorded At
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+      type: object
+      required:
+      - measurement_id
+      - case_id
+      - session_id
+      - astronaut_id
+      - type
+      - value
+      - unit
+      - source
+      - simulated
+      - observed_at
+      - recorded_at
+      title: MeasurementOut
+    MeasurementResult:
+      properties:
+        measurement:
+          $ref: '#/components/schemas/MeasurementOut'
+        case_id:
+          type: string
+          title: Case Id
+        case_state:
+          type: string
+          enum:
+          - detected
+          - investigating
+          - awaiting_assessment
+          - awaiting_results
+          - action_required
+          - monitoring
+          - follow_up_due
+          - escalated
+          - resolved
+          title: Case State
+        next_action:
+          type: string
+          title: Next Action
+        validation:
+          $ref: '#/components/schemas/MeasurementValidation'
+        follow_up:
+          anyOf:
+          - $ref: '#/components/schemas/FollowUpOut'
+          - type: 'null'
+        follow_up_created:
+          type: boolean
+          title: Follow Up Created
+          description: False when an equivalent open follow-up already existed.
+      type: object
+      required:
+      - measurement
+      - case_id
+      - case_state
+      - next_action
+      - validation
+      - follow_up
+      - follow_up_created
+      title: MeasurementResult
+    MeasurementValidation:
+      properties:
+        technical_checks_passed:
+          type: boolean
+          title: Technical Checks Passed
+        checks:
+          items:
+            type: string
+          type: array
+          title: Checks
+        clinical_interpretation:
+          type: 'null'
+          title: Clinical Interpretation
+        note:
+          type: string
+          title: Note
+          default: Technical validity is not clinical normality. No clinical interpretation is made.
+      type: object
+      required:
+      - technical_checks_passed
+      - checks
+      title: MeasurementValidation
+    Mission:
+      properties:
+        mission_id:
+          type: string
+          title: Mission Id
+        mission_name:
+          type: string
+          title: Mission Name
+        habitat_id:
+          type: string
+          title: Habitat Id
+        mission_day:
+          type: integer
+          title: Mission Day
+      type: object
+      required:
+      - mission_id
+      - mission_name
+      - habitat_id
+      - mission_day
+      title: Mission
+    ObservationCreate:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+          examples:
+          - DEMO-001
+        type:
+          type: string
+          title: Type
+          examples:
+          - heart_rate
+        value:
+          type: number
+          title: Value
+          examples:
+          - 71
+        unit:
+          type: string
+          title: Unit
+          examples:
+          - bpm
+        source:
+          type: string
+          enum:
+          - SIMULATED_WEARABLE
+          - SIMULATED_MANUAL_ENTRY
+          - SIMULATED_DEVICE
+          title: Source
+        observed_at:
+          type: string
+          format: date-time
+          title: Observed At
+        quality:
+          type: string
+          enum:
+          - good
+          - fair
+          - poor
+          title: Quality
+          default: good
+      additionalProperties: false
+      type: object
+      required:
+      - astronaut_id
+      - type
+      - value
+      - unit
+      - source
+      - observed_at
+      title: ObservationCreate
+    ObservationCreated:
+      properties:
+        observation_id:
+          type: string
+          title: Observation Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        type:
+          type: string
+          title: Type
+        value:
+          type: number
+          title: Value
+        unit:
+          type: string
+          title: Unit
+        observed_at:
+          type: string
+          format: date-time
+          title: Observed At
+        recorded_at:
+          type: string
+          format: date-time
+          title: Recorded At
+        source:
+          type: string
+          title: Source
+        quality:
+          type: string
+          title: Quality
+        simulated:
+          type: boolean
+          title: Simulated
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+        duplicate:
+          type: boolean
+          title: Duplicate
+      type: object
+      required:
+      - observation_id
+      - astronaut_id
+      - type
+      - value
+      - unit
+      - observed_at
+      - recorded_at
+      - source
+      - quality
+      - simulated
+      - duplicate
+      title: ObservationCreated
+    ObservationOut:
+      properties:
+        observation_id:
+          type: string
+          title: Observation Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        type:
+          type: string
+          title: Type
+        value:
+          type: number
+          title: Value
+        unit:
+          type: string
+          title: Unit
+        observed_at:
+          type: string
+          format: date-time
+          title: Observed At
+        recorded_at:
+          type: string
+          format: date-time
+          title: Recorded At
+        source:
+          type: string
+          title: Source
+        quality:
+          type: string
+          title: Quality
+        simulated:
+          type: boolean
+          title: Simulated
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+      type: object
+      required:
+      - observation_id
+      - astronaut_id
+      - type
+      - value
+      - unit
+      - observed_at
+      - recorded_at
+      - source
+      - quality
+      - simulated
+      title: ObservationOut
+    ObservationStatus:
+      properties:
+        type:
+          type: string
+          title: Type
+        unit:
+          type: string
+          title: Unit
+        status:
+          type: string
+          enum:
+          - current
+          - stale
+          - missing
+          title: Status
+        stale_after_minutes:
+          type: integer
+          title: Stale After Minutes
+        latest_value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latest Value
+        latest_observed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Latest Observed At
+      type: object
+      required:
+      - type
+      - unit
+      - status
+      - stale_after_minutes
+      - latest_value
+      - latest_observed_at
+      title: ObservationStatus
+    ProcedureOut:
+      properties:
+        procedure_id:
+          type: string
+          title: Procedure Id
+        version:
+          type: string
+          title: Version
+        title:
+          type: string
+          title: Title
+        purpose:
+          type: string
+          title: Purpose
+        required_capability:
+          type: string
+          title: Required Capability
+        compatible_device_models:
+          items:
+            type: string
+          type: array
+          title: Compatible Device Models
+        anatomical_region_ids:
+          items:
+            type: string
+          type: array
+          title: Anatomical Region Ids
+        content_status:
+          type: string
+          const: EDUCATIONAL_DEMO_ONLY
+          title: Content Status
+        source_basis:
+          type: string
+          title: Source Basis
+        safety_limitations:
+          items:
+            type: string
+          type: array
+          title: Safety Limitations
+        steps:
+          items:
+            $ref: '#/components/schemas/ProcedureStep'
+          type: array
+          title: Steps
+        follow_up:
+          $ref: '#/components/schemas/FollowUpConfig'
+        confirmation_note:
+          type: string
+          title: Confirmation Note
+          default: A confirmed step records an acknowledgement only. It does not prove correct clinical execution.
+      type: object
+      required:
+      - procedure_id
+      - version
+      - title
+      - purpose
+      - required_capability
+      - compatible_device_models
+      - anatomical_region_ids
+      - content_status
+      - source_basis
+      - safety_limitations
+      - steps
+      - follow_up
+      title: ProcedureOut
+    ProcedureStep:
+      properties:
+        step_id:
+          type: string
+          title: Step Id
+        order:
+          type: integer
+          title: Order
+        title:
+          type: string
+          title: Title
+        instruction:
+          type: string
+          title: Instruction
+        anatomical_region_ids:
+          items:
+            type: string
+          type: array
+          title: Anatomical Region Ids
+        requires_confirmation:
+          type: boolean
+          title: Requires Confirmation
+        responder_note:
+          type: string
+          title: Responder Note
+      type: object
+      required:
+      - step_id
+      - order
+      - title
+      - instruction
+      - anatomical_region_ids
+      - requires_confirmation
+      - responder_note
+      title: ProcedureStep
+    ProcedureSummary:
+      properties:
+        procedure_id:
+          type: string
+          title: Procedure Id
+        version:
+          type: string
+          title: Version
+        title:
+          type: string
+          title: Title
+        required_capability:
+          type: string
+          title: Required Capability
+      type: object
+      required:
+      - procedure_id
+      - version
+      - title
+      - required_capability
+      title: ProcedureSummary
+    Provenance:
+      properties:
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          title: Dataset Id
+        title:
+          type: string
+          title: Title
+        organization:
+          type: string
+          title: Organization
+        source_url:
+          type: string
+          title: Source Url
+        source_file:
+          type: string
+          title: Source File
+        sha256:
+          type: string
+          title: Sha256
+        import_id:
+          type: string
+          title: Import Id
+        imported_at:
+          type: string
+          format: date-time
+          title: Imported At
+        transformation:
+          type: string
+          title: Transformation
+      type: object
+      required:
+      - dataset_id
+      - title
+      - organization
+      - source_url
+      - source_file
+      - sha256
+      - import_id
+      - imported_at
+      - transformation
+      title: Provenance
+    RegionOut:
+      properties:
+        region_id:
+          type: string
+          title: Region Id
+        label:
+          type: string
+          title: Label
+        lateral:
+          type: boolean
+          title: Lateral
+      type: object
+      required:
+      - region_id
+      - label
+      - lateral
+      title: RegionOut
+    RejectedObservation:
+      properties:
+        anchor_id:
+          type: string
+          title: Anchor Id
+        reason:
+          type: string
+          enum:
+          - unknown_anchor
+          - disabled_anchor
+          - stale_signal
+          - future_timestamp
+          title: Reason
+      type: object
+      required:
+      - anchor_id
+      - reason
+      title: RejectedObservation
+    RequestedAssessment:
+      properties:
+        assessment_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assessment Id
+        capability:
+          type: string
+          title: Capability
+        procedure_id:
+          type: string
+          title: Procedure Id
+        status:
+          type: string
+          title: Status
+        configured_reason:
+          type: string
+          title: Configured Reason
+      type: object
+      required:
+      - assessment_id
+      - capability
+      - procedure_id
+      - status
+      - configured_reason
+      title: RequestedAssessment
+    ResearchRecordsPage:
+      properties:
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          title: Dataset Id
+        title:
+          type: string
+          title: Title
+        source_url:
+          type: string
+          title: Source Url
+        source_file:
+          type: string
+          title: Source File
+        record_schema:
+          type: string
+          enum:
+          - CMP_ANALYTE_V1
+          - BIO_ASSAY_TABLE
+          - ENVIRONMENT_TIMESERIES_V1
+          - RADIATION_TIMESERIES_V1
+          - OMICS_OR_IMAGING
+          title: Record Schema
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+        provenance:
+          $ref: '#/components/schemas/Provenance'
+        total:
+          type: integer
+          title: Total
+          description: Total records matching the filters.
+        limit:
+          type: integer
+          title: Limit
+        offset:
+          type: integer
+          title: Offset
+        filters_applied:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - type: 'null'
+          type: object
+          title: Filters Applied
+        available_subjects:
+          items:
+            type: string
+          type: array
+          title: Available Subjects
+        available_analytes:
+          items:
+            type: string
+          type: array
+          title: Available Analytes
+        available_timepoints:
+          items:
+            type: string
+          type: array
+          title: Available Timepoints
+          description: Chronologically ordered.
+        limitations:
+          items:
+            type: string
+          type: array
+          title: Limitations
+        records:
+          items:
+            $ref: '#/components/schemas/CmpRecord'
+          type: array
+          title: Records
+      type: object
+      required:
+      - dataset_id
+      - title
+      - source_url
+      - source_file
+      - record_schema
+      - provenance
+      - total
+      - limit
+      - offset
+      - filters_applied
+      - available_subjects
+      - available_analytes
+      - available_timepoints
+      - limitations
+      - records
+      title: ResearchRecordsPage
+    ResetOut:
+      properties:
+        reset:
+          type: boolean
+          title: Reset
+        fixture_version:
+          type: string
+          title: Fixture Version
+        reset_at:
+          type: string
+          format: date-time
+          title: Reset At
+        research_records_before:
+          type: integer
+          title: Research Records Before
+        research_records_after:
+          type: integer
+          title: Research Records After
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - reset
+      - fixture_version
+      - reset_at
+      - research_records_before
+      - research_records_after
+      - message
+      title: ResetOut
+    ScheduledAssessmentOut:
+      properties:
+        assessment_id:
+          type: string
+          title: Assessment Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        title:
+          type: string
+          title: Title
+        capability:
+          type: string
+          title: Capability
+        procedure_id:
+          type: string
+          title: Procedure Id
+        due_at:
+          type: string
+          format: date-time
+          title: Due At
+        status:
+          type: string
+          enum:
+          - scheduled
+          - completed
+          title: Status
+        is_due:
+          type: boolean
+          title: Is Due
+        reason:
+          type: string
+          title: Reason
+        case_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Case Id
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+      type: object
+      required:
+      - assessment_id
+      - astronaut_id
+      - title
+      - capability
+      - procedure_id
+      - due_at
+      - status
+      - is_due
+      - reason
+      - case_id
+      - completed_at
+      title: ScheduledAssessmentOut
+    SessionCreate:
+      properties:
+        case_id:
+          type: string
+          title: Case Id
+        procedure_id:
+          type: string
+          title: Procedure Id
+          examples:
+          - PROC-BP-01
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-001
+        mode:
+          type: string
+          enum:
+          - self
+          - responder
+          title: Mode
+      additionalProperties: false
+      type: object
+      required:
+      - case_id
+      - procedure_id
+      - actor_id
+      - mode
+      title: SessionCreate
+    SessionOut:
+      properties:
+        session_id:
+          type: string
+          title: Session Id
+        case_id:
+          type: string
+          title: Case Id
+        procedure_id:
+          type: string
+          title: Procedure Id
+        procedure_version:
+          type: string
+          title: Procedure Version
+        actor_id:
+          type: string
+          title: Actor Id
+        mode:
+          type: string
+          enum:
+          - self
+          - responder
+          title: Mode
+        status:
+          type: string
+          enum:
+          - in_progress
+          - completed
+          title: Status
+        current_step_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Current Step Id
+          description: Next step to confirm; null when all steps are confirmed.
+        current_step:
+          anyOf:
+          - $ref: '#/components/schemas/ProcedureStep'
+          - type: 'null'
+        completed_steps:
+          items:
+            $ref: '#/components/schemas/CompletedStep'
+          type: array
+          title: Completed Steps
+        total_steps:
+          type: integer
+          title: Total Steps
+        completed_count:
+          type: integer
+          title: Completed Count
+        measurement_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Measurement Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        case_state:
+          type: string
+          enum:
+          - detected
+          - investigating
+          - awaiting_assessment
+          - awaiting_results
+          - action_required
+          - monitoring
+          - follow_up_due
+          - escalated
+          - resolved
+          title: Case State
+        confirmation_note:
+          type: string
+          title: Confirmation Note
+          default: A confirmed step records an acknowledgement only. It does not prove correct clinical execution.
+      type: object
+      required:
+      - session_id
+      - case_id
+      - procedure_id
+      - procedure_version
+      - actor_id
+      - mode
+      - status
+      - current_step_id
+      - current_step
+      - completed_steps
+      - total_steps
+      - completed_count
+      - measurement_id
+      - created_at
+      - updated_at
+      - completed_at
+      - case_state
+      title: SessionOut
+    StepConfirm:
+      properties:
+        step_id:
+          type: string
+          title: Step Id
+          examples:
+          - S1
+        completion_source:
+          type: string
+          enum:
+          - self_confirmed
+          - responder_confirmed
+          - demo_auto
+          title: Completion Source
+      additionalProperties: false
+      type: object
+      required:
+      - step_id
+      - completion_source
+      title: StepConfirm
+    SymptomCreate:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+          examples:
+          - DEMO-001
+        region_id:
+          type: string
+          title: Region Id
+          description: Anatomical region ID from the demo fixture.
+          examples:
+          - head
+        laterality:
+          type: string
+          enum:
+          - left
+          - right
+          - bilateral
+          - midline
+          - not_applicable
+          title: Laterality
+          examples:
+          - midline
+        severity:
+          type: integer
+          maximum: 10.0
+          minimum: 0.0
+          title: Severity
+          description: Self-reported severity 0-10.
+          examples:
+          - 3
+        onset:
+          type: string
+          format: date-time
+          title: Onset
+          description: ISO 8601 time the symptom started.
+          examples:
+          - '2026-11-14T08:45:00Z'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - astronaut_id
+      - region_id
+      - laterality
+      - severity
+      - onset
+      title: SymptomCreate
+    SymptomCreated:
+      properties:
+        symptom_id:
+          type: string
+          title: Symptom Id
+        case_id:
+          type: string
+          title: Case Id
+        case_state:
+          type: string
+          enum:
+          - detected
+          - investigating
+          - awaiting_assessment
+          - awaiting_results
+          - action_required
+          - monitoring
+          - follow_up_due
+          - escalated
+          - resolved
+          title: Case State
+        next_action:
+          type: string
+          title: Next Action
+        duplicate:
+          type: boolean
+          title: Duplicate
+          description: True when the report repeated an identical recent report and was deduplicated.
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+      type: object
+      required:
+      - symptom_id
+      - case_id
+      - case_state
+      - next_action
+      - duplicate
+      title: SymptomCreated
+    SymptomOut:
+      properties:
+        symptom_id:
+          type: string
+          title: Symptom Id
+        region_id:
+          type: string
+          title: Region Id
+        laterality:
+          type: string
+          title: Laterality
+        severity:
+          type: integer
+          title: Severity
+        onset:
+          type: string
+          format: date-time
+          title: Onset
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        reported_at:
+          type: string
+          format: date-time
+          title: Reported At
+      type: object
+      required:
+      - symptom_id
+      - region_id
+      - laterality
+      - severity
+      - onset
+      - note
+      - reported_at
+      title: SymptomOut
+    TimeseriesPage:
+      properties:
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          title: Dataset Id
+        metric:
+          type: string
+          title: Metric
+        unit:
+          type: string
+          title: Unit
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+        provenance:
+          $ref: '#/components/schemas/Provenance'
+        total:
+          type: integer
+          title: Total
+        limit:
+          type: integer
+          title: Limit
+        offset:
+          type: integer
+          title: Offset
+        points:
+          items:
+            $ref: '#/components/schemas/TimeseriesPoint'
+          type: array
+          title: Points
+      type: object
+      required:
+      - dataset_id
+      - metric
+      - unit
+      - provenance
+      - total
+      - limit
+      - offset
+      - points
+      title: TimeseriesPage
+    TimeseriesPoint:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Value
+        unit:
+          type: string
+          title: Unit
+      type: object
+      required:
+      - timestamp
+      - value
+      - unit
+      title: TimeseriesPoint
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    ZoneOut:
+      properties:
+        zone_id:
+          type: string
+          title: Zone Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - zone_id
+      - name
+      title: ZoneOut
+    ZoneScore:
+      properties:
+        zone_id:
+          type: string
+          title: Zone Id
+        best_rssi_dbm:
+          type: integer
+          title: Best Rssi Dbm
+        anchor_count:
+          type: integer
+          title: Anchor Count
+      type: object
+      required:
+      - zone_id
+      - best_rssi_dbm
+      - anchor_count
+      title: ZoneScore

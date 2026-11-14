@@ -1,0 +1,194 @@
+# SENTINEL AI — Backend → Frontend Integration Handoff
+
+| Item | Value |
+|---|---|
+| Contract | `shared/openapi.yaml`, **version 2.1.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.1.0 |
+| Backend branch | `backend/p0-v2.1` (local commit; not pushed — awaiting owner approval) |
+| Base URL | `http://127.0.0.1:8000` |
+| API prefix | `/api/v1` (plus `/healthz` at the root) |
+| Status | All 13 baseline endpoints and all 5 v2.1 research endpoints implemented and tested |
+
+This file is how the backend communicates with Codex. Writing it does not mean Codex has read it.
+
+## 1. Start the backend
+
+```bash
+cd Backend
+python -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt
+.venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+(macOS/Linux: `.venv/bin/python`.) On first start the server creates `Backend/var/sentinel.db`, seeds the
+fictional demo from the shared fixture, and imports the NASA OSD-575 CSV from `data/nasa/raw/` automatically.
+No internet connection is needed.
+
+## 2. How the frontend should connect
+
+- Preferred: Vite dev proxy — `server.proxy = { '/api': 'http://127.0.0.1:8000', '/healthz': 'http://127.0.0.1:8000' }`.
+- Or call `http://127.0.0.1:8000` directly: CORS allows only `http://127.0.0.1:5173` and `http://localhost:5173`
+  (methods GET/POST/OPTIONS, header Content-Type).
+- Generate TypeScript types from the contract, for example
+  `npx openapi-typescript ../shared/openapi.yaml -o src/api/schema.ts`. Do not hand-write diverging types.
+
+## 3. Conventions Codex must follow
+
+1. **Timestamps**: ISO 8601 **with a timezone** (`2026-11-14T09:30:00Z`). Naive timestamps are rejected (422).
+   Responses are always UTC with offset.
+2. **Errors**: every non-2xx body is `{"error": {"code": "...", "message": "...", "details": ...}}`.
+   Codes used: `VALIDATION_ERROR`, `NOT_FOUND`, `UNKNOWN_REGION`, `INVALID_LATERALITY`, `TIMESTAMP_IN_FUTURE`,
+   `TIMESTAMP_OUTSIDE_SESSION`, `UNKNOWN_OBSERVATION_TYPE`, `UNIT_MISMATCH`, `VALUE_OUT_OF_TECHNICAL_RANGE`,
+   `INVALID_CASE_TRANSITION`, `NO_SUITABLE_EQUIPMENT`, `PROCEDURE_MISMATCH`, `CASE_RESOLVED`, `UNKNOWN_STEP`,
+   `STEP_OUT_OF_ORDER`, `SESSION_COMPLETED`, `SESSION_INCOMPLETE`, `SESSION_CASE_MISMATCH`, `ASTRONAUT_MISMATCH`,
+   `MEASUREMENT_IMPLAUSIBLE`, `MEASUREMENT_ALREADY_RECORDED`, `UNKNOWN_DATASET`, `UNKNOWN_FILTER_VALUE`,
+   `DATASET_UNAVAILABLE`, `INVALID_DATASET_FOR_ENDPOINT`.
+3. **Request bodies reject unknown fields** (422). Send only contract fields.
+4. **Duplicates return 200, new records 201** for `POST /symptoms`, `/procedure-sessions`, `/emergencies`,
+   `/observations`. Check the `duplicate` flag where present.
+5. **Data category** on every record: `NASA_RESEARCH`, `SIMULATED_ASTRONAUT`, `SIMULATED_ENVIRONMENT_OR_DEVICE`.
+   Never display NASA records as live astronaut or habitat readings.
+6. **BLE observations**: the fixture gives `age_seconds`; send `observed_at = now - age_seconds`. Signals older
+   than 30 s are rejected as stale.
+7. **Attention**: show `attention.interrupt == true` items as interrupting alerts; routine items must not interrupt.
+8. **Units**: always take units from the API (`unit` fields). Do not guess.
+
+## 4. Shared fixture identifiers
+
+| Thing | ID |
+|---|---|
+| Astronaut (fictional) | `DEMO-001` |
+| Responder (fictional) | `DEMO-002` |
+| Habitat | `HAB-01` (map `HAB-01-map-1.0`) |
+| Zones | `crew-quarters`, `exercise`, `medical`, `laboratory` |
+| Connections | crew-quarters↔exercise, exercise↔medical, crew-quarters↔laboratory (open); laboratory↔medical (**closed**) |
+| Anchors | `ANC-CQ-01`, `ANC-EX-01`, `ANC-MED-01`, `ANC-LAB-01`, `ANC-LAB-02` (disabled) |
+| Equipment | `EQ-BP-01` (medical, ready), `EQ-BP-02` (laboratory, readiness unknown), `EQ-BP-03` (exercise, cuff missing), `EQ-PO-01`, `EQ-THERM-01`, `EQ-AED-01`, `EQ-EMK-01` |
+| Capability | `blood_pressure` |
+| Procedure | `PROC-BP-01` version `1.0.0-demo`, steps `S1`–`S6` |
+| Scheduled assessment | `SA-BP-001` (due 30 min before seed/reset) |
+| NASA dataset | `OSD-575` (plus catalogue IDs `OSD-656`, `NASA-EDA`, `NASA-RADLAB`, `OSD-654`, `OSD-684`, `OSD-573`, `OSD-817`) |
+| Anatomical regions | `head`, `eyes`, `neck`, `chest`, `upper_back`, `lower_back`, `abdomen`, `upper_arm`, `forearm_hand`, `upper_leg`, `lower_leg_foot`, `whole_body` |
+| Laterality | `left`, `right`, `bilateral`, `midline`, `not_applicable` (non-lateral regions accept only `midline`/`not_applicable`) |
+
+`GET /api/v1/demo/bootstrap` returns all of these plus `demo_inputs` (the canonical symptom, BLE observations,
+measurement and emergency payload templates), so the frontend never needs to hard-code demo values.
+
+## 5. Endpoints
+
+| # | Method & path | Status | Success codes |
+|---|---|---|---|
+| 1 | `GET /healthz` | Working | 200 |
+| 2 | `GET /api/v1/demo/bootstrap` | Working | 200 |
+| 3 | `POST /api/v1/symptoms` | Working | 201 / 200 duplicate |
+| 4 | `GET /api/v1/cases/{case_id}` | Working | 200 |
+| 5 | `POST /api/v1/location/estimate` | Working (simulated BLE) | 200 (zone may be null) |
+| 6 | `POST /api/v1/equipment/recommend` | Working | 200 / 404 `NO_SUITABLE_EQUIPMENT` |
+| 7 | `GET /api/v1/procedures/{procedure_id}` | Working | 200 |
+| 8 | `POST /api/v1/procedure-sessions` | Working | 201 / 200 existing |
+| 9 | `POST /api/v1/procedure-sessions/{session_id}/steps` | Working | 200 |
+| 10 | `POST /api/v1/measurements` | Working | 201 |
+| 11 | `GET /api/v1/research/osd-575` | Working (real data) | 200 / 503 if not imported |
+| 12 | `POST /api/v1/emergencies` | Working | 201 / 200 duplicate |
+| 13 | `POST /api/v1/demo/reset` | Working | 200 |
+| v2.1 | `GET /api/v1/research/datasets` | Working | 200 |
+| v2.1 | `GET /api/v1/research/datasets/{dataset_id}` | Working | 200 / 404 |
+| v2.1 | `GET /api/v1/research/datasets/{dataset_id}/records` | Working for OSD-575 | 200 / 503 others |
+| v2.1 | `GET /api/v1/environment/timeseries` | Contract only; no EDA importer yet (P1) | **always 503 `DATASET_UNAVAILABLE` today** |
+| v2.1 | `GET /api/v1/radiation/timeseries` | Contract only; no RadLab importer yet (P1) | **always 503 today** |
+| opt | `POST /api/v1/cases/{case_id}/acknowledge` | Working | 200 (never resolves) |
+| opt | `POST /api/v1/observations` | Working | 201 / 200 duplicate |
+| opt | `POST /api/v1/location/confirm` | Working (manual zone) | 200 |
+| opt | `GET /api/v1/procedure-sessions/{session_id}` | Working | 200 |
+
+Research query parameters: `subject_id`, `analyte`, `timepoint` (exact values from `available_*` lists; unknown
+values → 422), `limit` (1–1000; default 1000 on `/research/osd-575`, 100 on `/records`), `offset`.
+Timeseries: `dataset_id`, `metric`, `start`, `end`, `limit` (1–5000), `offset`.
+
+## 6. Canonical demo sequence (example payloads)
+
+```http
+GET  /api/v1/demo/bootstrap
+
+POST /api/v1/symptoms
+{"astronaut_id":"DEMO-001","region_id":"head","laterality":"midline","severity":3,
+ "onset":"2026-11-14T08:15:00Z","note":"Mild headache and a feeling of facial fullness (fictional demonstration report)."}
+→ 201 {"symptom_id":"SYM-…","case_id":"CASE-…","case_state":"awaiting_assessment","next_action":"Complete the scheduled …","duplicate":false,"data_category":"SIMULATED_ASTRONAUT"}
+
+POST /api/v1/location/estimate
+{"astronaut_id":"DEMO-001","observations":[
+ {"anchor_id":"ANC-CQ-01","rssi_dbm":-52,"observed_at":"<now-2s>"},
+ {"anchor_id":"ANC-LAB-01","rssi_dbm":-63,"observed_at":"<now-3s>"},
+ {"anchor_id":"ANC-EX-01","rssi_dbm":-78,"observed_at":"<now-2s>"},
+ {"anchor_id":"ANC-UNKNOWN-99","rssi_dbm":-40,"observed_at":"<now-1s>"}]}
+→ 200 {"zone_id":"crew-quarters","confidence":0.867,"source":"ble_simulated","observed_at":"…",
+       "rejected":[{"anchor_id":"ANC-UNKNOWN-99","reason":"unknown_anchor"}], …}
+
+POST /api/v1/equipment/recommend
+{"case_id":"CASE-…","zone_id":"crew-quarters","capability":"blood_pressure"}
+→ 200 {"equipment_id":"EQ-BP-01","device_model":"Demo Automatic Upper-Arm BP Monitor A1","zone_id":"medical",
+       "readiness":"verified_ready","route_zone_ids":["crew-quarters","exercise","medical"],"procedure_id":"PROC-BP-01",
+       "excluded":[{"equipment_id":"EQ-BP-02","reasons":["readiness_unknown"]},
+                   {"equipment_id":"EQ-BP-03","reasons":["missing_supplies:cuff_adult_standard"]}], …}
+
+GET  /api/v1/procedures/PROC-BP-01
+
+POST /api/v1/procedure-sessions
+{"case_id":"CASE-…","procedure_id":"PROC-BP-01","actor_id":"DEMO-001","mode":"self"}
+→ 201 {"session_id":"SES-…","current_step_id":"S1","case_state":"awaiting_results", …}
+
+POST /api/v1/procedure-sessions/SES-…/steps   (repeat for S1 … S6, in order)
+{"step_id":"S1","completion_source":"self_confirmed"}      // or responder_confirmed | demo_auto
+
+POST /api/v1/measurements
+{"case_id":"CASE-…","session_id":"SES-…","astronaut_id":"DEMO-001","type":"blood_pressure",
+ "value":{"systolic":118,"diastolic":76,"pulse":70},"unit":"mmHg","source":"SIMULATED_DEVICE",
+ "observed_at":"<now>"}
+→ 201 {"case_state":"monitoring","follow_up_created":true,"validation":{"technical_checks_passed":true,
+       "clinical_interpretation":null, …}, …}
+
+GET  /api/v1/cases/CASE-…        → state "monitoring", follow_up_status "scheduled", one follow-up (24 h)
+GET  /api/v1/research/osd-575    → 531 real NASA records with provenance
+POST /api/v1/emergencies
+{"astronaut_id":"DEMO-001","responder_id":"DEMO-002","trigger":"crew_collapse"}
+→ 201 {"priority":"urgent","case_state":"escalated","localisation_required":false, …}
+```
+
+Case states: `detected`, `investigating`, `awaiting_assessment`, `awaiting_results`, `action_required`,
+`monitoring`, `follow_up_due`, `escalated`, `resolved`.
+
+## 7. Demo reset
+
+`POST /api/v1/demo/reset` deletes every synthetic record (cases, symptoms, sessions, measurements, follow-ups,
+location estimates, emergencies, audit, equipment, habitat) and re-seeds from the fixture with fresh relative
+timestamps. NASA research tables are untouched (`research_records_before == research_records_after`).
+Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
+
+## 8. NASA importer status
+
+- OSD-575 CMP CSV present at `data/nasa/raw/LSDS-8_Comprehensive_Metabolic_Panel_CMP.upload_SUBMITTED.csv`
+  (SHA-256 `dab247eb794edab59aaaa683c85fd1f2dbf4ae3684872739338e10ead4192a0c`).
+- Imported: 531/531 rows, 4 subjects (C001–C004), 19 analytes, 7 timepoints. 22 `NA` values and 56 `N/A`
+  upper bounds stored as `null`. Status `IMPORTED`.
+- The other seven catalogue datasets report `NOT_DOWNLOADED` (no importer yet). Show their `source_url` and
+  status honestly; do not chart them.
+
+## 9. Tests
+
+See `docs/TEST_REPORT.md`. Latest: **86 passed, 0 failed** (pytest) and **19/19** real-HTTP checks against uvicorn.
+
+## 10. Known contract deviations and coordination notes
+
+1. **Folder casing**: the repository has `Backend/` and `Frontend/` (capitalised, created before the backend work
+   started). The prompts say `backend/` and `frontend/`. Windows ignores the difference, Linux/CI does not.
+   Proposed smallest fix: keep the existing capitalised names and update docs/scripts to match; or the owner
+   renames both in one coordinated commit. The backend code does not depend on the folder name.
+2. **`onset`** is an ISO 8601 timestamp (when the symptom began), not a free-text label.
+3. **Measurement `value`** is an object `{systolic, diastolic, pulse?}` (integers), not a string like "118/76".
+4. **`procedure_id`** in the equipment response is nullable (null for devices with no linked procedure, e.g. AED).
+5. Timeseries endpoints are defined but return 503 until P1 importers exist.
+6. Backend has not read or modified anything in `Frontend/`.
+
+## 11. Changes requiring frontend updates
+
+This is the first published contract (2.1.0). Any future change will be listed here with the new version number.

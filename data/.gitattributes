@@ -1,0 +1,2 @@
+# Keep NASA source files byte-identical (SHA-256 is recorded in provenance).
+nasa/raw/** -text

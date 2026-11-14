@@ -1,0 +1,171 @@
+{
+  "fixture_version": "2.1.0",
+  "contract_version": "2.1.0",
+  "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
+  "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
+  "astronaut": {
+    "astronaut_id": "DEMO-001",
+    "display_name": "Demo Astronaut One",
+    "role": "Mission Specialist",
+    "fictional": true,
+    "mission": {
+      "mission_id": "DEMO-MARS-TRANSIT",
+      "mission_name": "Fictional Mars Transit Demonstration",
+      "habitat_id": "HAB-01",
+      "mission_day": 142
+    }
+  },
+  "responder": {
+    "astronaut_id": "DEMO-002",
+    "display_name": "Demo Crew Medical Officer",
+    "role": "Crew Medical Officer (fictional)",
+    "fictional": true,
+    "mission": {
+      "mission_id": "DEMO-MARS-TRANSIT",
+      "mission_name": "Fictional Mars Transit Demonstration",
+      "habitat_id": "HAB-01",
+      "mission_day": 142
+    }
+  },
+  "habitat": {
+    "habitat_id": "HAB-01",
+    "name": "Fictional Transit Habitat 01",
+    "map_version": "HAB-01-map-1.0",
+    "zones": [
+      {"zone_id": "crew-quarters", "name": "Crew Quarters"},
+      {"zone_id": "exercise", "name": "Exercise Bay"},
+      {"zone_id": "medical", "name": "Medical Bay"},
+      {"zone_id": "laboratory", "name": "Laboratory"}
+    ],
+    "connections": [
+      {"from_zone_id": "crew-quarters", "to_zone_id": "exercise", "accessible": true, "note": "Open passage"},
+      {"from_zone_id": "exercise", "to_zone_id": "medical", "accessible": true, "note": "Open passage"},
+      {"from_zone_id": "crew-quarters", "to_zone_id": "laboratory", "accessible": true, "note": "Open passage"},
+      {"from_zone_id": "laboratory", "to_zone_id": "medical", "accessible": false, "note": "Hatch closed for fictional maintenance"}
+    ]
+  },
+  "anchors": [
+    {"anchor_id": "ANC-CQ-01", "zone_id": "crew-quarters", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
+    {"anchor_id": "ANC-EX-01", "zone_id": "exercise", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
+    {"anchor_id": "ANC-MED-01", "zone_id": "medical", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
+    {"anchor_id": "ANC-LAB-01", "zone_id": "laboratory", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
+    {"anchor_id": "ANC-LAB-02", "zone_id": "laboratory", "enabled": false, "verified_minutes_ago": 4320, "verified_by": "DEMO-002"}
+  ],
+  "ble_observations": {
+    "description": "Simulated BLE advertisements heard by DEMO-001's wearable while in crew-quarters. The laboratory anchor is also heard strongly through the open passage. ANC-UNKNOWN-99 is not in the trusted registry and must be rejected.",
+    "astronaut_id": "DEMO-001",
+    "expected_zone_id": "crew-quarters",
+    "observations": [
+      {"anchor_id": "ANC-CQ-01", "rssi_dbm": -52, "age_seconds": 2},
+      {"anchor_id": "ANC-LAB-01", "rssi_dbm": -63, "age_seconds": 3},
+      {"anchor_id": "ANC-EX-01", "rssi_dbm": -78, "age_seconds": 2},
+      {"anchor_id": "ANC-UNKNOWN-99", "rssi_dbm": -40, "age_seconds": 1}
+    ]
+  },
+  "equipment": [
+    {"equipment_id": "EQ-BP-01", "device_model": "Demo Automatic Upper-Arm BP Monitor A1", "capability": "blood_pressure", "zone_id": "medical", "readiness": "verified_ready", "readiness_verified_minutes_ago": 90, "supplies": {"cuff_adult_standard": true, "battery_ok": true}, "required_supplies": ["cuff_adult_standard", "battery_ok"], "compatible_procedure_ids": ["PROC-BP-01"]},
+    {"equipment_id": "EQ-BP-02", "device_model": "Demo Automatic Upper-Arm BP Monitor A1", "capability": "blood_pressure", "zone_id": "laboratory", "readiness": "unknown", "readiness_verified_minutes_ago": null, "supplies": {"cuff_adult_standard": true, "battery_ok": true}, "required_supplies": ["cuff_adult_standard", "battery_ok"], "compatible_procedure_ids": ["PROC-BP-01"]},
+    {"equipment_id": "EQ-BP-03", "device_model": "Demo Automatic Upper-Arm BP Monitor A1", "capability": "blood_pressure", "zone_id": "exercise", "readiness": "verified_ready", "readiness_verified_minutes_ago": 120, "supplies": {"cuff_adult_standard": false, "battery_ok": true}, "required_supplies": ["cuff_adult_standard", "battery_ok"], "compatible_procedure_ids": ["PROC-BP-01"]},
+    {"equipment_id": "EQ-PO-01", "device_model": "Demo Fingertip Pulse Oximeter P1", "capability": "pulse_oximetry", "zone_id": "medical", "readiness": "verified_ready", "readiness_verified_minutes_ago": 90, "supplies": {"battery_ok": true}, "required_supplies": ["battery_ok"], "compatible_procedure_ids": []},
+    {"equipment_id": "EQ-THERM-01", "device_model": "Demo Infrared Thermometer T1", "capability": "body_temperature", "zone_id": "crew-quarters", "readiness": "verified_ready", "readiness_verified_minutes_ago": 300, "supplies": {"battery_ok": true}, "required_supplies": ["battery_ok"], "compatible_procedure_ids": []},
+    {"equipment_id": "EQ-AED-01", "device_model": "Demo Automated External Defibrillator Trainer (fictional record)", "capability": "aed", "zone_id": "medical", "readiness": "verified_ready", "readiness_verified_minutes_ago": 240, "supplies": {"pads_adult": true, "battery_ok": true}, "required_supplies": ["pads_adult", "battery_ok"], "compatible_procedure_ids": []},
+    {"equipment_id": "EQ-EMK-01", "device_model": "Demo Emergency Medical Kit (fictional record)", "capability": "emergency_kit", "zone_id": "exercise", "readiness": "verified_ready", "readiness_verified_minutes_ago": 240, "supplies": {"seal_intact": true}, "required_supplies": ["seal_intact"], "compatible_procedure_ids": []}
+  ],
+  "expected_recommendation": {
+    "case_capability": "blood_pressure",
+    "from_zone_id": "crew-quarters",
+    "equipment_id": "EQ-BP-01",
+    "route_zone_ids": ["crew-quarters", "exercise", "medical"],
+    "explanation": "EQ-BP-02 (laboratory) is adjacent but its readiness is unknown. EQ-BP-03 (exercise) is missing its cuff. The laboratory-medical hatch is closed, so the accessible route is via exercise."
+  },
+  "anatomical_regions": [
+    {"region_id": "head", "label": "Head", "lateral": false},
+    {"region_id": "eyes", "label": "Eyes", "lateral": true},
+    {"region_id": "neck", "label": "Neck", "lateral": false},
+    {"region_id": "chest", "label": "Chest", "lateral": true},
+    {"region_id": "upper_back", "label": "Upper back", "lateral": true},
+    {"region_id": "lower_back", "label": "Lower back", "lateral": true},
+    {"region_id": "abdomen", "label": "Abdomen", "lateral": true},
+    {"region_id": "upper_arm", "label": "Upper arm", "lateral": true},
+    {"region_id": "forearm_hand", "label": "Forearm and hand", "lateral": true},
+    {"region_id": "upper_leg", "label": "Upper leg", "lateral": true},
+    {"region_id": "lower_leg_foot", "label": "Lower leg and foot", "lateral": true},
+    {"region_id": "whole_body", "label": "Whole body / general", "lateral": false}
+  ],
+  "laterality_values": ["left", "right", "bilateral", "midline", "not_applicable"],
+  "observation_catalogue": [
+    {"type": "heart_rate", "unit": "bpm", "min": 20, "max": 250, "stale_after_minutes": 60},
+    {"type": "spo2", "unit": "%", "min": 50, "max": 100, "stale_after_minutes": 240},
+    {"type": "body_temperature", "unit": "degC", "min": 30, "max": 43, "stale_after_minutes": 720},
+    {"type": "sleep_duration", "unit": "h", "min": 0, "max": 24, "stale_after_minutes": 1680},
+    {"type": "blood_pressure_systolic", "unit": "mmHg", "min": 50, "max": 260, "stale_after_minutes": 10080},
+    {"type": "blood_pressure_diastolic", "unit": "mmHg", "min": 30, "max": 160, "stale_after_minutes": 10080}
+  ],
+  "observations": [
+    {"observation_id": "OBS-0001", "type": "heart_rate", "value": 68, "unit": "bpm", "minutes_ago": 15, "source": "SIMULATED_WEARABLE", "quality": "good"},
+    {"observation_id": "OBS-0002", "type": "heart_rate", "value": 72, "unit": "bpm", "minutes_ago": 5, "source": "SIMULATED_WEARABLE", "quality": "good"},
+    {"observation_id": "OBS-0003", "type": "spo2", "value": 98, "unit": "%", "minutes_ago": 5, "source": "SIMULATED_WEARABLE", "quality": "good"},
+    {"observation_id": "OBS-0004", "type": "body_temperature", "value": 36.8, "unit": "degC", "minutes_ago": 1500, "source": "SIMULATED_MANUAL_ENTRY", "quality": "good"},
+    {"observation_id": "OBS-0005", "type": "sleep_duration", "value": 6.1, "unit": "h", "minutes_ago": 420, "source": "SIMULATED_WEARABLE", "quality": "fair"}
+  ],
+  "scheduled_assessment": {
+    "assessment_id": "SA-BP-001",
+    "astronaut_id": "DEMO-001",
+    "title": "Routine non-invasive blood-pressure check (fictional schedule)",
+    "capability": "blood_pressure",
+    "procedure_id": "PROC-BP-01",
+    "due_minutes_ago": 30,
+    "reason": "Configured weekly demonstration assessment. This schedule is fictional and is not a clinical recommendation."
+  },
+  "demo_symptom": {
+    "astronaut_id": "DEMO-001",
+    "region_id": "head",
+    "laterality": "midline",
+    "severity": 3,
+    "onset_minutes_ago": 45,
+    "note": "Mild headache and a feeling of facial fullness (fictional demonstration report)."
+  },
+  "procedure": {
+    "procedure_id": "PROC-BP-01",
+    "version": "1.0.0-demo",
+    "title": "Non-invasive upper-arm blood-pressure measurement (educational demonstration)",
+    "purpose": "Demonstrates how a non-medical crew member could be guided to take an automatic upper-arm blood-pressure reading for a configured, fictional assessment.",
+    "required_capability": "blood_pressure",
+    "compatible_device_models": ["Demo Automatic Upper-Arm BP Monitor A1"],
+    "anatomical_region_ids": ["upper_arm"],
+    "content_status": "EDUCATIONAL_DEMO_ONLY",
+    "source_basis": "Paraphrased from widely published general guidance for automatic home upper-arm blood-pressure measurement (for example American Heart Association home-monitoring guidance). Not reviewed by a flight surgeon and not a mission-approved procedure.",
+    "safety_limitations": [
+      "Educational demonstration only. Not a clinically validated or mission-approved procedure.",
+      "Do not use this procedure to diagnose or treat any condition.",
+      "Stop if the cuff causes pain, numbness or tingling, and release the cuff.",
+      "If you feel chest pain, severe headache, faintness or shortness of breath, stop and activate the emergency workflow or call a crew member.",
+      "Confirming a step records an acknowledgement only. It does not prove the step was performed correctly."
+    ],
+    "steps": [
+      {"step_id": "S1", "order": 1, "title": "Prepare and rest", "instruction": "Restrain yourself in a relaxed, supported position. Rest quietly for 5 minutes. Avoid exercise, caffeine and talking during this time.", "anatomical_region_ids": [], "requires_confirmation": true, "responder_note": "Help the crew member into a supported, relaxed position."},
+      {"step_id": "S2", "order": 2, "title": "Expose the upper arm", "instruction": "Use the left upper arm unless instructed otherwise. Remove or roll up tight clothing so the cuff sits on bare skin.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Ask before touching the crew member's arm."},
+      {"step_id": "S3", "order": 3, "title": "Position the cuff", "instruction": "Wrap the cuff snugly around the upper arm with its lower edge about 2-3 cm above the elbow crease. Align the cuff's artery marker with the inside of the arm. Two fingertips should fit under the cuff.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Check the fit with two fingertips."},
+      {"step_id": "S4", "order": 4, "title": "Support the arm at heart level", "instruction": "Keep the arm relaxed and supported at about heart level. Keep still and do not talk.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Support the arm gently if needed."},
+      {"step_id": "S5", "order": 5, "title": "Start the measurement", "instruction": "Press start on the monitor and remain still until the cuff fully deflates.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Start the device and watch for errors on the display."},
+      {"step_id": "S6", "order": 6, "title": "Record the displayed values", "instruction": "Read the systolic, diastolic and pulse values shown on the display, remove the cuff and submit the reading.", "anatomical_region_ids": [], "requires_confirmation": true, "responder_note": "Read the values aloud to the crew member before submitting."}
+    ],
+    "follow_up": {"task_type": "repeat_assessment", "title": "Repeat demonstration blood-pressure reading", "due_in_hours": 24}
+  },
+  "demo_measurement": {
+    "type": "blood_pressure",
+    "value": {"systolic": 118, "diastolic": 76, "pulse": 70},
+    "unit": "mmHg",
+    "source": "SIMULATED_DEVICE"
+  },
+  "emergency_scenario": {
+    "astronaut_id": "DEMO-001",
+    "responder_id": "DEMO-002",
+    "trigger": "crew_collapse",
+    "description": "Fictional scenario based on the challenge example: DEMO-001 reports chest pain and collapses. DEMO-002 activates the emergency workflow. Localisation is unavailable."
+  },
+  "nasa_research_dataset": {
+    "dataset_id": "OSD-575",
+    "note": "Genuine NASA research data are imported from data/nasa/raw/ and are never copied into this fixture or into DEMO-001 records."
+  }
+}
