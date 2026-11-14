@@ -1,0 +1,24 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { api, ApiError } from './api'
+
+afterEach(() => vi.unstubAllGlobals())
+describe('local API errors', () => {
+  it('does not substitute mock mission data when backend is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('connection refused')))
+    await expect(api.bootstrap()).rejects.toEqual(new ApiError('Local backend unavailable. No data was saved or retrieved.', 0))
+  })
+  it('uses the committed P0 request shapes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201, text: async () => '{}' })
+    vi.stubGlobal('fetch', fetchMock)
+    await api.symptom({ astronaut_id: 'DEMO-001', region_id: 'head', laterality: 'midline', severity: 3, onset: '2026-11-14T08:45:00Z' })
+    await api.completeStep('SES-1', 'S1', 'self')
+    await api.measurement({ case_id: 'CASE-1', session_id: 'SES-1', value: { systolic: 118, diastolic: 76, pulse: 70 } })
+    await api.emergency()
+    const bodies = fetchMock.mock.calls.map(call => JSON.parse(call[1].body))
+    expect(bodies[0].onset).toBe('2026-11-14T08:45:00Z')
+    expect(bodies[1].completion_source).toBe('self_confirmed')
+    expect(bodies[2].value).toEqual({ systolic: 118, diastolic: 76, pulse: 70 })
+    expect(bodies[2].source).toBe('SIMULATED_MANUAL_ENTRY')
+    expect(bodies[3].trigger).toBe('crew_collapse')
+  })
+})
