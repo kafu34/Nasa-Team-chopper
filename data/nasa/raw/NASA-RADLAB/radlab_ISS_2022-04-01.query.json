@@ -1,0 +1,10 @@
+{
+  "dataset_id": "NASA-RADLAB",
+  "portal": "RadLab (NASA OSDR)",
+  "api_docs": "https://visualization.osdr.nasa.gov/radlab/gui/data-api/",
+  "query_url": "https://visualization.osdr.nasa.gov/radlab/api/?spacecraft=ISS&timestamp%3E=2022-04-01T00%3A00&timestamp%3C2022-04-02T00%3A00&module&instrument_family&absorbed_dose_rate&dose_equivalent_rate&latitude&longitude&altitude&format=csv",
+  "retrieved_at": "2026-11-14T08:41:42Z",
+  "source_file": "radlab_ISS_2022-04-01.csv",
+  "sha256": "ed71c71ed9ec7684520dcd9a444ce2713809af2f4147e744bdb348b2cfc04733",
+  "note": "Snapshot of public RadLab API output, saved unchanged. ISS readings for 2022-04-01 UTC (start inclusive, end exclusive)."
+}

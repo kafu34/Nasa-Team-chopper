@@ -216,6 +216,16 @@ class TimeseriesPoint(BaseModel):
     timestamp: datetime
     value: Optional[float]
     unit: str
+    # v2.2 additive fields (filled for NASA-RADLAB)
+    timestamp_raw: Optional[str] = Field(None, description="Timestamp text exactly as in the source.")
+    instrument_id: Optional[str] = Field(None, description="Instrument/detector ID as published, e.g. DosTel1.")
+    instrument_family: Optional[str] = None
+    spacecraft: Optional[str] = None
+    module: Optional[str] = Field(None, description="Spacecraft module, e.g. Columbus (ISS only).")
+    latitude: Optional[float] = Field(None, description="Spacecraft latitude, deg (ISS only).")
+    longitude: Optional[float] = Field(None, description="Spacecraft longitude, deg (ISS only).")
+    altitude: Optional[float] = Field(None, description="Spacecraft altitude, km (ISS only).")
+    source_row_number: Optional[int] = None
 
 
 class TimeseriesPage(BaseModel):
@@ -228,3 +238,11 @@ class TimeseriesPage(BaseModel):
     limit: int
     offset: int
     points: list[TimeseriesPoint]
+    # v2.2 additive fields
+    study_type: Optional[StudyType] = None
+    filters_applied: dict[str, Optional[str]] = Field(default_factory=dict)
+    available_metrics: list[str] = Field(default_factory=list)
+    available_instruments: list[str] = Field(default_factory=list)
+    first_timestamp: Optional[datetime] = Field(None, description="Earliest reading in the dataset (all filters off).")
+    last_timestamp: Optional[datetime] = None
+    limitations: list[str] = Field(default_factory=list)

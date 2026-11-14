@@ -229,6 +229,51 @@ the SUBMITTED CSV already imported.
 - Four crew members only.
 - Never used as SENTINEL astronaut data.
 
+## 2d. NASA-RADLAB: RadLab ISS radiation snapshot (P1, imported)
+
+`SPACEFLIGHT_ENVIRONMENT`. Record schema `RADIATION_TIMESERIES_V1`. Importer: `Backend/app/importers/radlab.py`.
+Served by `GET /api/v1/radiation/timeseries`.
+
+**Source:** the public RadLab data API (no key; docs https://visualization.osdr.nasa.gov/radlab/gui/data-api/).
+One query was saved unchanged on 2026-11-14 and downloaded twice, byte-identical both times:
+
+```
+https://visualization.osdr.nasa.gov/radlab/api/?spacecraft=ISS&timestamp%3E=2022-04-01T00%3A00&timestamp%3C2022-04-02T00%3A00&module&instrument_family&absorbed_dose_rate&dose_equivalent_rate&latitude&longitude&altitude&format=csv
+```
+
+| File in `data/nasa/raw/NASA-RADLAB/` | Content |
+|---|---|
+| `radlab_ISS_2022-04-01.csv` | API output, SHA-256 `ed71c71ed9ec7684520dcd9a444ce2713809af2f4147e744bdb348b2cfc04733`, 2,847 rows, 293 KB |
+| `radlab_ISS_2022-04-01.query.json` | the exact query URL, retrieval time and SHA-256 (the importer refuses a CSV whose hash differs) |
+
+**What was imported**
+- **2,847 absorbed dose-rate readings** (μGy/hour, unit from the RadLab API docs) on 2022-04-01, from the ISS
+  Columbus module:
+
+  | Instrument | Readings |
+  |---|---|
+  | DosTel1 | 1,192 |
+  | DosTel2 | 1,197 |
+  | Lidal | 288 |
+  | REM-Lid | 170 |
+
+- Each reading carries the ISS latitude, longitude and altitude at that time.
+- **Verified:** every reading equals its source row (automated test), and the provenance `source_url` is the
+  exact query URL.
+
+**Data quirks, kept honest**
+- **Dose-equivalent rate (μSv/hour) is empty** for every row that day, so it is not stored. Its 2,847 empty
+  cells are counted in the import summary.
+- **Three DosTel1 timestamps appear twice** with different values: 04:45:00, 09:10:00 and 09:15:00. Both
+  readings are kept as published, neither picked nor averaged, and the pairs are listed in
+  `summary.repeated_readings`.
+- **RadLab timestamps carry no timezone.** SENTINEL treats them as UTC, because ISS operations run on UTC.
+  This is an assumption; the original text stays in `timestamp_raw`.
+
+**Limitations:** one historical day only. These are area dosimeters in one ISS module, not live data, not
+HAB-01 readings, and not any crew member's personal dose. Instruments differ in design and placement. No
+radiation limits, alerts or health interpretation are derived from the values.
+
 ### Transformation
 
 One record per probe/probeset per sample. Values are parsed to numbers with the original text kept in

@@ -8,12 +8,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import models as m
-from ..db import get_db
+from ..db import as_utc, get_db
 from ..errors import ApiError
 from ..schemas.common import error_responses
-from ..importers import osd656
+from ..importers import osd656, radlab
 from ..schemas.research import (AssayRecord, CmpRecord, ComparisonReadiness, DatasetDetail, DatasetList, GeneExpressionRecord,
-                                Provenance, ResearchRecordsPage, ResearchSample, StudyTypeInfo, TimeseriesPage)
+                                Provenance, ResearchRecordsPage, ResearchSample, StudyTypeInfo, TimeseriesPage,
+                                TimeseriesPoint)
 from ..services import datasets as ds
 from ..importers import expression as ex
 from ..importers.expression_metadata import SAMPLES
@@ -202,6 +203,12 @@ def _records_page(db: Session, settings, dataset_id: str, subject_id: Optional[s
     if dataset_id not in ds.REGISTRY:
         raise _unknown_dataset(dataset_id)
     schema = ds.REGISTRY[dataset_id]["record_schema"]
+    if schema in ("RADIATION_TIMESERIES_V1", "ENVIRONMENT_TIMESERIES_V1"):
+        endpoint = "/api/v1/radiation/timeseries" if schema == "RADIATION_TIMESERIES_V1" \
+            else "/api/v1/environment/timeseries"
+        raise ApiError(422, "INVALID_DATASET_FOR_ENDPOINT",
+                       f"{dataset_id} is a timeseries dataset; use {endpoint}?dataset_id={dataset_id}.",
+                       {"dataset_id": dataset_id, "use_endpoint": endpoint})
     if schema == "GENE_EXPRESSION_V1":
         _wrong_filter(dataset_id, {"analyte": analyte, "timepoint": timepoint, "measure": measure})
         return _expression_page(db, settings, dataset_id, subject_id, sample_id, probe_id, gene_symbol, limit, offset)
@@ -281,12 +288,52 @@ def osd575(request: Request, db: Session = Depends(get_db),
     return _records_page(db, request.app.state.settings, "OSD-575", subject_id, analyte, timepoint, limit, offset)
 
 
-def _timeseries(db: Session, settings, dataset_id: str, allowed: list[str]) -> TimeseriesPage:
+def _timeseries(db: Session, settings, dataset_id: str, allowed: list[str], metric: Optional[str] = None,
+                start: Optional[datetime] = None, end: Optional[datetime] = None, instrument_id: Optional[str] = None,
+                limit: int = 500, offset: int = 0) -> TimeseriesPage:
     if dataset_id not in allowed:
         raise ApiError(422, "INVALID_DATASET_FOR_ENDPOINT", f"'{dataset_id}' is not a timeseries dataset here.",
                        {"allowed_dataset_ids": allowed})
-    # No timeseries importer exists in P0, so nothing is ever fabricated here.
-    raise _unavailable(db, settings, dataset_id)
+    T = m.TimeseriesValue
+    imp = db.scalars(select(m.DatasetImport).where(m.DatasetImport.dataset_id == dataset_id,
+                                                   m.DatasetImport.status == "IMPORTED")
+                     .order_by(m.DatasetImport.started_at.desc())).first()
+    if imp is None or ds.record_count(db, dataset_id) == 0:
+        raise _unavailable(db, settings, dataset_id)  # nothing is ever fabricated
+    where = T.dataset_id == dataset_id
+    metrics = sorted(db.scalars(select(T.metric).where(where).distinct()))
+    instruments = sorted(db.scalars(select(T.instrument_id).where(where).distinct()))
+    metric = metric or ("absorbed_dose_rate" if "absorbed_dose_rate" in metrics else metrics[0])
+    for name, val, ok in (("metric", metric, metrics), ("instrument_id", instrument_id, instruments)):
+        if val is not None and val not in ok:
+            raise ApiError(422, "UNKNOWN_FILTER_VALUE", f"{name} '{val}' is not present in {dataset_id}.",
+                           {"parameter": name, "allowed_values": ok})
+    first, last = db.execute(select(func.min(T.timestamp), func.max(T.timestamp)).where(where)).one()
+    q = select(T).where(where, T.metric == metric)
+    if instrument_id:
+        q = q.where(T.instrument_id == instrument_id)
+    if start:
+        q = q.where(T.timestamp >= as_utc(start))
+    if end:
+        q = q.where(T.timestamp < as_utc(end))
+    total = db.scalar(select(func.count()).select_from(q.subquery()))
+    rows = db.scalars(q.order_by(T.timestamp, T.instrument_id).limit(limit).offset(offset)).all()
+    meta = ds.REGISTRY[dataset_id]
+    prov = _provenance(dataset_id, imp, radlab.TRANSFORMATION)
+    prov.source_url = imp.summary.get("query_url") or prov.source_url
+    return TimeseriesPage(
+        dataset_id=dataset_id, metric=metric, unit=radlab.METRICS.get(metric, rows[0].unit if rows else ""),
+        provenance=prov, total=total, limit=limit, offset=offset,
+        points=[TimeseriesPoint(timestamp=r.timestamp, value=r.value, unit=r.unit, timestamp_raw=r.timestamp_raw,
+                                instrument_id=r.instrument_id, instrument_family=r.instrument_family,
+                                spacecraft=r.spacecraft, module=r.module, latitude=r.latitude,
+                                longitude=r.longitude, altitude=r.altitude, source_row_number=r.source_row_number)
+                for r in rows],
+        study_type=ds.CLASSIFICATION[dataset_id]["study_type"],
+        filters_applied={"metric": metric, "instrument_id": instrument_id,
+                         "start": start.isoformat() if start else None, "end": end.isoformat() if end else None},
+        available_metrics=metrics, available_instruments=instruments, first_timestamp=first, last_timestamp=last,
+        limitations=meta["limitations"])
 
 
 @router.get("/environment/timeseries", response_model=TimeseriesPage, responses=error_responses(422, 503),
@@ -299,9 +346,16 @@ def environment_timeseries(request: Request, db: Session = Depends(get_db),
 
 
 @router.get("/radiation/timeseries", response_model=TimeseriesPage, responses=error_responses(422, 503),
-            summary="NASA radiation dosimetry timeseries (P1; returns 503 until imported)")
+            summary="NASA radiation dosimetry timeseries (RadLab ISS snapshot; 503 until imported)",
+            description="Readings from a saved NASA RadLab API snapshot (ISS, 2022-04-01 UTC). metric defaults to "
+                        "absorbed_dose_rate (μGy/hour). Filters: instrument_id, start (inclusive), end (exclusive). "
+                        "Points are ordered by timestamp then instrument. Research context only: never live HAB-01 "
+                        "readings or an astronaut's personal dose.")
 def radiation_timeseries(request: Request, db: Session = Depends(get_db),
-                         dataset_id: str = Query("NASA-RADLAB"), metric: Optional[str] = Query(None, examples=["dose_rate"]),
+                         dataset_id: str = Query("NASA-RADLAB"),
+                         metric: Optional[str] = Query(None, examples=["absorbed_dose_rate"]),
+                         instrument_id: Optional[str] = Query(None, examples=["DosTel1"]),
                          start: Optional[datetime] = None, end: Optional[datetime] = None,
                          limit: int = Query(500, ge=1, le=5000), offset: int = Query(0, ge=0)) -> TimeseriesPage:
-    return _timeseries(db, request.app.state.settings, dataset_id, ["NASA-RADLAB", "NASA-EDA"])
+    return _timeseries(db, request.app.state.settings, dataset_id, ["NASA-RADLAB", "NASA-EDA"], metric, start, end,
+                       instrument_id, limit, offset)

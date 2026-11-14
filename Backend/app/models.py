@@ -350,3 +350,34 @@ class AssayMeasurement(Base):
     gene_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     uniprot_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     protein_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class TimeseriesValue(Base):
+    """One reading of one metric from a NASA telemetry snapshot (e.g. RadLab radiation dosimetry).
+
+    Research/context data only (NASA_RESEARCH). Never a SENTINEL habitat (HAB-01) or astronaut reading.
+    """
+
+    __tablename__ = "timeseries_values"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "source_file", "source_row_number", "metric", name="uq_timeseries_cell"),
+        Index("ix_timeseries_metric_time", "dataset_id", "metric", "timestamp"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(String, index=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey("dataset_imports.import_id"))
+    source_file: Mapped[str] = mapped_column(String)
+    source_row_number: Mapped[int] = mapped_column(Integer)
+    timestamp: Mapped[datetime] = mapped_column(UTCDateTime)
+    timestamp_raw: Mapped[str] = mapped_column(String)
+    instrument_id: Mapped[str] = mapped_column(String)
+    instrument_family: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    spacecraft: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    module: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    metric: Mapped[str] = mapped_column(String)
+    value: Mapped[float] = mapped_column(Float)
+    value_raw: Mapped[str] = mapped_column(String)
+    unit: Mapped[str] = mapped_column(String)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    altitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

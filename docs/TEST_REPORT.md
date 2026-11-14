@@ -3,6 +3,28 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## RadLab snapshot (NASA-RADLAB), run 2026-11-14
+
+Run in the separate backend worktree (`Chopper/Nasa-Team-chopper-backend`, branch `backend/p0-v2.1`).
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **135 passed, 0 failed** (adds 12 in `test_k_radlab.py`) |
+| `scripts/http_smoke.py` | **22/22**: `/radiation/timeseries` now returns 200 (DosTel1: 1,192 readings) |
+| `scripts/export_openapi.py` | contract regenerated (additive fields only) |
+
+`test_k_radlab.py` covers:
+- a 503 when the snapshot is missing;
+- units, ISS position, `timestamp_raw`, and the query URL as provenance;
+- the dose-equivalent metric, and the `instrument_id` / `start` / `end` / paging filters;
+- unknown filter values (422) and the records endpoint redirect (422);
+- duplicate imports;
+- 5 malformed or tampered snapshot cases (missing `query.json`, hash mismatch, bad timestamp, non-numeric
+  value, missing columns), each failing atomically;
+- repeated readings kept as published, separation from the patient workflow, and reset safety;
+- the **real snapshot**: all 2,847 readings equal their source rows, and the 3 repeated DosTel1 timestamps
+  are recorded.
+
 ## OSD-656 importer, run 2026-11-14
 
 | Suite | Result |

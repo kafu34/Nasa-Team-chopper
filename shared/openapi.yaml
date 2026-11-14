@@ -794,7 +794,10 @@ paths:
     get:
       tags:
       - research
-      summary: NASA radiation dosimetry timeseries (P1; returns 503 until imported)
+      summary: NASA radiation dosimetry timeseries (RadLab ISS snapshot; 503 until imported)
+      description: 'Readings from a saved NASA RadLab API snapshot (ISS, 2022-04-01 UTC). metric defaults to absorbed_dose_rate
+        (μGy/hour). Filters: instrument_id, start (inclusive), end (exclusive). Points are ordered by timestamp then instrument.
+        Research context only: never live HAB-01 readings or an astronaut''s personal dose.'
       operationId: radiation_timeseries_api_v1_radiation_timeseries_get
       parameters:
       - name: dataset_id
@@ -812,8 +815,18 @@ paths:
           - type: string
           - type: 'null'
           examples:
-          - dose_rate
+          - absorbed_dose_rate
           title: Metric
+      - name: instrument_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - DosTel1
+          title: Instrument Id
       - name: start
         in: query
         required: false
@@ -4248,6 +4261,53 @@ components:
             $ref: '#/components/schemas/TimeseriesPoint'
           type: array
           title: Points
+        study_type:
+          anyOf:
+          - type: string
+            enum:
+            - HUMAN_SPACEFLIGHT
+            - HUMAN_GROUND_ANALOGUE
+            - HUMAN_DERIVED_CELLS
+            - ANIMAL_RESEARCH
+            - SPACEFLIGHT_ENVIRONMENT
+            - FICTIONAL_DEMONSTRATION
+          - type: 'null'
+          title: Study Type
+        filters_applied:
+          additionalProperties:
+            anyOf:
+            - type: string
+            - type: 'null'
+          type: object
+          title: Filters Applied
+        available_metrics:
+          items:
+            type: string
+          type: array
+          title: Available Metrics
+        available_instruments:
+          items:
+            type: string
+          type: array
+          title: Available Instruments
+        first_timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: First Timestamp
+          description: Earliest reading in the dataset (all filters off).
+        last_timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Timestamp
+        limitations:
+          items:
+            type: string
+          type: array
+          title: Limitations
       type: object
       required:
       - dataset_id
@@ -4273,6 +4333,57 @@ components:
         unit:
           type: string
           title: Unit
+        timestamp_raw:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timestamp Raw
+          description: Timestamp text exactly as in the source.
+        instrument_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instrument Id
+          description: Instrument/detector ID as published, e.g. DosTel1.
+        instrument_family:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instrument Family
+        spacecraft:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Spacecraft
+        module:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Module
+          description: Spacecraft module, e.g. Columbus (ISS only).
+        latitude:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latitude
+          description: Spacecraft latitude, deg (ISS only).
+        longitude:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Longitude
+          description: Spacecraft longitude, deg (ISS only).
+        altitude:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Altitude
+          description: Spacecraft altitude, km (ISS only).
+        source_row_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Source Row Number
       type: object
       required:
       - timestamp

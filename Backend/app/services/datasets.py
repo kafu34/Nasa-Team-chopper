@@ -90,12 +90,22 @@ REGISTRY: dict[str, dict] = {
         source_url_verified=True,
         record_schema="RADIATION_TIMESERIES_V1",
         priority="P1",
-        expected_files=["(RadLab export, CSV)"],
-        importer=False,
-        experimental_context="Radiation dosimetry from space missions, aggregated across agencies; not SENTINEL "
-                             "habitat data.",
-        limitations=["No importer in P0.",
-                     "Must not be shown as live HAB-01 dosimeter readings."],
+        expected_files=["radlab_ISS_2022-04-01.csv", "radlab_ISS_2022-04-01.query.json"],
+        importer=True,
+        experimental_context="Saved snapshot of the public RadLab data API: ISS readings for 2022-04-01 UTC "
+                             "(Columbus module: DosTel1, DosTel2, Lidal, REM-Lid) with ISS latitude, longitude and "
+                             "altitude. The exact query URL is the provenance source_url.",
+        limitations=[
+            "One day (2022-04-01) of historical ISS readings; not live data and not HAB-01 dosimeter readings.",
+            "Area dosimeters in the ISS Columbus module; not any crew member's personal dose.",
+            "Different instruments measure differently (detector type, shielding, position); do not merge them "
+            "into one series without care.",
+            "RadLab timestamps carry no timezone; SENTINEL treats them as UTC (assumption).",
+            "Dose-equivalent rate is empty for these instruments on this day and is therefore not available.",
+            "3 DosTel1 timestamps appear twice in the RadLab output with different values; both are kept as "
+            "published (not averaged).",
+            "No radiation limits, alerts or health interpretation are derived from these values.",
+        ],
     ),
     "OSD-654": dict(
         title="Toward countering muscle and bone loss with spaceflight: GSK3 as a potential target (Tibia, RR9 and "
@@ -302,7 +312,8 @@ def latest_import(db: Session, dataset_id: str) -> m.DatasetImport | None:
 
 
 def record_count(db: Session, dataset_id: str) -> int:
-    table = {"GENE_EXPRESSION_V1": m.GeneExpressionValue, "BIO_ASSAY_TABLE": m.AssayMeasurement}.get(
+    table = {"GENE_EXPRESSION_V1": m.GeneExpressionValue, "BIO_ASSAY_TABLE": m.AssayMeasurement,
+             "RADIATION_TIMESERIES_V1": m.TimeseriesValue, "ENVIRONMENT_TIMESERIES_V1": m.TimeseriesValue}.get(
         REGISTRY[dataset_id]["record_schema"], m.ResearchMeasurement)
     return db.scalar(select(func.count()).select_from(table).where(table.dataset_id == dataset_id)) or 0
 
@@ -346,7 +357,10 @@ def _base(db: Session, settings: Settings, dataset_id: str) -> dict:
         status_reason=reason,
         expected_files=meta["expected_files"],
         records_available=record_count(db, dataset_id),
-        records_endpoint=f"/api/v1/research/datasets/{dataset_id}/records" if status == "IMPORTED" else None,
+        records_endpoint=None if status != "IMPORTED" else {
+            "RADIATION_TIMESERIES_V1": f"/api/v1/radiation/timeseries?dataset_id={dataset_id}",
+            "ENVIRONMENT_TIMESERIES_V1": f"/api/v1/environment/timeseries?dataset_id={dataset_id}",
+        }.get(meta["record_schema"], f"/api/v1/research/datasets/{dataset_id}/records"),
         **CLASSIFICATION[dataset_id],
     )
 

@@ -95,7 +95,7 @@ measurement and emergency payload templates), so the frontend never needs to har
 | v2.1 | `GET /api/v1/research/datasets/{dataset_id}` | Working | 200 / 404 |
 | v2.1 | `GET /api/v1/research/datasets/{dataset_id}/records` | Working for OSD-575 | 200 / 503 others |
 | v2.1 | `GET /api/v1/environment/timeseries` | Contract only; no EDA importer yet (P1) | **always 503 `DATASET_UNAVAILABLE` today** |
-| v2.1 | `GET /api/v1/radiation/timeseries` | Contract only; no RadLab importer yet (P1) | **always 503 today** |
+| v2.1 | `GET /api/v1/radiation/timeseries` | Working (RadLab ISS snapshot, 2022-04-01) | 200 / 422 / 503 if not imported |
 | opt | `POST /api/v1/cases/{case_id}/acknowledge` | Working | 200 (never resolves) |
 | opt | `POST /api/v1/observations` | Working | 201 / 200 duplicate |
 | opt | `POST /api/v1/location/confirm` | Working (manual zone) | 200 |
@@ -175,7 +175,13 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
   - Filters: `subject_id`, `analyte` (e.g. `il6`), `timepoint` and `measure` (`concentration_npq` |
     `percent_normalized_value`).
   - Example: `GET /api/v1/research/datasets/OSD-656/records?analyte=il6&measure=concentration_npq`.
-- NASA-EDA, NASA-RADLAB, OSD-654, OSD-684, OSD-573 and OSD-817 report `NOT_DOWNLOADED` (no importer yet).
+- **NASA-RADLAB is `IMPORTED`:** 2,847 ISS absorbed dose-rate readings for 2022-04-01 (DosTel1, DosTel2, Lidal,
+  REM-Lid; Columbus module).
+  - Use `GET /api/v1/radiation/timeseries?instrument_id=DosTel1` (metric defaults to `absorbed_dose_rate`,
+    μGy/hour).
+  - Label it "ISS, 1 April 2022 (NASA RadLab)". Never show it as HAB-01 or a crew member's dose.
+  - See `docs/NASA_DATASETS.md` §2d.
+- NASA-EDA, OSD-654, OSD-684, OSD-573 and OSD-817 report `NOT_DOWNLOADED` (no importer yet).
   Show their `source_url` and status honestly; do not chart them.
 - **v2.2:** OSD-195 (bed-rest muscle, `HUMAN_GROUND_ANALOGUE`) and OSD-546 (bone-marrow stem cells on the
   ISS, `HUMAN_DERIVED_CELLS`) have importers.
@@ -189,7 +195,7 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **123 passed, 0 failed** (pytest) and **22/22** real-HTTP checks against uvicorn.
+See `docs/TEST_REPORT.md`. Latest: **135 passed, 0 failed** (pytest) and **22/22** real-HTTP checks against uvicorn.
 
 ## 10. Known contract deviations and coordination notes
 
@@ -253,6 +259,18 @@ passes. Bump it to `2.2.0` together once Codex has adopted the fields below.
      - provenance: `source_file`, `source_row_number`, `source_column`, `data_category`.
    - Units are relative assay units (NPQ, percent normalized), not clinical concentrations. Show no reference
      ranges.
+5c. **`GET /radiation/timeseries` now returns data** for NASA-RADLAB instead of 503.
+   - New query parameter: `instrument_id`.
+   - `metric` defaults to `absorbed_dose_rate`. `start` is inclusive and `end` exclusive.
+   - New optional fields on each `TimeseriesPoint`: `timestamp_raw`, `instrument_id`, `instrument_family`,
+     `spacecraft`, `module`, `latitude`, `longitude`, `altitude`, `source_row_number`.
+   - New fields on `TimeseriesPage`: `study_type`, `filters_applied`, `available_metrics`,
+     `available_instruments`, `first_timestamp`, `last_timestamp`, `limitations`.
+   - `provenance.source_url` is the exact RadLab API query URL.
+   - Chart one instrument per line. The instruments are different detectors, so do not merge them.
+   - `/research/datasets/NASA-RADLAB/records` returns 422 `INVALID_DATASET_FOR_ENDPOINT` with
+     `details.use_endpoint`. The dataset's `records_endpoint` points to the timeseries URL.
+   - `research_records_before/after` in `POST /demo/reset` now also count these readings.
 6. Display rules:
    - OSD-195 is a bed-rest study on Earth. OSD-546 is cells in culture.
    - Never label either as an astronaut's muscle mass, strength or bone density.

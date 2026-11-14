@@ -139,6 +139,7 @@ def reset_demo(db: Session, fx: dict) -> dict:
     """Delete every synthetic record and re-seed. Research tables are not touched."""
     def research_count() -> int:  # CMP records + bio-assay values + gene-expression values (all NASA_RESEARCH)
         return (db.query(m.ResearchMeasurement).count() + db.query(m.AssayMeasurement).count()
+                + db.query(m.TimeseriesValue).count()
                 + db.query(m.GeneExpressionValue).count())
 
     research_before = research_count()
