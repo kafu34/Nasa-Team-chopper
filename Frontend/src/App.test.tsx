@@ -42,12 +42,14 @@ describe('offline-safe screens', () => {
     const caseData = { case_id: 'CASE-1', state: 'awaiting_assessment', next_action: 'Check symptoms', follow_ups: [], symptoms: [{ region_id: 'chest', laterality: 'left', severity: 8 }], measurements: [] }
     vi.stubGlobal('fetch', vi.fn((path: string) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(path.includes('/cases/CASE-1') ? caseData : path.includes('/research/datasets/') ? { dataset_id: 'OSD-195', status: 'NOT_DOWNLOADED' } : bootstrap) })))
     render(<MemoryRouter initialEntries={['/']}><App /></MemoryRouter>)
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Left chest, reported symptom 8 of 10' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Reported 8/10')).toBeInTheDocument())
     expect(screen.getByRole('heading', { name: 'Vitals at a glance' })).toBeInTheDocument()
     expect(screen.getByText('72')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Left chest, reported symptom 8 of 10' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Expand anatomical twin →' }))
     expect(screen.getByRole('heading', { name: 'Point to where it hurts' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Vitals at a glance' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Choose an area by name')).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText('Choose an area by name'), { target: { value: 'left_chest' } })
     expect(screen.getByText('Left chest')).toBeInTheDocument()
   })
 

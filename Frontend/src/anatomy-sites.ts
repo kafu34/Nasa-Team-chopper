@@ -42,12 +42,13 @@ export function surfaceDetail(selection: BodySelection | null): string {
   const site = selection.siteId ? ANATOMY_SITE_BY_ID.get(selection.siteId) : null
   const point = selection.point
   if (!point && !site?.detailed) return ''
+  if (selection.modelId === 'sentinel-human-male-v1') return `Selected reference surface: ${selection.label}. Mesh: ${selection.meshId ?? 'unknown'}. Exact attachment is not yet supported by the backend.`
   const coordinates = point ? ` Diagram point (model v1): x=${point.x.toFixed(3)}, y=${point.y.toFixed(3)}, z=${point.z.toFixed(3)}.` : ''
   return `Selected surface area: ${selection.label}. Backend region: ${selection.regionId.replaceAll('_', ' ')}.${coordinates}`
 }
 
 export function surfacePoint(selection: BodySelection | null): SurfacePoint | undefined {
-  if (!selection?.siteId || !selection.point || !ANATOMY_SITE_BY_ID.has(selection.siteId)) return undefined
+  if (!selection?.siteId || !selection.point || !ANATOMY_SITE_BY_ID.has(selection.siteId) || (selection.modelId && selection.modelId !== 'sentinel-body-v1')) return undefined
   const { x, y, z } = selection.point
   if (![x, y, z].every(value => Number.isFinite(value) && Math.abs(value) <= 5)) return undefined
   return { model_id: 'sentinel-body-v1', site_id: selection.siteId, x, y, z }
@@ -55,7 +56,7 @@ export function surfacePoint(selection: BodySelection | null): SurfacePoint | un
 
 export function symptomNote(selection: BodySelection | null, userNote: string): string | undefined {
   // Named-list selections have no exact point, so preserve only their site label in the note.
-  const detail = selection?.point ? '' : surfaceDetail(selection)
+  const detail = selection?.modelId === 'sentinel-human-male-v1' ? `Selected reference surface: ${selection.label}. Exact mesh point not stored by the current backend.` : selection?.point ? '' : surfaceDetail(selection)
   const note = userNote.trim()
   const combined = [detail, note].filter(Boolean).join('\n')
   return combined ? combined.slice(0, 1000) : undefined
