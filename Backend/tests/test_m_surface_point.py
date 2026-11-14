@@ -28,7 +28,9 @@ def test_point_stored_and_returned_in_case(client):
     r = client.post("/api/v1/symptoms", json=report(note="Ache when lifting"))
     assert r.status_code == 201
     created = r.json()
-    assert created["surface_point"] == {**SHOULDER, "site_label": "Right shoulder"}
+    sp = created["surface_point"]
+    assert {k: sp[k] for k in SHOULDER} == SHOULDER and sp["site_label"] == "Right shoulder"
+    assert sp["model_version"] == "1.0.0" and sp["marker_status"] == "current" and sp["render_hint"] == "exact_point"
     case = client.get(f"/api/v1/cases/{created['case_id']}").json()
     sym = case["symptoms"][0]
     assert sym["region_id"] == "upper_arm" and sym["laterality"] == "right"
@@ -70,7 +72,7 @@ def test_different_sites_in_one_region_are_not_duplicates(client):
     (SHOULDER, "upper_arm", "left", "SURFACE_SITE_MISMATCH"),
     ({**SHOULDER, "x": 0.47}, "upper_arm", "right", "SURFACE_POINT_WRONG_SIDE"),
     ({**SHOULDER, "site_id": "left_knee", "x": -0.3, "y": -1.34}, "lower_leg_foot", "left", "SURFACE_POINT_WRONG_SIDE"),
-    ({**SHOULDER, "model_id": "other-body"}, "upper_arm", "right", "VALIDATION_ERROR"),
+    ({**SHOULDER, "model_id": "other-body"}, "upper_arm", "right", "UNKNOWN_SURFACE_MODEL"),
     ({**SHOULDER, "y": 7.5}, "upper_arm", "right", "VALIDATION_ERROR"),
     ({**SHOULDER, "z": "1e999"}, "upper_arm", "right", "VALIDATION_ERROR"),
     ({k: v for k, v in SHOULDER.items() if k != "z"}, "upper_arm", "right", "VALIDATION_ERROR"),

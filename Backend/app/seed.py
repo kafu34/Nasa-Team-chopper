@@ -135,6 +135,42 @@ def seed_demo(db: Session, fx: dict, now: datetime | None = None) -> None:
     db.commit()
 
 
+def sync_configuration(db: Session, fx: dict) -> list[str]:
+    """Upsert configuration records (procedure definitions) from the fixture into an existing database.
+
+    Configuration is not user data: a database created with an earlier fixture receives the current procedure
+    content on startup. Sessions keep the procedure_version they were started with. Returns what changed.
+    """
+    changed = []
+    proc = fx["procedure"]
+    row = db.get(m.ProcedureDefinition, proc["procedure_id"])
+    if row is None:
+        db.add(m.ProcedureDefinition(procedure_id=proc["procedure_id"], version=proc["version"],
+                                     title=proc["title"], required_capability=proc["required_capability"],
+                                     definition=proc))
+        changed.append(f"procedure {proc['procedure_id']} added")
+    elif row.definition != proc:
+        row.version, row.title, row.required_capability = proc["version"], proc["title"], proc["required_capability"]
+        row.definition = proc
+        changed.append(f"procedure {proc['procedure_id']} updated to {proc['version']}")
+    hab = fx["habitat"]
+    hab_row = db.get(m.Habitat, hab["habitat_id"])
+    if hab_row is not None and hab_row.map_version != hab["map_version"]:
+        changed.append(f"habitat {hab['habitat_id']} map {hab_row.map_version} -> {hab['map_version']}")
+        hab_row.map_version = hab["map_version"]
+    hatches = {(c["from_zone_id"], c["to_zone_id"]): c.get("hatch_id") for c in hab["connections"]}
+    for row in db.scalars(select(m.ZoneConnection).where(m.ZoneConnection.habitat_id == hab["habitat_id"])):
+        want = hatches.get((row.from_zone_id, row.to_zone_id))
+        if want is not None and row.hatch_id != want:
+            row.hatch_id = want
+            changed.append(f"connection {row.from_zone_id}-{row.to_zone_id} hatch {want}")
+    if changed:
+        db.add(m.AuditEvent(actor="system", action="configuration.synced", entity_type="fixture",
+                            entity_id=fx["fixture_version"], details={"changes": changed}))
+    db.commit()
+    return changed
+
+
 def reset_demo(db: Session, fx: dict) -> dict:
     """Delete every synthetic record and re-seed. Research tables are not touched."""
     def research_count() -> int:  # CMP records + bio-assay values + gene-expression values (all NASA_RESEARCH)

@@ -1,0 +1,232 @@
+{
+  "manifest_version": "1.0",
+  "model_id": "sentinel-body-v1",
+  "model_version": "1.0.0",
+  "status": "active",
+  "kind": "stylised_primitive_mannequin",
+  "description": "Interim stylised body assembled from primitive shapes in Frontend/src/ThreeBody.tsx. Not an anatomically credible mesh; v3.1 requires a replacement model (Codex).",
+  "frontend_source": "Frontend/src/anatomy-sites.ts at commit aa25e6b",
+  "coordinate_frame": {
+    "space": "model_local",
+    "units": "model units (the figure is about 4.2 units tall), not centimetres",
+    "x": "body left (+) / right (-)",
+    "y": "up",
+    "z": "front (+)",
+    "limit": 5.0
+  },
+  "side_tolerance": 0.1,
+  "meshes": null,
+  "previous_versions": [],
+  "sites": [
+    {
+      "site_id": "head",
+      "label": "Head",
+      "region_id": "head",
+      "laterality": "midline"
+    },
+    {
+      "site_id": "neck",
+      "label": "Neck",
+      "region_id": "neck",
+      "laterality": "midline"
+    },
+    {
+      "site_id": "pelvis",
+      "label": "Pelvis",
+      "region_id": "abdomen",
+      "laterality": "midline"
+    },
+    {
+      "site_id": "right_eye",
+      "label": "Right eye",
+      "region_id": "eyes",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_chest",
+      "label": "Right chest",
+      "region_id": "chest",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_upper_back",
+      "label": "Right upper back",
+      "region_id": "upper_back",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_abdomen",
+      "label": "Right abdomen",
+      "region_id": "abdomen",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_lower_back",
+      "label": "Right lower back",
+      "region_id": "lower_back",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_shoulder",
+      "label": "Right shoulder",
+      "region_id": "upper_arm",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_upper_arm",
+      "label": "Right upper arm",
+      "region_id": "upper_arm",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_elbow",
+      "label": "Right elbow",
+      "region_id": "upper_arm",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_forearm",
+      "label": "Right forearm",
+      "region_id": "forearm_hand",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_wrist",
+      "label": "Right wrist",
+      "region_id": "forearm_hand",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_hand",
+      "label": "Right hand",
+      "region_id": "forearm_hand",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_upper_leg",
+      "label": "Right upper leg",
+      "region_id": "upper_leg",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_knee",
+      "label": "Right knee",
+      "region_id": "lower_leg_foot",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_lower_leg",
+      "label": "Right lower leg",
+      "region_id": "lower_leg_foot",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_ankle",
+      "label": "Right ankle",
+      "region_id": "lower_leg_foot",
+      "laterality": "right"
+    },
+    {
+      "site_id": "right_foot",
+      "label": "Right foot",
+      "region_id": "lower_leg_foot",
+      "laterality": "right"
+    },
+    {
+      "site_id": "left_eye",
+      "label": "Left eye",
+      "region_id": "eyes",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_chest",
+      "label": "Left chest",
+      "region_id": "chest",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_upper_back",
+      "label": "Left upper back",
+      "region_id": "upper_back",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_abdomen",
+      "label": "Left abdomen",
+      "region_id": "abdomen",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_lower_back",
+      "label": "Left lower back",
+      "region_id": "lower_back",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_shoulder",
+      "label": "Left shoulder",
+      "region_id": "upper_arm",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_upper_arm",
+      "label": "Left upper arm",
+      "region_id": "upper_arm",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_elbow",
+      "label": "Left elbow",
+      "region_id": "upper_arm",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_forearm",
+      "label": "Left forearm",
+      "region_id": "forearm_hand",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_wrist",
+      "label": "Left wrist",
+      "region_id": "forearm_hand",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_hand",
+      "label": "Left hand",
+      "region_id": "forearm_hand",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_upper_leg",
+      "label": "Left upper leg",
+      "region_id": "upper_leg",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_knee",
+      "label": "Left knee",
+      "region_id": "lower_leg_foot",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_lower_leg",
+      "label": "Left lower leg",
+      "region_id": "lower_leg_foot",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_ankle",
+      "label": "Left ankle",
+      "region_id": "lower_leg_foot",
+      "laterality": "left"
+    },
+    {
+      "site_id": "left_foot",
+      "label": "Left foot",
+      "region_id": "lower_leg_foot",
+      "laterality": "left"
+    }
+  ]
+}

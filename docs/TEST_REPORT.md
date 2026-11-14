@@ -3,6 +3,36 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.2.0 (Specification v3.1 Milestone 1, backend contracts), run 2026-11-14
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` with `SENTINEL_FRONTEND_SITES` pointing at `anatomy-sites.ts` from `origin/main` (9430a3d) | **201 passed, 1 skipped, 0 failed** (adds 36 tests in `test_n_anatomy_contract.py`, `test_o_habitat_contract.py`, `test_p_procedure_visual.py`) |
+| Skipped | `test_frontend_visual_registry_covers_every_action`: Codex's visual-action registry does not exist yet |
+| `scripts/export_openapi.py --check` | matches the app (24 paths, version 2.2.0) |
+| `scripts/http_smoke.py` | **25/25** (adds latest-location and habitat-map checks; procedure check now requires 6 distinct visual actions) |
+| Live server restart on the existing database | contract 2.2.0; `zone_connections.hatch_id` added; procedure upgraded to 1.1.0-demo; map `HAB-01-map-1.1`; OSD-575, OSD-656, OSD-546, OSD-817 and RadLab still `IMPORTED` |
+
+Existing tests changed only where the plan changed behaviour: the contract and procedure version strings, the
+unknown-model error code (`UNKNOWN_SURFACE_MODEL`), and the surface-point equality check (the response now has
+extra fields).
+
+New tests cover:
+- **anatomy:** the shared manifest equals the site registry; bootstrap model list and annotation kinds;
+  `record_kind`; model version recorded and checked; mesh/attachment stored when the model declares no meshes;
+  6 invalid attachments; declared meshes and triangle ranges; marker status for current, compatible,
+  incompatible, retired and unregistered models (stored coordinates never rewritten); points stored before 2.2.0
+  read as version 1.0.0;
+- **procedure:** six distinct visual actions matching `visual_requirements`; validation level and sources;
+  anatomy targets valid (left upper arm for S2-S5); equipment matches inventory; instruction text and
+  limitations unchanged, microgravity warning on S4; an old database receives the new definition once while a
+  running session keeps its version;
+- **habitat:** fixture geometry consistent; 5 kinds of broken geometry detected; full map in one frame with the
+  closed lab-medical hatch; route polyline through open hatches only, inside walkable space, same frame and map
+  version as the map; closing the exercise-medical hatch makes the BP monitor unreachable and reopening restores
+  the route; moved equipment loses its point; location display modes (zone_only, stale after 30 s, unavailable,
+  manual 15 min); an old database gains hatch IDs and the new map version.
+
 ## 3D Anatomical Twin `surface_point`, run 2026-11-14
 
 | Suite | Result |
@@ -141,3 +171,5 @@ Run in the separate backend worktree (`Chopper/Nasa-Team-chopper-backend`, branc
 - OSD-195 with real NASA files (only synthetic files; the processed files have not been supplied).
 - Linux/macOS case-sensitive file systems (developed on Windows; see folder-casing note in the handoff).
 - Concurrent multi-client load.
+- Any v3.1 visual result (3D model, layers, animations, floor-plan rendering). These are Codex's; the backend
+  tests only the data contracts.

@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.1.0",
-  "contract_version": "2.1.0",
+  "fixture_version": "2.2.0",
+  "contract_version": "2.2.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -30,83 +30,742 @@
   "habitat": {
     "habitat_id": "HAB-01",
     "name": "Fictional Transit Habitat 01",
-    "map_version": "HAB-01-map-1.0",
+    "map_version": "HAB-01-map-1.1",
     "zones": [
-      {"zone_id": "crew-quarters", "name": "Crew Quarters"},
-      {"zone_id": "exercise", "name": "Exercise Bay"},
-      {"zone_id": "medical", "name": "Medical Bay"},
-      {"zone_id": "laboratory", "name": "Laboratory"}
+      {
+        "zone_id": "crew-quarters",
+        "name": "Crew Quarters"
+      },
+      {
+        "zone_id": "exercise",
+        "name": "Exercise Bay"
+      },
+      {
+        "zone_id": "medical",
+        "name": "Medical Bay"
+      },
+      {
+        "zone_id": "laboratory",
+        "name": "Laboratory"
+      }
     ],
     "connections": [
-      {"from_zone_id": "crew-quarters", "to_zone_id": "exercise", "accessible": true, "note": "Open passage"},
-      {"from_zone_id": "exercise", "to_zone_id": "medical", "accessible": true, "note": "Open passage"},
-      {"from_zone_id": "crew-quarters", "to_zone_id": "laboratory", "accessible": true, "note": "Open passage"},
-      {"from_zone_id": "laboratory", "to_zone_id": "medical", "accessible": false, "note": "Hatch closed for fictional maintenance"}
-    ]
+      {
+        "from_zone_id": "crew-quarters",
+        "to_zone_id": "exercise",
+        "accessible": true,
+        "note": "Open passage",
+        "hatch_id": "H-CQ-EX"
+      },
+      {
+        "from_zone_id": "exercise",
+        "to_zone_id": "medical",
+        "accessible": true,
+        "note": "Open passage",
+        "hatch_id": "H-EX-MED"
+      },
+      {
+        "from_zone_id": "crew-quarters",
+        "to_zone_id": "laboratory",
+        "accessible": true,
+        "note": "Open passage",
+        "hatch_id": "H-CQ-LAB"
+      },
+      {
+        "from_zone_id": "laboratory",
+        "to_zone_id": "medical",
+        "accessible": false,
+        "note": "Hatch closed for fictional maintenance",
+        "hatch_id": "H-LAB-MED"
+      }
+    ],
+    "geometry": {
+      "description": "Fictional single-deck layout. Rooms are convex rectangles joined by 1 m hatch passages.",
+      "coordinate_frame": {
+        "frame_id": "HAB-01-D1-LOCAL",
+        "origin": "South-west outer corner of deck D1",
+        "x_axis": "east",
+        "y_axis": "north",
+        "units": "metres",
+        "dimensions": 2
+      },
+      "decks": [
+        {
+          "deck_id": "D1",
+          "name": "Deck 1",
+          "bounds": [
+            [
+              0,
+              0
+            ],
+            [
+              11,
+              9
+            ]
+          ]
+        }
+      ],
+      "compartments": [
+        {
+          "zone_id": "crew-quarters",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              0,
+              0
+            ],
+            [
+              5,
+              0
+            ],
+            [
+              5,
+              4
+            ],
+            [
+              0,
+              4
+            ]
+          ],
+          "navigation_reference": [
+            2.5,
+            2.0
+          ]
+        },
+        {
+          "zone_id": "exercise",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              6,
+              0
+            ],
+            [
+              11,
+              0
+            ],
+            [
+              11,
+              4
+            ],
+            [
+              6,
+              4
+            ]
+          ],
+          "navigation_reference": [
+            8.5,
+            2.0
+          ]
+        },
+        {
+          "zone_id": "laboratory",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              0,
+              5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              5,
+              9
+            ],
+            [
+              0,
+              9
+            ]
+          ],
+          "navigation_reference": [
+            2.5,
+            7.0
+          ]
+        },
+        {
+          "zone_id": "medical",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              6,
+              5
+            ],
+            [
+              11,
+              5
+            ],
+            [
+              11,
+              9
+            ],
+            [
+              6,
+              9
+            ]
+          ],
+          "navigation_reference": [
+            8.5,
+            7.0
+          ]
+        }
+      ],
+      "passages": [
+        {
+          "passage_id": "P-CQ-EX",
+          "hatch_id": "H-CQ-EX",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              5,
+              1.5
+            ],
+            [
+              6,
+              1.5
+            ],
+            [
+              6,
+              2.5
+            ],
+            [
+              5,
+              2.5
+            ]
+          ],
+          "hatch_point": [
+            5.5,
+            2.0
+          ]
+        },
+        {
+          "passage_id": "P-EX-MED",
+          "hatch_id": "H-EX-MED",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              8,
+              4
+            ],
+            [
+              9,
+              4
+            ],
+            [
+              9,
+              5
+            ],
+            [
+              8,
+              5
+            ]
+          ],
+          "hatch_point": [
+            8.5,
+            4.5
+          ]
+        },
+        {
+          "passage_id": "P-CQ-LAB",
+          "hatch_id": "H-CQ-LAB",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              2,
+              4
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              3,
+              5
+            ],
+            [
+              2,
+              5
+            ]
+          ],
+          "hatch_point": [
+            2.5,
+            4.5
+          ]
+        },
+        {
+          "passage_id": "P-LAB-MED",
+          "hatch_id": "H-LAB-MED",
+          "deck_id": "D1",
+          "polygon": [
+            [
+              5,
+              6.5
+            ],
+            [
+              6,
+              6.5
+            ],
+            [
+              6,
+              7.5
+            ],
+            [
+              5,
+              7.5
+            ]
+          ],
+          "hatch_point": [
+            5.5,
+            7.0
+          ]
+        }
+      ],
+      "anchor_positions": [
+        {
+          "anchor_id": "ANC-CQ-01",
+          "point": [
+            0.5,
+            3.5
+          ]
+        },
+        {
+          "anchor_id": "ANC-EX-01",
+          "point": [
+            10.5,
+            0.5
+          ]
+        },
+        {
+          "anchor_id": "ANC-MED-01",
+          "point": [
+            10.5,
+            8.5
+          ]
+        },
+        {
+          "anchor_id": "ANC-LAB-01",
+          "point": [
+            0.5,
+            8.5
+          ]
+        },
+        {
+          "anchor_id": "ANC-LAB-02",
+          "point": [
+            4.5,
+            5.5
+          ]
+        }
+      ],
+      "equipment_positions": [
+        {
+          "equipment_id": "EQ-BP-01",
+          "point": [
+            10.0,
+            6.0
+          ]
+        },
+        {
+          "equipment_id": "EQ-PO-01",
+          "point": [
+            10.0,
+            6.8
+          ]
+        },
+        {
+          "equipment_id": "EQ-AED-01",
+          "point": [
+            6.6,
+            8.4
+          ]
+        },
+        {
+          "equipment_id": "EQ-BP-02",
+          "point": [
+            1.0,
+            5.6
+          ]
+        },
+        {
+          "equipment_id": "EQ-BP-03",
+          "point": [
+            7.0,
+            0.8
+          ]
+        },
+        {
+          "equipment_id": "EQ-EMK-01",
+          "point": [
+            10.4,
+            3.4
+          ]
+        },
+        {
+          "equipment_id": "EQ-THERM-01",
+          "point": [
+            4.4,
+            0.6
+          ]
+        }
+      ]
+    }
   },
   "anchors": [
-    {"anchor_id": "ANC-CQ-01", "zone_id": "crew-quarters", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
-    {"anchor_id": "ANC-EX-01", "zone_id": "exercise", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
-    {"anchor_id": "ANC-MED-01", "zone_id": "medical", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
-    {"anchor_id": "ANC-LAB-01", "zone_id": "laboratory", "enabled": true, "verified_minutes_ago": 600, "verified_by": "DEMO-002"},
-    {"anchor_id": "ANC-LAB-02", "zone_id": "laboratory", "enabled": false, "verified_minutes_ago": 4320, "verified_by": "DEMO-002"}
+    {
+      "anchor_id": "ANC-CQ-01",
+      "zone_id": "crew-quarters",
+      "enabled": true,
+      "verified_minutes_ago": 600,
+      "verified_by": "DEMO-002"
+    },
+    {
+      "anchor_id": "ANC-EX-01",
+      "zone_id": "exercise",
+      "enabled": true,
+      "verified_minutes_ago": 600,
+      "verified_by": "DEMO-002"
+    },
+    {
+      "anchor_id": "ANC-MED-01",
+      "zone_id": "medical",
+      "enabled": true,
+      "verified_minutes_ago": 600,
+      "verified_by": "DEMO-002"
+    },
+    {
+      "anchor_id": "ANC-LAB-01",
+      "zone_id": "laboratory",
+      "enabled": true,
+      "verified_minutes_ago": 600,
+      "verified_by": "DEMO-002"
+    },
+    {
+      "anchor_id": "ANC-LAB-02",
+      "zone_id": "laboratory",
+      "enabled": false,
+      "verified_minutes_ago": 4320,
+      "verified_by": "DEMO-002"
+    }
   ],
   "ble_observations": {
     "description": "Simulated BLE advertisements heard by DEMO-001's wearable while in crew-quarters. The laboratory anchor is also heard strongly through the open passage. ANC-UNKNOWN-99 is not in the trusted registry and must be rejected.",
     "astronaut_id": "DEMO-001",
     "expected_zone_id": "crew-quarters",
     "observations": [
-      {"anchor_id": "ANC-CQ-01", "rssi_dbm": -52, "age_seconds": 2},
-      {"anchor_id": "ANC-LAB-01", "rssi_dbm": -63, "age_seconds": 3},
-      {"anchor_id": "ANC-EX-01", "rssi_dbm": -78, "age_seconds": 2},
-      {"anchor_id": "ANC-UNKNOWN-99", "rssi_dbm": -40, "age_seconds": 1}
+      {
+        "anchor_id": "ANC-CQ-01",
+        "rssi_dbm": -52,
+        "age_seconds": 2
+      },
+      {
+        "anchor_id": "ANC-LAB-01",
+        "rssi_dbm": -63,
+        "age_seconds": 3
+      },
+      {
+        "anchor_id": "ANC-EX-01",
+        "rssi_dbm": -78,
+        "age_seconds": 2
+      },
+      {
+        "anchor_id": "ANC-UNKNOWN-99",
+        "rssi_dbm": -40,
+        "age_seconds": 1
+      }
     ]
   },
   "equipment": [
-    {"equipment_id": "EQ-BP-01", "device_model": "Demo Automatic Upper-Arm BP Monitor A1", "capability": "blood_pressure", "zone_id": "medical", "readiness": "verified_ready", "readiness_verified_minutes_ago": 90, "supplies": {"cuff_adult_standard": true, "battery_ok": true}, "required_supplies": ["cuff_adult_standard", "battery_ok"], "compatible_procedure_ids": ["PROC-BP-01"]},
-    {"equipment_id": "EQ-BP-02", "device_model": "Demo Automatic Upper-Arm BP Monitor A1", "capability": "blood_pressure", "zone_id": "laboratory", "readiness": "unknown", "readiness_verified_minutes_ago": null, "supplies": {"cuff_adult_standard": true, "battery_ok": true}, "required_supplies": ["cuff_adult_standard", "battery_ok"], "compatible_procedure_ids": ["PROC-BP-01"]},
-    {"equipment_id": "EQ-BP-03", "device_model": "Demo Automatic Upper-Arm BP Monitor A1", "capability": "blood_pressure", "zone_id": "exercise", "readiness": "verified_ready", "readiness_verified_minutes_ago": 120, "supplies": {"cuff_adult_standard": false, "battery_ok": true}, "required_supplies": ["cuff_adult_standard", "battery_ok"], "compatible_procedure_ids": ["PROC-BP-01"]},
-    {"equipment_id": "EQ-PO-01", "device_model": "Demo Fingertip Pulse Oximeter P1", "capability": "pulse_oximetry", "zone_id": "medical", "readiness": "verified_ready", "readiness_verified_minutes_ago": 90, "supplies": {"battery_ok": true}, "required_supplies": ["battery_ok"], "compatible_procedure_ids": []},
-    {"equipment_id": "EQ-THERM-01", "device_model": "Demo Infrared Thermometer T1", "capability": "body_temperature", "zone_id": "crew-quarters", "readiness": "verified_ready", "readiness_verified_minutes_ago": 300, "supplies": {"battery_ok": true}, "required_supplies": ["battery_ok"], "compatible_procedure_ids": []},
-    {"equipment_id": "EQ-AED-01", "device_model": "Demo Automated External Defibrillator Trainer (fictional record)", "capability": "aed", "zone_id": "medical", "readiness": "verified_ready", "readiness_verified_minutes_ago": 240, "supplies": {"pads_adult": true, "battery_ok": true}, "required_supplies": ["pads_adult", "battery_ok"], "compatible_procedure_ids": []},
-    {"equipment_id": "EQ-EMK-01", "device_model": "Demo Emergency Medical Kit (fictional record)", "capability": "emergency_kit", "zone_id": "exercise", "readiness": "verified_ready", "readiness_verified_minutes_ago": 240, "supplies": {"seal_intact": true}, "required_supplies": ["seal_intact"], "compatible_procedure_ids": []}
+    {
+      "equipment_id": "EQ-BP-01",
+      "device_model": "Demo Automatic Upper-Arm BP Monitor A1",
+      "capability": "blood_pressure",
+      "zone_id": "medical",
+      "readiness": "verified_ready",
+      "readiness_verified_minutes_ago": 90,
+      "supplies": {
+        "cuff_adult_standard": true,
+        "battery_ok": true
+      },
+      "required_supplies": [
+        "cuff_adult_standard",
+        "battery_ok"
+      ],
+      "compatible_procedure_ids": [
+        "PROC-BP-01"
+      ]
+    },
+    {
+      "equipment_id": "EQ-BP-02",
+      "device_model": "Demo Automatic Upper-Arm BP Monitor A1",
+      "capability": "blood_pressure",
+      "zone_id": "laboratory",
+      "readiness": "unknown",
+      "readiness_verified_minutes_ago": null,
+      "supplies": {
+        "cuff_adult_standard": true,
+        "battery_ok": true
+      },
+      "required_supplies": [
+        "cuff_adult_standard",
+        "battery_ok"
+      ],
+      "compatible_procedure_ids": [
+        "PROC-BP-01"
+      ]
+    },
+    {
+      "equipment_id": "EQ-BP-03",
+      "device_model": "Demo Automatic Upper-Arm BP Monitor A1",
+      "capability": "blood_pressure",
+      "zone_id": "exercise",
+      "readiness": "verified_ready",
+      "readiness_verified_minutes_ago": 120,
+      "supplies": {
+        "cuff_adult_standard": false,
+        "battery_ok": true
+      },
+      "required_supplies": [
+        "cuff_adult_standard",
+        "battery_ok"
+      ],
+      "compatible_procedure_ids": [
+        "PROC-BP-01"
+      ]
+    },
+    {
+      "equipment_id": "EQ-PO-01",
+      "device_model": "Demo Fingertip Pulse Oximeter P1",
+      "capability": "pulse_oximetry",
+      "zone_id": "medical",
+      "readiness": "verified_ready",
+      "readiness_verified_minutes_ago": 90,
+      "supplies": {
+        "battery_ok": true
+      },
+      "required_supplies": [
+        "battery_ok"
+      ],
+      "compatible_procedure_ids": []
+    },
+    {
+      "equipment_id": "EQ-THERM-01",
+      "device_model": "Demo Infrared Thermometer T1",
+      "capability": "body_temperature",
+      "zone_id": "crew-quarters",
+      "readiness": "verified_ready",
+      "readiness_verified_minutes_ago": 300,
+      "supplies": {
+        "battery_ok": true
+      },
+      "required_supplies": [
+        "battery_ok"
+      ],
+      "compatible_procedure_ids": []
+    },
+    {
+      "equipment_id": "EQ-AED-01",
+      "device_model": "Demo Automated External Defibrillator Trainer (fictional record)",
+      "capability": "aed",
+      "zone_id": "medical",
+      "readiness": "verified_ready",
+      "readiness_verified_minutes_ago": 240,
+      "supplies": {
+        "pads_adult": true,
+        "battery_ok": true
+      },
+      "required_supplies": [
+        "pads_adult",
+        "battery_ok"
+      ],
+      "compatible_procedure_ids": []
+    },
+    {
+      "equipment_id": "EQ-EMK-01",
+      "device_model": "Demo Emergency Medical Kit (fictional record)",
+      "capability": "emergency_kit",
+      "zone_id": "exercise",
+      "readiness": "verified_ready",
+      "readiness_verified_minutes_ago": 240,
+      "supplies": {
+        "seal_intact": true
+      },
+      "required_supplies": [
+        "seal_intact"
+      ],
+      "compatible_procedure_ids": []
+    }
   ],
   "expected_recommendation": {
     "case_capability": "blood_pressure",
     "from_zone_id": "crew-quarters",
     "equipment_id": "EQ-BP-01",
-    "route_zone_ids": ["crew-quarters", "exercise", "medical"],
+    "route_zone_ids": [
+      "crew-quarters",
+      "exercise",
+      "medical"
+    ],
     "explanation": "EQ-BP-02 (laboratory) is adjacent but its readiness is unknown. EQ-BP-03 (exercise) is missing its cuff. The laboratory-medical hatch is closed, so the accessible route is via exercise."
   },
   "anatomical_regions": [
-    {"region_id": "head", "label": "Head", "lateral": false},
-    {"region_id": "eyes", "label": "Eyes", "lateral": true},
-    {"region_id": "neck", "label": "Neck", "lateral": false},
-    {"region_id": "chest", "label": "Chest", "lateral": true},
-    {"region_id": "upper_back", "label": "Upper back", "lateral": true},
-    {"region_id": "lower_back", "label": "Lower back", "lateral": true},
-    {"region_id": "abdomen", "label": "Abdomen", "lateral": true},
-    {"region_id": "upper_arm", "label": "Upper arm", "lateral": true},
-    {"region_id": "forearm_hand", "label": "Forearm and hand", "lateral": true},
-    {"region_id": "upper_leg", "label": "Upper leg", "lateral": true},
-    {"region_id": "lower_leg_foot", "label": "Lower leg and foot", "lateral": true},
-    {"region_id": "whole_body", "label": "Whole body / general", "lateral": false}
+    {
+      "region_id": "head",
+      "label": "Head",
+      "lateral": false
+    },
+    {
+      "region_id": "eyes",
+      "label": "Eyes",
+      "lateral": true
+    },
+    {
+      "region_id": "neck",
+      "label": "Neck",
+      "lateral": false
+    },
+    {
+      "region_id": "chest",
+      "label": "Chest",
+      "lateral": true
+    },
+    {
+      "region_id": "upper_back",
+      "label": "Upper back",
+      "lateral": true
+    },
+    {
+      "region_id": "lower_back",
+      "label": "Lower back",
+      "lateral": true
+    },
+    {
+      "region_id": "abdomen",
+      "label": "Abdomen",
+      "lateral": true
+    },
+    {
+      "region_id": "upper_arm",
+      "label": "Upper arm",
+      "lateral": true
+    },
+    {
+      "region_id": "forearm_hand",
+      "label": "Forearm and hand",
+      "lateral": true
+    },
+    {
+      "region_id": "upper_leg",
+      "label": "Upper leg",
+      "lateral": true
+    },
+    {
+      "region_id": "lower_leg_foot",
+      "label": "Lower leg and foot",
+      "lateral": true
+    },
+    {
+      "region_id": "whole_body",
+      "label": "Whole body / general",
+      "lateral": false
+    }
   ],
-  "laterality_values": ["left", "right", "bilateral", "midline", "not_applicable"],
+  "laterality_values": [
+    "left",
+    "right",
+    "bilateral",
+    "midline",
+    "not_applicable"
+  ],
   "observation_catalogue": [
-    {"type": "heart_rate", "unit": "bpm", "min": 20, "max": 250, "stale_after_minutes": 60},
-    {"type": "spo2", "unit": "%", "min": 50, "max": 100, "stale_after_minutes": 240},
-    {"type": "body_temperature", "unit": "degC", "min": 30, "max": 43, "stale_after_minutes": 720},
-    {"type": "sleep_duration", "unit": "h", "min": 0, "max": 24, "stale_after_minutes": 1680},
-    {"type": "blood_pressure_systolic", "unit": "mmHg", "min": 50, "max": 260, "stale_after_minutes": 10080},
-    {"type": "blood_pressure_diastolic", "unit": "mmHg", "min": 30, "max": 160, "stale_after_minutes": 10080}
+    {
+      "type": "heart_rate",
+      "unit": "bpm",
+      "min": 20,
+      "max": 250,
+      "stale_after_minutes": 60
+    },
+    {
+      "type": "spo2",
+      "unit": "%",
+      "min": 50,
+      "max": 100,
+      "stale_after_minutes": 240
+    },
+    {
+      "type": "body_temperature",
+      "unit": "degC",
+      "min": 30,
+      "max": 43,
+      "stale_after_minutes": 720
+    },
+    {
+      "type": "sleep_duration",
+      "unit": "h",
+      "min": 0,
+      "max": 24,
+      "stale_after_minutes": 1680
+    },
+    {
+      "type": "blood_pressure_systolic",
+      "unit": "mmHg",
+      "min": 50,
+      "max": 260,
+      "stale_after_minutes": 10080
+    },
+    {
+      "type": "blood_pressure_diastolic",
+      "unit": "mmHg",
+      "min": 30,
+      "max": 160,
+      "stale_after_minutes": 10080
+    }
   ],
   "observations": [
-    {"observation_id": "OBS-0001", "type": "heart_rate", "value": 68, "unit": "bpm", "minutes_ago": 15, "source": "SIMULATED_WEARABLE", "quality": "good"},
-    {"observation_id": "OBS-0002", "type": "heart_rate", "value": 72, "unit": "bpm", "minutes_ago": 5, "source": "SIMULATED_WEARABLE", "quality": "good"},
-    {"observation_id": "OBS-0003", "type": "spo2", "value": 98, "unit": "%", "minutes_ago": 5, "source": "SIMULATED_WEARABLE", "quality": "good"},
-    {"observation_id": "OBS-0004", "type": "body_temperature", "value": 36.8, "unit": "degC", "minutes_ago": 1500, "source": "SIMULATED_MANUAL_ENTRY", "quality": "good"},
-    {"observation_id": "OBS-0005", "type": "sleep_duration", "value": 6.1, "unit": "h", "minutes_ago": 420, "source": "SIMULATED_WEARABLE", "quality": "fair"}
+    {
+      "observation_id": "OBS-0001",
+      "type": "heart_rate",
+      "value": 68,
+      "unit": "bpm",
+      "minutes_ago": 15,
+      "source": "SIMULATED_WEARABLE",
+      "quality": "good"
+    },
+    {
+      "observation_id": "OBS-0002",
+      "type": "heart_rate",
+      "value": 72,
+      "unit": "bpm",
+      "minutes_ago": 5,
+      "source": "SIMULATED_WEARABLE",
+      "quality": "good"
+    },
+    {
+      "observation_id": "OBS-0003",
+      "type": "spo2",
+      "value": 98,
+      "unit": "%",
+      "minutes_ago": 5,
+      "source": "SIMULATED_WEARABLE",
+      "quality": "good"
+    },
+    {
+      "observation_id": "OBS-0004",
+      "type": "body_temperature",
+      "value": 36.8,
+      "unit": "degC",
+      "minutes_ago": 1500,
+      "source": "SIMULATED_MANUAL_ENTRY",
+      "quality": "good"
+    },
+    {
+      "observation_id": "OBS-0005",
+      "type": "sleep_duration",
+      "value": 6.1,
+      "unit": "h",
+      "minutes_ago": 420,
+      "source": "SIMULATED_WEARABLE",
+      "quality": "fair"
+    }
   ],
   "scheduled_assessment": {
     "assessment_id": "SA-BP-001",
@@ -127,12 +786,16 @@
   },
   "procedure": {
     "procedure_id": "PROC-BP-01",
-    "version": "1.0.0-demo",
+    "version": "1.1.0-demo",
     "title": "Non-invasive upper-arm blood-pressure measurement (educational demonstration)",
     "purpose": "Demonstrates how a non-medical crew member could be guided to take an automatic upper-arm blood-pressure reading for a configured, fictional assessment.",
     "required_capability": "blood_pressure",
-    "compatible_device_models": ["Demo Automatic Upper-Arm BP Monitor A1"],
-    "anatomical_region_ids": ["upper_arm"],
+    "compatible_device_models": [
+      "Demo Automatic Upper-Arm BP Monitor A1"
+    ],
+    "anatomical_region_ids": [
+      "upper_arm"
+    ],
     "content_status": "EDUCATIONAL_DEMO_ONLY",
     "source_basis": "Paraphrased from widely published general guidance for automatic home upper-arm blood-pressure measurement (for example American Heart Association home-monitoring guidance). Not reviewed by a flight surgeon and not a mission-approved procedure.",
     "safety_limitations": [
@@ -143,18 +806,314 @@
       "Confirming a step records an acknowledgement only. It does not prove the step was performed correctly."
     ],
     "steps": [
-      {"step_id": "S1", "order": 1, "title": "Prepare and rest", "instruction": "Restrain yourself in a relaxed, supported position. Rest quietly for 5 minutes. Avoid exercise, caffeine and talking during this time.", "anatomical_region_ids": [], "requires_confirmation": true, "responder_note": "Help the crew member into a supported, relaxed position."},
-      {"step_id": "S2", "order": 2, "title": "Expose the upper arm", "instruction": "Use the left upper arm unless instructed otherwise. Remove or roll up tight clothing so the cuff sits on bare skin.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Ask before touching the crew member's arm."},
-      {"step_id": "S3", "order": 3, "title": "Position the cuff", "instruction": "Wrap the cuff snugly around the upper arm with its lower edge about 2-3 cm above the elbow crease. Align the cuff's artery marker with the inside of the arm. Two fingertips should fit under the cuff.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Check the fit with two fingertips."},
-      {"step_id": "S4", "order": 4, "title": "Support the arm at heart level", "instruction": "Keep the arm relaxed and supported at about heart level. Keep still and do not talk.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Support the arm gently if needed."},
-      {"step_id": "S5", "order": 5, "title": "Start the measurement", "instruction": "Press start on the monitor and remain still until the cuff fully deflates.", "anatomical_region_ids": ["upper_arm"], "requires_confirmation": true, "responder_note": "Start the device and watch for errors on the display."},
-      {"step_id": "S6", "order": 6, "title": "Record the displayed values", "instruction": "Read the systolic, diastolic and pulse values shown on the display, remove the cuff and submit the reading.", "anatomical_region_ids": [], "requires_confirmation": true, "responder_note": "Read the values aloud to the crew member before submitting."}
+      {
+        "step_id": "S1",
+        "order": 1,
+        "title": "Prepare and rest",
+        "instruction": "Restrain yourself in a relaxed, supported position. Rest quietly for 5 minutes. Avoid exercise, caffeine and talking during this time.",
+        "anatomical_region_ids": [],
+        "requires_confirmation": true,
+        "responder_note": "Help the crew member into a supported, relaxed position.",
+        "target_region_id": "whole_body",
+        "target_laterality": "not_applicable",
+        "target_site_id": null,
+        "patient_role": "crew_member_being_assessed",
+        "equipment": {
+          "required_capability": "blood_pressure",
+          "compatible_device_models": [
+            "Demo Automatic Upper-Arm BP Monitor A1"
+          ],
+          "components": [
+            "monitor",
+            "cuff",
+            "restraint"
+          ]
+        },
+        "instruction_source_ids": [
+          "SRC-BP-HOME-GENERAL",
+          "SRC-DEMO-DEVICE-A1"
+        ],
+        "visual": {
+          "action_id": "VA-BP-01-PREPARE-EQUIPMENT",
+          "asset_id": "ASSET-BP-MONITOR-A1",
+          "additional_asset_ids": [
+            "ASSET-BP-CUFF-ADULT-STD",
+            "ASSET-CREW-RESTRAINT"
+          ],
+          "camera": {
+            "view": "front",
+            "target_region_id": "whole_body",
+            "target_laterality": "not_applicable",
+            "framing": "patient_and_equipment"
+          },
+          "expected_visible_action": "The monitor and the adult cuff are shown together; the crew member settles into a restrained, supported position and rests quietly.",
+          "replay_allowed": true,
+          "pause_allowed": true
+        },
+        "warnings": [
+          "Resting for 5 minutes is part of the demonstrated technique; the animation does not time the rest."
+        ]
+      },
+      {
+        "step_id": "S2",
+        "order": 2,
+        "title": "Expose the upper arm",
+        "instruction": "Use the left upper arm unless instructed otherwise. Remove or roll up tight clothing so the cuff sits on bare skin.",
+        "anatomical_region_ids": [
+          "upper_arm"
+        ],
+        "requires_confirmation": true,
+        "responder_note": "Ask before touching the crew member's arm.",
+        "target_region_id": "upper_arm",
+        "target_laterality": "left",
+        "target_site_id": "left_upper_arm",
+        "patient_role": "crew_member_being_assessed",
+        "equipment": {
+          "required_capability": "blood_pressure",
+          "compatible_device_models": [
+            "Demo Automatic Upper-Arm BP Monitor A1"
+          ],
+          "components": [
+            "cuff"
+          ]
+        },
+        "instruction_source_ids": [
+          "SRC-BP-HOME-GENERAL"
+        ],
+        "visual": {
+          "action_id": "VA-BP-02-EXPOSE-UPPER-ARM",
+          "asset_id": "ASSET-HUMAN-UPPER-ARM-L",
+          "additional_asset_ids": [],
+          "camera": {
+            "view": "left_side",
+            "target_region_id": "upper_arm",
+            "target_laterality": "left",
+            "framing": "region_closeup"
+          },
+          "expected_visible_action": "The camera moves to the left upper arm; the sleeve is rolled up and the bare skin area where the cuff will sit is highlighted.",
+          "replay_allowed": true,
+          "pause_allowed": true
+        },
+        "warnings": [
+          "The highlighted area shows where the demonstration cuff sits. It is not a finding on this crew member."
+        ]
+      },
+      {
+        "step_id": "S3",
+        "order": 3,
+        "title": "Position the cuff",
+        "instruction": "Wrap the cuff snugly around the upper arm with its lower edge about 2-3 cm above the elbow crease. Align the cuff's artery marker with the inside of the arm. Two fingertips should fit under the cuff.",
+        "anatomical_region_ids": [
+          "upper_arm"
+        ],
+        "requires_confirmation": true,
+        "responder_note": "Check the fit with two fingertips.",
+        "target_region_id": "upper_arm",
+        "target_laterality": "left",
+        "target_site_id": "left_upper_arm",
+        "patient_role": "crew_member_being_assessed",
+        "equipment": {
+          "required_capability": "blood_pressure",
+          "compatible_device_models": [
+            "Demo Automatic Upper-Arm BP Monitor A1"
+          ],
+          "components": [
+            "cuff"
+          ]
+        },
+        "instruction_source_ids": [
+          "SRC-BP-HOME-GENERAL",
+          "SRC-DEMO-DEVICE-A1"
+        ],
+        "visual": {
+          "action_id": "VA-BP-03-WRAP-CUFF",
+          "asset_id": "ASSET-BP-CUFF-ADULT-STD",
+          "additional_asset_ids": [
+            "ASSET-HUMAN-UPPER-ARM-L"
+          ],
+          "camera": {
+            "view": "left_side",
+            "target_region_id": "upper_arm",
+            "target_laterality": "left",
+            "framing": "region_closeup"
+          },
+          "expected_visible_action": "The cuff wraps around the left upper arm with its lower edge about 2-3 cm above the elbow crease, the artery marker turns to the inside of the arm, and two fingertips slide under the cuff.",
+          "replay_allowed": true,
+          "pause_allowed": true
+        },
+        "warnings": [
+          "Stop if the cuff causes pain, numbness or tingling, and release the cuff."
+        ]
+      },
+      {
+        "step_id": "S4",
+        "order": 4,
+        "title": "Support the arm at heart level",
+        "instruction": "Keep the arm relaxed and supported at about heart level. Keep still and do not talk.",
+        "anatomical_region_ids": [
+          "upper_arm"
+        ],
+        "requires_confirmation": true,
+        "responder_note": "Support the arm gently if needed.",
+        "target_region_id": "upper_arm",
+        "target_laterality": "left",
+        "target_site_id": "left_upper_arm",
+        "patient_role": "crew_member_being_assessed",
+        "equipment": {
+          "required_capability": "blood_pressure",
+          "compatible_device_models": [
+            "Demo Automatic Upper-Arm BP Monitor A1"
+          ],
+          "components": [
+            "cuff",
+            "restraint"
+          ]
+        },
+        "instruction_source_ids": [
+          "SRC-BP-HOME-GENERAL"
+        ],
+        "visual": {
+          "action_id": "VA-BP-04-SUPPORT-ARM",
+          "asset_id": "ASSET-CREW-RESTRAINT",
+          "additional_asset_ids": [
+            "ASSET-HUMAN-UPPER-ARM-L",
+            "ASSET-BP-CUFF-ADULT-STD"
+          ],
+          "camera": {
+            "view": "front",
+            "target_region_id": "upper_arm",
+            "target_laterality": "left",
+            "framing": "patient_posture"
+          },
+          "expected_visible_action": "The body stays restrained and still while the cuffed arm rests on a support at about heart level.",
+          "replay_allowed": true,
+          "pause_allowed": true
+        },
+        "warnings": [
+          "Earth-based seated positioning guidance is not automatically valid in microgravity. The demonstration shows a restrained, supported posture; it is not a validated spaceflight technique."
+        ]
+      },
+      {
+        "step_id": "S5",
+        "order": 5,
+        "title": "Start the measurement",
+        "instruction": "Press start on the monitor and remain still until the cuff fully deflates.",
+        "anatomical_region_ids": [
+          "upper_arm"
+        ],
+        "requires_confirmation": true,
+        "responder_note": "Start the device and watch for errors on the display.",
+        "target_region_id": "upper_arm",
+        "target_laterality": "left",
+        "target_site_id": "left_upper_arm",
+        "patient_role": "crew_member_being_assessed",
+        "equipment": {
+          "required_capability": "blood_pressure",
+          "compatible_device_models": [
+            "Demo Automatic Upper-Arm BP Monitor A1"
+          ],
+          "components": [
+            "monitor",
+            "cuff"
+          ]
+        },
+        "instruction_source_ids": [
+          "SRC-DEMO-DEVICE-A1"
+        ],
+        "visual": {
+          "action_id": "VA-BP-05-START-MEASUREMENT",
+          "asset_id": "ASSET-BP-MONITOR-A1",
+          "additional_asset_ids": [
+            "ASSET-BP-CUFF-ADULT-STD"
+          ],
+          "camera": {
+            "view": "equipment_closeup",
+            "target_region_id": "upper_arm",
+            "target_laterality": "left",
+            "framing": "device_controls"
+          },
+          "expected_visible_action": "The start button is pressed; the cuff inflates and then fully deflates while the display shows that a measurement is in progress.",
+          "replay_allowed": true,
+          "pause_allowed": true
+        },
+        "warnings": [
+          "If the display shows an error, the demonstration does not interpret it; repeat only as instructed."
+        ]
+      },
+      {
+        "step_id": "S6",
+        "order": 6,
+        "title": "Record the displayed values",
+        "instruction": "Read the systolic, diastolic and pulse values shown on the display, remove the cuff and submit the reading.",
+        "anatomical_region_ids": [],
+        "requires_confirmation": true,
+        "responder_note": "Read the values aloud to the crew member before submitting.",
+        "target_region_id": "whole_body",
+        "target_laterality": "not_applicable",
+        "target_site_id": null,
+        "patient_role": "crew_member_being_assessed",
+        "equipment": {
+          "required_capability": "blood_pressure",
+          "compatible_device_models": [
+            "Demo Automatic Upper-Arm BP Monitor A1"
+          ],
+          "components": [
+            "monitor",
+            "cuff"
+          ]
+        },
+        "instruction_source_ids": [
+          "SRC-BP-HOME-GENERAL",
+          "SRC-DEMO-DEVICE-A1"
+        ],
+        "visual": {
+          "action_id": "VA-BP-06-RECORD-RESULT",
+          "asset_id": "ASSET-BP-MONITOR-A1",
+          "additional_asset_ids": [
+            "ASSET-BP-CUFF-ADULT-STD"
+          ],
+          "camera": {
+            "view": "equipment_closeup",
+            "target_region_id": "whole_body",
+            "target_laterality": "not_applicable",
+            "framing": "device_display"
+          },
+          "expected_visible_action": "The monitor display shows values clearly labelled SIMULATED; systolic, diastolic and pulse are highlighted in turn, the cuff is removed, and the user enters the same values.",
+          "replay_allowed": true,
+          "pause_allowed": true
+        },
+        "warnings": [
+          "Displayed demonstration values are simulated. Recording them checks technical validity only; no clinical interpretation is made."
+        ]
+      }
     ],
-    "follow_up": {"task_type": "repeat_assessment", "title": "Repeat demonstration blood-pressure reading", "due_in_hours": 24}
+    "follow_up": {
+      "task_type": "repeat_assessment",
+      "title": "Repeat demonstration blood-pressure reading",
+      "due_in_hours": 24
+    },
+    "validation_level": "EDUCATIONAL_DEMONSTRATION",
+    "intended_patient": "The crew member being assessed (DEMO-001 in the demonstration), measuring on themselves (self mode) or helped by another crew member (responder mode).",
+    "instruction_sources": [
+      {
+        "source_id": "SRC-BP-HOME-GENERAL",
+        "description": "Paraphrase of widely published general guidance for automatic home upper-arm blood-pressure measurement (for example American Heart Association home-monitoring guidance).",
+        "reviewed_by_flight_surgeon": false
+      },
+      {
+        "source_id": "SRC-DEMO-DEVICE-A1",
+        "description": "Fictional instructions for the fictional Demo Automatic Upper-Arm BP Monitor A1 (start button, artery marker, display). No real device manual was reviewed.",
+        "reviewed_by_flight_surgeon": false
+      }
+    ]
   },
   "demo_measurement": {
     "type": "blood_pressure",
-    "value": {"systolic": 118, "diastolic": 76, "pulse": 70},
+    "value": {
+      "systolic": 118,
+      "diastolic": 76,
+      "pulse": 70
+    },
     "unit": "mmHg",
     "source": "SIMULATED_DEVICE"
   },

@@ -11,6 +11,37 @@ from .common import CaseState, TzModel
 CONFIRMATION_NOTE = "A confirmed step records an acknowledgement only. It does not prove correct clinical execution."
 
 
+ValidationLevel = Literal["EDUCATIONAL_DEMONSTRATION", "SIMULATED_EQUIPMENT_WORKFLOW", "HARDWARE_TESTED_WORKFLOW",
+                          "MISSION_APPROVED_PROCEDURE"]
+CameraView = Literal["front", "back", "left_side", "right_side", "equipment_closeup"]
+
+
+class StepEquipment(BaseModel):
+    required_capability: str
+    compatible_device_models: list[str]
+    components: list[str] = Field(description="Parts of the device shown in this step, e.g. monitor, cuff.")
+
+
+class CameraTarget(BaseModel):
+    view: CameraView
+    target_region_id: str
+    target_laterality: str
+    framing: str = Field(description="patient_and_equipment, region_closeup, patient_posture, device_controls or "
+                                     "device_display.")
+
+
+class StepVisual(BaseModel):
+    """Visual contract (2.2.0). Codex maps action_id and asset IDs to implemented scenes and animations."""
+
+    action_id: str = Field(description="Unique per step. Codex's visual-action registry must implement it.")
+    asset_id: str = Field(description="Primary 3D asset of the scene.")
+    additional_asset_ids: list[str]
+    camera: CameraTarget
+    expected_visible_action: str = Field(description="What the animation must visibly show.")
+    replay_allowed: bool
+    pause_allowed: bool
+
+
 class ProcedureStep(BaseModel):
     step_id: str
     order: int
@@ -19,6 +50,26 @@ class ProcedureStep(BaseModel):
     anatomical_region_ids: list[str]
     requires_confirmation: bool
     responder_note: str
+    target_region_id: str
+    target_laterality: str
+    target_site_id: Optional[str] = Field(description="Detailed surface site on the default anatomy model, if any.")
+    patient_role: Literal["crew_member_being_assessed"]
+    equipment: StepEquipment
+    instruction_source_ids: list[str]
+    visual: StepVisual
+    warnings: list[str]
+
+
+class InstructionSource(BaseModel):
+    source_id: str
+    description: str
+    reviewed_by_flight_surgeon: bool
+
+
+class VisualRequirement(BaseModel):
+    step_id: str
+    action_id: str
+    asset_ids: list[str]
 
 
 class FollowUpConfig(BaseModel):
@@ -36,10 +87,17 @@ class ProcedureOut(BaseModel):
     compatible_device_models: list[str]
     anatomical_region_ids: list[str]
     content_status: Literal["EDUCATIONAL_DEMO_ONLY"]
+    validation_level: ValidationLevel = Field(
+        description="EDUCATIONAL_DEMONSTRATION: content for teaching only. Completing it does not establish that "
+                    "the technique is safe or approved for spacecraft use.")
+    intended_patient: str
     source_basis: str
+    instruction_sources: list[InstructionSource]
     safety_limitations: list[str]
     steps: list[ProcedureStep]
     follow_up: FollowUpConfig
+    visual_requirements: list[VisualRequirement] = Field(
+        description="Every visual action and asset the frontend must implement for this procedure.")
     confirmation_note: str = CONFIRMATION_NOTE
 
 

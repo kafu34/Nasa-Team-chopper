@@ -61,8 +61,14 @@ def main() -> int:
         eq = c.post("/api/v1/equipment/recommend", json={"case_id": case_id, "zone_id": loc["zone_id"],
                                                           "capability": "blood_pressure"}).json()
         check("POST /api/v1/equipment/recommend", eq.get("equipment_id") == "EQ-BP-01", "->".join(eq["route_zone_ids"]))
+        latest = c.get("/api/v1/location/DEMO-001/latest").json()
+        check("GET /api/v1/location/{id}/latest", latest["display_mode"] == "zone_only", latest["label"])
+        hab_map = c.get("/api/v1/habitats/HAB-01/map").json()
+        check("GET /api/v1/habitats/HAB-01/map", hab_map["map_version"] == eq["route_geometry"]["map_version"]
+              and len(hab_map["passages"]) == 4, f"route {eq['route_hatch_ids']}")
         proc_def = c.get("/api/v1/procedures/PROC-BP-01").json()
-        check("GET /api/v1/procedures/PROC-BP-01", len(proc_def["steps"]) == 6)
+        check("GET /api/v1/procedures/PROC-BP-01", len(proc_def["steps"]) == 6
+              and len({s["visual"]["action_id"] for s in proc_def["steps"]}) == 6, proc_def["validation_level"])
         ses = c.post("/api/v1/procedure-sessions", json={"case_id": case_id, "procedure_id": "PROC-BP-01",
                                                           "actor_id": "DEMO-001", "mode": "self"})
         check("POST /api/v1/procedure-sessions", ses.status_code == 201)

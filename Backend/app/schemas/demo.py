@@ -36,6 +36,7 @@ class ConnectionOut(Out):
     to_zone_id: str
     accessible: bool
     note: str
+    hatch_id: Optional[str] = None
 
 
 class HabitatOut(BaseModel):
@@ -114,6 +115,40 @@ class SurfaceModelOut(BaseModel):
     sites: list[SurfaceSiteOut]
 
 
+class SurfaceMeshOut(BaseModel):
+    mesh_id: str
+    triangle_count: int
+    description: Optional[str] = None
+
+
+class SurfaceModelVersionOut(BaseModel):
+    model_version: str
+    coordinates_compatible: bool
+    note: str
+
+
+class RegisteredSurfaceModelOut(BaseModel):
+    """A 3D Anatomical Twin model from shared/anatomy/<model_id>.json (contract 2.2.0)."""
+
+    model_id: str
+    model_version: str
+    status: Literal["active", "retired"]
+    kind: str
+    description: str
+    coordinate_frame: dict[str, Any]
+    side_tolerance: float
+    meshes: Optional[list[SurfaceMeshOut]] = Field(description="Null when the model does not declare its meshes; "
+                                                               "mesh_id is then stored but not validated.")
+    previous_versions: list[SurfaceModelVersionOut]
+    sites: list[SurfaceSiteOut]
+
+
+class AnnotationKindOut(BaseModel):
+    kind: Literal["surface_selection", "region_classification", "patient_reported_symptom", "monitoring_concern",
+                  "verified_finding"]
+    description: str
+
+
 class BleObservationTemplate(BaseModel):
     anchor_id: str
     rssi_dbm: int
@@ -149,7 +184,9 @@ class BootstrapOut(BaseModel):
     open_cases: list[CaseSummary]
     anatomical_regions: list[RegionOut]
     laterality_values: list[Laterality]
-    surface_model: SurfaceModelOut
+    surface_model: SurfaceModelOut = Field(description="Default model in the v2.2 shape. See surface_models.")
+    surface_models: list[RegisteredSurfaceModelOut]
+    anatomical_annotation_kinds: list[AnnotationKindOut]
     demo_inputs: DemoInputs
     research_datasets: list[DatasetSummary]
 

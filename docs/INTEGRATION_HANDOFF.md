@@ -2,9 +2,9 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.1.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.1.0 |
-| Backend branch | `backend/p0-v2.1`, pushed; PR #1 into `main` is open. Until it is merged, `main` has an older `shared/openapi.yaml`, so read the contract from this branch. |
+| Contract | `shared/openapi.yaml`, **version 2.2.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.2.0; anatomy models in `shared/anatomy/` |
+| Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
 | Status | All 13 baseline endpoints and all 5 v2.1 research endpoints implemented and tested. `/radiation/timeseries` serves real RadLab data; `/environment/timeseries` returns 503 (no EDA importer). |
@@ -65,7 +65,7 @@ No internet connection is needed.
 | Anchors | `ANC-CQ-01`, `ANC-EX-01`, `ANC-MED-01`, `ANC-LAB-01`, `ANC-LAB-02` (disabled) |
 | Equipment | `EQ-BP-01` (medical, ready), `EQ-BP-02` (laboratory, readiness unknown), `EQ-BP-03` (exercise, cuff missing), `EQ-PO-01`, `EQ-THERM-01`, `EQ-AED-01`, `EQ-EMK-01` |
 | Capability | `blood_pressure` |
-| Procedure | `PROC-BP-01` version `1.0.0-demo`, steps `S1`–`S6` |
+| Procedure | `PROC-BP-01` version `1.1.0-demo`, steps `S1`–`S6` |
 | Scheduled assessment | `SA-BP-001` (due 30 min before seed/reset) |
 | NASA dataset | `OSD-575` (plus catalogue IDs `OSD-656`, `NASA-EDA`, `NASA-RADLAB`, `OSD-654`, `OSD-684`, `OSD-573`, `OSD-817`) |
 | Anatomical regions | `head`, `eyes`, `neck`, `chest`, `upper_back`, `lower_back`, `abdomen`, `upper_arm`, `forearm_hand`, `upper_leg`, `lower_leg_foot`, `whole_body` |
@@ -201,8 +201,9 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **165 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`) and **23/23** real-HTTP checks against uvicorn.
+See `docs/TEST_REPORT.md`. Latest: **201 passed, 1 skipped, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **25/25** real-HTTP checks against
+uvicorn.
 
 ## 10. Known contract deviations and coordination notes
 
@@ -220,7 +221,69 @@ See `docs/TEST_REPORT.md`. Latest: **165 passed, 0 failed** (pytest, including t
 
 ## 11. Changes requiring frontend updates
 
-This is the first published contract (2.1.0). Any future change will be listed here with the new version number.
+Changes are listed newest first, each with its contract version.
+
+### Contract 2.2.0 — Engineering Specification v3.1, Milestone 1 (backend contracts)
+
+`contract_version` is now **2.2.0** (`/healthz`, `info.version`, fixture `contract_version`). Paths stay under
+`/api/v1`. Every change is additive except one error code (item 1). **Codex: please confirm each item below
+supports the v3.1 interface, or list what is missing, in `Frontend/BACKEND_3D_HANDOFF.md` or a new
+`Frontend/V3_1_CONTRACT_FEEDBACK.md`.** The backend will not build Milestones 3-5 on these shapes until then.
+
+1. **Anatomical marker schema (v3.1 §4.3-4.4).**
+   - Models are registered in `shared/anatomy/<model_id>.json` (model version, kind, coordinate frame,
+     declared meshes, sites -> region + side, earlier versions with `coordinates_compatible`). Only
+     `sentinel-body-v1` 1.0.0 exists; its manifest reproduces the 35 sites of `anatomy-sites.ts` exactly.
+   - **For the realistic mesh model, Codex sends Claude:** model ID, version, licence/attribution, coordinate
+     frame and units, mesh IDs with triangle counts, and each selectable site with its broad region and side.
+     Claude adds the manifest. Old `sentinel-body-v1` markers stay readable (see marker status below).
+   - `surface_point` request gains optional `model_version`, `mesh_id` and
+     `attachment {triangle_index, barycentric[3]}` (weights 0-1, sum 1 +/-0.001; needs `mesh_id`).
+     `model_id` is now any registered model. **Changed:** an unregistered `model_id` returns
+     `422 UNKNOWN_SURFACE_MODEL` (was `VALIDATION_ERROR`). New 422 codes: `SURFACE_MODEL_RETIRED`,
+     `SURFACE_MODEL_VERSION_MISMATCH`, `SURFACE_POINT_OUT_OF_RANGE`, `UNKNOWN_MESH`, `TRIANGLE_OUT_OF_RANGE`,
+     `ATTACHMENT_REQUIRES_MESH`.
+   - `surface_point` response gains `model_version` (1.0.0 for points stored earlier), `mesh_id`,
+     `mesh_validation`, `attachment`, `marker_status` (`current`, `model_version_changed`,
+     `model_version_incompatible`, `model_retired`, `model_unknown`) and `render_hint` (`exact_point`,
+     `site_only`, `not_renderable`). Draw a marker at the stored coordinates only for `exact_point`; for
+     `site_only` highlight the named site. Stored coordinates are never rewritten.
+   - Symptoms gain `record_kind: patient_reported_symptom`. Bootstrap gains `surface_models[]` and
+     `anatomical_annotation_kinds[]` (surface selection, region classification, patient-reported symptom,
+     monitoring concern, verified finding; SENTINEL never creates a verified finding). `surface_model` stays.
+2. **Visual procedure contract (v3.1 §5).** `PROC-BP-01` is now `1.1.0-demo`; instruction text, safety
+   limitations and measurement rules are unchanged. A database created earlier receives the new definition on
+   startup; existing sessions keep their `procedure_version`.
+   - Procedure gains `validation_level` (`EDUCATIONAL_DEMONSTRATION`), `intended_patient`,
+     `instruction_sources[]` and `visual_requirements[] {step_id, action_id, asset_ids[]}`.
+   - Each step gains `target_region_id`, `target_laterality`, `target_site_id`, `patient_role`,
+     `equipment {required_capability, compatible_device_models, components}`, `instruction_source_ids`,
+     `warnings[]` and `visual {action_id, asset_id, additional_asset_ids, camera {view, target_region_id,
+     target_laterality, framing}, expected_visible_action, replay_allowed, pause_allowed}`.
+   - Action IDs: `VA-BP-01-PREPARE-EQUIPMENT`, `VA-BP-02-EXPOSE-UPPER-ARM`, `VA-BP-03-WRAP-CUFF`,
+     `VA-BP-04-SUPPORT-ARM`, `VA-BP-05-START-MEASUREMENT`, `VA-BP-06-RECORD-RESULT`. Asset IDs:
+     `ASSET-BP-MONITOR-A1`, `ASSET-BP-CUFF-ADULT-STD`, `ASSET-CREW-RESTRAINT`, `ASSET-HUMAN-UPPER-ARM-L`.
+   - **Codex's visual registry:** the joint check `tests/test_p_procedure_visual.py` looks for
+     `Frontend/src/visual-registry.ts` (or `SENTINEL_FRONTEND_VISUAL_REGISTRY`) and requires every action ID in
+     it. Tell Claude if you choose another path. Until then the check is skipped and the visual procedure stays
+     PARTIAL.
+3. **Habitat geometry (v3.1 §6).** Map `HAB-01-map-1.1`, frame `HAB-01-D1-LOCAL` (origin south-west corner of
+   deck D1, +x east, +y north, metres).
+   - New `GET /api/v1/habitats/{habitat_id}/map`: decks, compartment polygons with navigation references,
+     passage polygons with `hatch_id`, `hatch_point` and live `hatch_state`, anchor and equipment points, and the
+     route network (zone-reference and hatch nodes, edges with length and accessibility). Draw this plan; do not
+     invent another. Equipment whose zone changed has `point: null`.
+   - Bootstrap `habitat.connections[]` gain `hatch_id`.
+   - `POST /equipment/recommend` gains `map_version`, `coordinate_frame_id`, `start_reference` (the zone's
+     navigation reference, labelled as not anyone's position), `route_hatch_ids` and `route_geometry {frame_id,
+     map_version, points, node_ids, length_m, end_equipment_point}`. Draw `points` as the route polyline.
+   - Location estimates gain `display_mode` (`zone_only`, `unavailable`; `estimated_xy` is reserved and never
+     produced by the zone engine), `position` (always null), `position_uncertainty_m` and `map_version`.
+   - New `GET /api/v1/location/{astronaut_id}/latest` returns the newest estimate with `display_mode`
+     `zone_only`, `stale` (older than 30 s for BLE, 15 min for manual) or `unavailable`, plus `age_seconds` and a
+     label. Show `stale` as last-known, never as current.
+   - Hatch open/close changes, the movement simulator and multi-crew routes are Milestone 4 (not built yet).
+
 
 ### v2.2 research update (additive; `contract_version` stays `2.1.0`)
 

@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.1.0
+  version: 2.2.0
 paths:
   /healthz:
     get:
@@ -282,6 +282,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/location/{astronaut_id}/latest:
+    get:
+      tags:
+      - spatial
+      summary: Newest location estimate with a freshness label (contract 2.2.0)
+      description: display_mode is 'stale' once the newest observation is older than 30 s (BLE) or 15 min (manual confirmation).
+        Stale estimates are last-known zones, never current positions.
+      operationId: latest_location_api_v1_location__astronaut_id__latest_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationLatestOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/habitats/{habitat_id}/map:
+    get:
+      tags:
+      - habitat
+      summary: Habitat floor plan, hatches, anchors, equipment and route network (contract 2.2.0)
+      description: Static geometry from the fixture merged with live hatch, anchor and equipment state. All coordinates use
+        coordinate_frame (metres) and map_version, the same as equipment routes.
+      operationId: habitat_map_api_v1_habitats__habitat_id__map_get
+      parameters:
+      - name: habitat_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Habitat Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HabitatMapOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/procedures/{procedure_id}:
     get:
       tags:
@@ -955,6 +1023,48 @@ components:
       - verified_at
       - verified_by
       title: AnchorOut
+    AnchorPositionOut:
+      properties:
+        anchor_id:
+          type: string
+          title: Anchor Id
+        zone_id:
+          type: string
+          title: Zone Id
+        enabled:
+          type: boolean
+          title: Enabled
+        point:
+          items:
+            type: number
+          type: array
+          title: Point
+      type: object
+      required:
+      - anchor_id
+      - zone_id
+      - enabled
+      - point
+      title: AnchorPositionOut
+    AnnotationKindOut:
+      properties:
+        kind:
+          type: string
+          enum:
+          - surface_selection
+          - region_classification
+          - patient_reported_symptom
+          - monitoring_concern
+          - verified_finding
+          title: Kind
+        description:
+          type: string
+          title: Description
+      type: object
+      required:
+      - kind
+      - description
+      title: AnnotationKindOut
     AssayRecord:
       properties:
         record_id:
@@ -1315,6 +1425,17 @@ components:
           title: Laterality Values
         surface_model:
           $ref: '#/components/schemas/SurfaceModelOut'
+          description: Default model in the v2.2 shape. See surface_models.
+        surface_models:
+          items:
+            $ref: '#/components/schemas/RegisteredSurfaceModelOut'
+          type: array
+          title: Surface Models
+        anatomical_annotation_kinds:
+          items:
+            $ref: '#/components/schemas/AnnotationKindOut'
+          type: array
+          title: Anatomical Annotation Kinds
         demo_inputs:
           $ref: '#/components/schemas/DemoInputs'
         research_datasets:
@@ -1342,9 +1463,39 @@ components:
       - anatomical_regions
       - laterality_values
       - surface_model
+      - surface_models
+      - anatomical_annotation_kinds
       - demo_inputs
       - research_datasets
       title: BootstrapOut
+    CameraTarget:
+      properties:
+        view:
+          type: string
+          enum:
+          - front
+          - back
+          - left_side
+          - right_side
+          - equipment_closeup
+          title: View
+        target_region_id:
+          type: string
+          title: Target Region Id
+        target_laterality:
+          type: string
+          title: Target Laterality
+        framing:
+          type: string
+          title: Framing
+          description: patient_and_equipment, region_closeup, patient_posture, device_controls or device_display.
+      type: object
+      required:
+      - view
+      - target_region_id
+      - target_laterality
+      - framing
+      title: CameraTarget
     CaseAcknowledge:
       properties:
         actor_id:
@@ -1682,6 +1833,47 @@ components:
       - ready
       - reasons
       title: ComparisonReadiness
+    CompartmentOut:
+      properties:
+        zone_id:
+          type: string
+          title: Zone Id
+        name:
+          type: string
+          title: Name
+        deck_id:
+          type: string
+          title: Deck Id
+        polygon:
+          items:
+            items:
+              type: number
+            type: array
+          type: array
+          title: Polygon
+          description: Outline, counter-clockwise, metres.
+        walkable:
+          type: boolean
+          title: Walkable
+          default: true
+        navigation_reference:
+          items:
+            type: number
+          type: array
+          title: Navigation Reference
+          description: Route start/end point for the zone. Not anyone's position.
+        navigation_node_id:
+          type: string
+          title: Navigation Node Id
+      type: object
+      required:
+      - zone_id
+      - name
+      - deck_id
+      - polygon
+      - navigation_reference
+      - navigation_node_id
+      title: CompartmentOut
     CompletedStep:
       properties:
         step_id:
@@ -1714,6 +1906,11 @@ components:
         note:
           type: string
           title: Note
+        hatch_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hatch Id
       type: object
       required:
       - from_zone_id
@@ -1721,6 +1918,37 @@ components:
       - accessible
       - note
       title: ConnectionOut
+    CoordinateFrame:
+      properties:
+        frame_id:
+          type: string
+          title: Frame Id
+        origin:
+          type: string
+          title: Origin
+        x_axis:
+          type: string
+          title: X Axis
+        y_axis:
+          type: string
+          title: Y Axis
+        units:
+          type: string
+          const: metres
+          title: Units
+        dimensions:
+          type: integer
+          const: 2
+          title: Dimensions
+      type: object
+      required:
+      - frame_id
+      - origin
+      - x_axis
+      - y_axis
+      - units
+      - dimensions
+      title: CoordinateFrame
     CrewAlert:
       properties:
         status:
@@ -2106,6 +2334,28 @@ components:
       - measured
       - not_a_measurement_of
       title: DatasetSummary
+    DeckOut:
+      properties:
+        deck_id:
+          type: string
+          title: Deck Id
+        name:
+          type: string
+          title: Name
+        bounds:
+          items:
+            items:
+              type: number
+            type: array
+          type: array
+          title: Bounds
+          description: '[[min_x, min_y], [max_x, max_y]] in the frame.'
+      type: object
+      required:
+      - deck_id
+      - name
+      - bounds
+      title: DeckOut
     DemoInputs:
       properties:
         ble_observations:
@@ -2370,6 +2620,47 @@ components:
       - compatible_procedure_ids
       - status_updated_at
       title: EquipmentOut
+    EquipmentPositionOut:
+      properties:
+        equipment_id:
+          type: string
+          title: Equipment Id
+        device_model:
+          type: string
+          title: Device Model
+        capability:
+          type: string
+          title: Capability
+        zone_id:
+          type: string
+          title: Zone Id
+        readiness:
+          type: string
+          title: Readiness
+        point:
+          anyOf:
+          - items:
+              type: number
+            type: array
+          - type: 'null'
+          title: Point
+          description: Null when no registered position lies in the device's current zone.
+        position_status:
+          type: string
+          enum:
+          - registered
+          - not_registered_for_current_zone
+          title: Position Status
+      type: object
+      required:
+      - equipment_id
+      - device_model
+      - capability
+      - zone_id
+      - readiness
+      - point
+      - position_status
+      title: EquipmentPositionOut
     EquipmentRecommendRequest:
       properties:
         case_id:
@@ -2448,6 +2739,23 @@ components:
         explanation:
           type: string
           title: Explanation
+        map_version:
+          type: string
+          title: Map Version
+        coordinate_frame_id:
+          type: string
+          title: Coordinate Frame Id
+        start_reference:
+          $ref: '#/components/schemas/StartReference'
+        route_hatch_ids:
+          items:
+            type: string
+          type: array
+          title: Route Hatch Ids
+          description: Hatches on the route, in order. All are open.
+        route_geometry:
+          $ref: '#/components/schemas/RouteGeometry'
+          description: Route polyline in the map frame (metres).
         readiness_note:
           type: string
           title: Readiness Note
@@ -2475,6 +2783,11 @@ components:
       - supplies
       - excluded
       - explanation
+      - map_version
+      - coordinate_frame_id
+      - start_reference
+      - route_hatch_ids
+      - route_geometry
       title: EquipmentRecommendation
     ErrorBody:
       properties:
@@ -2721,6 +3034,76 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    HabitatMapOut:
+      properties:
+        habitat_id:
+          type: string
+          title: Habitat Id
+        name:
+          type: string
+          title: Name
+        map_version:
+          type: string
+          title: Map Version
+        description:
+          type: string
+          title: Description
+        coordinate_frame:
+          $ref: '#/components/schemas/CoordinateFrame'
+        decks:
+          items:
+            $ref: '#/components/schemas/DeckOut'
+          type: array
+          title: Decks
+        compartments:
+          items:
+            $ref: '#/components/schemas/CompartmentOut'
+          type: array
+          title: Compartments
+        passages:
+          items:
+            $ref: '#/components/schemas/PassageOut'
+          type: array
+          title: Passages
+        anchors:
+          items:
+            $ref: '#/components/schemas/AnchorPositionOut'
+          type: array
+          title: Anchors
+        equipment:
+          items:
+            $ref: '#/components/schemas/EquipmentPositionOut'
+          type: array
+          title: Equipment
+        route_network:
+          $ref: '#/components/schemas/RouteNetworkOut'
+        note:
+          type: string
+          title: Note
+          default: Fictional habitat. Equipment and anchor points are registry positions, not live tracking. Crew locations
+            are zone-level estimates and are never drawn as precise points.
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ENVIRONMENT_OR_DEVICE
+      type: object
+      required:
+      - habitat_id
+      - name
+      - map_version
+      - description
+      - coordinate_frame
+      - decks
+      - compartments
+      - passages
+      - anchors
+      - equipment
+      - route_network
+      title: HabitatMapOut
     HabitatOut:
       properties:
         habitat_id:
@@ -2976,6 +3359,23 @@ components:
       - missing_values
       - message
       title: ImportInfo
+    InstructionSource:
+      properties:
+        source_id:
+          type: string
+          title: Source Id
+        description:
+          type: string
+          title: Description
+        reviewed_by_flight_surgeon:
+          type: boolean
+          title: Reviewed By Flight Surgeon
+      type: object
+      required:
+      - source_id
+      - description
+      - reviewed_by_flight_surgeon
+      title: InstructionSource
     LocationConfirmRequest:
       properties:
         astronaut_id:
@@ -3063,6 +3463,35 @@ components:
           type: string
           title: Limitation
           default: Zone-level estimate from simulated signals. RSSI does not give exact distance.
+        display_mode:
+          type: string
+          enum:
+          - zone_only
+          - estimated_xy
+          - unavailable
+          - stale
+          title: Display Mode
+          description: 'zone_only: highlight the zone, no point. estimated_xy: draw `position` with its uncertainty (never
+            produced by LOC-P0-1.0). unavailable: no estimate. stale: last-known only (GET /location/{astronaut_id}/latest).'
+          default: zone_only
+        position:
+          anyOf:
+          - items:
+              type: number
+            type: array
+          - type: 'null'
+          title: Position
+          description: x/y in the map frame. Always null for the zone-only engine.
+        position_uncertainty_m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Position Uncertainty M
+        map_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Map Version
         data_category:
           type: string
           enum:
@@ -3106,6 +3535,47 @@ components:
       - astronaut_id
       - observations
       title: LocationEstimateRequest
+    LocationLatestOut:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        display_mode:
+          type: string
+          enum:
+          - zone_only
+          - estimated_xy
+          - unavailable
+          - stale
+          title: Display Mode
+        estimate:
+          anyOf:
+          - $ref: '#/components/schemas/LocationEstimateOut'
+          - type: 'null'
+          description: Newest stored estimate, or null if none exists.
+        age_seconds:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Age Seconds
+          description: Seconds since the newest observation (or confirmation).
+        stale_after_seconds:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Stale After Seconds
+        label:
+          type: string
+          title: Label
+      type: object
+      required:
+      - astronaut_id
+      - display_mode
+      - estimate
+      - age_seconds
+      - stale_after_seconds
+      - label
+      title: LocationLatestOut
     MeasurementCreate:
       properties:
         case_id:
@@ -3500,6 +3970,61 @@ components:
       - latest_value
       - latest_observed_at
       title: ObservationStatus
+    PassageOut:
+      properties:
+        passage_id:
+          type: string
+          title: Passage Id
+        hatch_id:
+          type: string
+          title: Hatch Id
+        deck_id:
+          type: string
+          title: Deck Id
+        from_zone_id:
+          type: string
+          title: From Zone Id
+        to_zone_id:
+          type: string
+          title: To Zone Id
+        polygon:
+          items:
+            items:
+              type: number
+            type: array
+          type: array
+          title: Polygon
+        hatch_point:
+          items:
+            type: number
+          type: array
+          title: Hatch Point
+        accessible:
+          type: boolean
+          title: Accessible
+          description: Live state from the connection registry.
+        hatch_state:
+          type: string
+          enum:
+          - open
+          - closed
+          title: Hatch State
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - passage_id
+      - hatch_id
+      - deck_id
+      - from_zone_id
+      - to_zone_id
+      - polygon
+      - hatch_point
+      - accessible
+      - hatch_state
+      - note
+      title: PassageOut
     ProcedureOut:
       properties:
         procedure_id:
@@ -3531,9 +4056,27 @@ components:
           type: string
           const: EDUCATIONAL_DEMO_ONLY
           title: Content Status
+        validation_level:
+          type: string
+          enum:
+          - EDUCATIONAL_DEMONSTRATION
+          - SIMULATED_EQUIPMENT_WORKFLOW
+          - HARDWARE_TESTED_WORKFLOW
+          - MISSION_APPROVED_PROCEDURE
+          title: Validation Level
+          description: 'EDUCATIONAL_DEMONSTRATION: content for teaching only. Completing it does not establish that the technique
+            is safe or approved for spacecraft use.'
+        intended_patient:
+          type: string
+          title: Intended Patient
         source_basis:
           type: string
           title: Source Basis
+        instruction_sources:
+          items:
+            $ref: '#/components/schemas/InstructionSource'
+          type: array
+          title: Instruction Sources
         safety_limitations:
           items:
             type: string
@@ -3546,6 +4089,12 @@ components:
           title: Steps
         follow_up:
           $ref: '#/components/schemas/FollowUpConfig'
+        visual_requirements:
+          items:
+            $ref: '#/components/schemas/VisualRequirement'
+          type: array
+          title: Visual Requirements
+          description: Every visual action and asset the frontend must implement for this procedure.
         confirmation_note:
           type: string
           title: Confirmation Note
@@ -3560,10 +4109,14 @@ components:
       - compatible_device_models
       - anatomical_region_ids
       - content_status
+      - validation_level
+      - intended_patient
       - source_basis
+      - instruction_sources
       - safety_limitations
       - steps
       - follow_up
+      - visual_requirements
       title: ProcedureOut
     ProcedureStep:
       properties:
@@ -3590,6 +4143,36 @@ components:
         responder_note:
           type: string
           title: Responder Note
+        target_region_id:
+          type: string
+          title: Target Region Id
+        target_laterality:
+          type: string
+          title: Target Laterality
+        target_site_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Site Id
+          description: Detailed surface site on the default anatomy model, if any.
+        patient_role:
+          type: string
+          const: crew_member_being_assessed
+          title: Patient Role
+        equipment:
+          $ref: '#/components/schemas/StepEquipment'
+        instruction_source_ids:
+          items:
+            type: string
+          type: array
+          title: Instruction Source Ids
+        visual:
+          $ref: '#/components/schemas/StepVisual'
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
       type: object
       required:
       - step_id
@@ -3599,6 +4182,14 @@ components:
       - anatomical_region_ids
       - requires_confirmation
       - responder_note
+      - target_region_id
+      - target_laterality
+      - target_site_id
+      - patient_role
+      - equipment
+      - instruction_source_ids
+      - visual
+      - warnings
       title: ProcedureStep
     ProcedureSummary:
       properties:
@@ -3691,6 +4282,64 @@ components:
       - label
       - lateral
       title: RegionOut
+    RegisteredSurfaceModelOut:
+      properties:
+        model_id:
+          type: string
+          title: Model Id
+        model_version:
+          type: string
+          title: Model Version
+        status:
+          type: string
+          enum:
+          - active
+          - retired
+          title: Status
+        kind:
+          type: string
+          title: Kind
+        description:
+          type: string
+          title: Description
+        coordinate_frame:
+          type: object
+          title: Coordinate Frame
+        side_tolerance:
+          type: number
+          title: Side Tolerance
+        meshes:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/SurfaceMeshOut'
+            type: array
+          - type: 'null'
+          title: Meshes
+          description: Null when the model does not declare its meshes; mesh_id is then stored but not validated.
+        previous_versions:
+          items:
+            $ref: '#/components/schemas/SurfaceModelVersionOut'
+          type: array
+          title: Previous Versions
+        sites:
+          items:
+            $ref: '#/components/schemas/SurfaceSiteOut'
+          type: array
+          title: Sites
+      type: object
+      required:
+      - model_id
+      - model_version
+      - status
+      - kind
+      - description
+      - coordinate_frame
+      - side_tolerance
+      - meshes
+      - previous_versions
+      - sites
+      title: RegisteredSurfaceModelOut
+      description: A 3D Anatomical Twin model from shared/anatomy/<model_id>.json (contract 2.2.0).
     RejectedObservation:
       properties:
         anchor_id:
@@ -3985,6 +4634,120 @@ components:
       - research_records_after
       - message
       title: ResetOut
+    RouteEdgeOut:
+      properties:
+        from_node_id:
+          type: string
+          title: From Node Id
+        to_node_id:
+          type: string
+          title: To Node Id
+        passage_id:
+          type: string
+          title: Passage Id
+        length_m:
+          type: number
+          title: Length M
+        accessible:
+          type: boolean
+          title: Accessible
+      type: object
+      required:
+      - from_node_id
+      - to_node_id
+      - passage_id
+      - length_m
+      - accessible
+      title: RouteEdgeOut
+    RouteGeometry:
+      properties:
+        frame_id:
+          type: string
+          title: Frame Id
+        map_version:
+          type: string
+          title: Map Version
+        points:
+          items:
+            items:
+              type: number
+            type: array
+          type: array
+          title: Points
+          description: 'Polyline: zone reference -> hatch -> zone reference ... -> device.'
+        node_ids:
+          items:
+            type: string
+          type: array
+          title: Node Ids
+        length_m:
+          type: number
+          title: Length M
+        end_equipment_point:
+          anyOf:
+          - items:
+              type: number
+            type: array
+          - type: 'null'
+          title: End Equipment Point
+      type: object
+      required:
+      - frame_id
+      - map_version
+      - points
+      - node_ids
+      - length_m
+      - end_equipment_point
+      title: RouteGeometry
+    RouteNetworkOut:
+      properties:
+        nodes:
+          items:
+            $ref: '#/components/schemas/RouteNodeOut'
+          type: array
+          title: Nodes
+        edges:
+          items:
+            $ref: '#/components/schemas/RouteEdgeOut'
+          type: array
+          title: Edges
+      type: object
+      required:
+      - nodes
+      - edges
+      title: RouteNetworkOut
+    RouteNodeOut:
+      properties:
+        node_id:
+          type: string
+          title: Node Id
+        kind:
+          type: string
+          enum:
+          - zone_reference
+          - hatch
+          title: Kind
+        point:
+          items:
+            type: number
+          type: array
+          title: Point
+        zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zone Id
+        hatch_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hatch Id
+      type: object
+      required:
+      - node_id
+      - kind
+      - point
+      title: RouteNodeOut
     ScheduledAssessmentOut:
       properties:
         assessment_id:
@@ -4178,6 +4941,35 @@ components:
       - completed_at
       - case_state
       title: SessionOut
+    StartReference:
+      properties:
+        kind:
+          type: string
+          const: zone_navigation_reference
+          title: Kind
+        zone_id:
+          type: string
+          title: Zone Id
+        node_id:
+          type: string
+          title: Node Id
+        point:
+          items:
+            type: number
+          type: array
+          title: Point
+        note:
+          type: string
+          title: Note
+          default: Routes start at the zone's navigation reference because only a zone is known. It is not the person's precise
+            position.
+      type: object
+      required:
+      - kind
+      - zone_id
+      - node_id
+      - point
+      title: StartReference
     StepConfirm:
       properties:
         step_id:
@@ -4198,6 +4990,66 @@ components:
       - step_id
       - completion_source
       title: StepConfirm
+    StepEquipment:
+      properties:
+        required_capability:
+          type: string
+          title: Required Capability
+        compatible_device_models:
+          items:
+            type: string
+          type: array
+          title: Compatible Device Models
+        components:
+          items:
+            type: string
+          type: array
+          title: Components
+          description: Parts of the device shown in this step, e.g. monitor, cuff.
+      type: object
+      required:
+      - required_capability
+      - compatible_device_models
+      - components
+      title: StepEquipment
+    StepVisual:
+      properties:
+        action_id:
+          type: string
+          title: Action Id
+          description: Unique per step. Codex's visual-action registry must implement it.
+        asset_id:
+          type: string
+          title: Asset Id
+          description: Primary 3D asset of the scene.
+        additional_asset_ids:
+          items:
+            type: string
+          type: array
+          title: Additional Asset Ids
+        camera:
+          $ref: '#/components/schemas/CameraTarget'
+        expected_visible_action:
+          type: string
+          title: Expected Visible Action
+          description: What the animation must visibly show.
+        replay_allowed:
+          type: boolean
+          title: Replay Allowed
+        pause_allowed:
+          type: boolean
+          title: Pause Allowed
+      type: object
+      required:
+      - action_id
+      - asset_id
+      - additional_asset_ids
+      - camera
+      - expected_visible_action
+      - replay_allowed
+      - pause_allowed
+      title: StepVisual
+      description: Visual contract (2.2.0). Codex maps action_id and asset IDs to implemented scenes and animations.
     StudyTypeInfo:
       properties:
         study_type:
@@ -4222,6 +5074,52 @@ components:
       - label
       - description
       title: StudyTypeInfo
+    SurfaceAttachment:
+      properties:
+        triangle_index:
+          type: integer
+          maximum: 10000000.0
+          minimum: 0.0
+          title: Triangle Index
+          examples:
+          - 1204
+        barycentric:
+          items:
+            type: number
+          type: array
+          maxItems: 3
+          minItems: 3
+          title: Barycentric
+          description: Three weights, each 0-1, summing to 1 (+/-0.001).
+          examples:
+          - - 0.2
+            - 0.3
+            - 0.5
+      additionalProperties: false
+      type: object
+      required:
+      - triangle_index
+      - barycentric
+      title: SurfaceAttachment
+      description: 'Mesh-relative marker attachment: a triangle of `mesh_id` and a barycentric position inside it.'
+    SurfaceMeshOut:
+      properties:
+        mesh_id:
+          type: string
+          title: Mesh Id
+        triangle_count:
+          type: integer
+          title: Triangle Count
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+      type: object
+      required:
+      - mesh_id
+      - triangle_count
+      title: SurfaceMeshOut
     SurfaceModelOut:
       properties:
         model_id:
@@ -4245,19 +5143,46 @@ components:
       - coordinate_note
       - sites
       title: SurfaceModelOut
+    SurfaceModelVersionOut:
+      properties:
+        model_version:
+          type: string
+          title: Model Version
+        coordinates_compatible:
+          type: boolean
+          title: Coordinates Compatible
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - model_version
+      - coordinates_compatible
+      - note
+      title: SurfaceModelVersionOut
     SurfacePoint:
       properties:
         model_id:
           type: string
-          const: sentinel-body-v1
+          maxLength: 64
           title: Model Id
+          description: Registered model (GET /api/v1/demo/bootstrap -> surface_models).
           examples:
           - sentinel-body-v1
+        model_version:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Model Version
+          description: Optional (2.2.0). Must equal the model's current version; when omitted the server records the current
+            version.
+          examples:
+          - 1.0.0
         site_id:
           type: string
           title: Site Id
-          description: Detailed surface site; must map to the request's region_id and laterality. The list is in GET /api/v1/demo/bootstrap
-            -> surface_model.sites.
+          description: Detailed surface site; must map to the request's region_id and laterality.
           examples:
           - right_shoulder
         x:
@@ -4284,6 +5209,20 @@ components:
           description: Model units (not centimetres); finite, within +/-5.
           examples:
           - 0.131
+        mesh_id:
+          anyOf:
+          - type: string
+            maxLength: 128
+            pattern: ^[A-Za-z0-9_.:\-]+$
+          - type: 'null'
+          title: Mesh Id
+          description: Optional (2.2.0). Mesh the point lies on. Validated when the model manifest declares its meshes.
+        attachment:
+          anyOf:
+          - $ref: '#/components/schemas/SurfaceAttachment'
+          - type: 'null'
+          description: Optional (2.2.0). Triangle + barycentric position on mesh_id, for markers that stay attached when the
+            model is posed or re-rendered.
       additionalProperties: false
       type: object
       required:
@@ -4293,12 +5232,16 @@ components:
       - y
       - z
       title: SurfacePoint
-      description: A tapped point on the frontend's stylised 3D body model. A diagram location, not a measurement.
+      description: A tapped point on a registered 3D Anatomical Twin model. A diagram location, not a measurement.
     SurfacePointOut:
       properties:
         model_id:
           type: string
           title: Model Id
+        model_version:
+          type: string
+          title: Model Version
+          description: Version the point was reported on (1.0.0 for points stored before contract 2.2.0).
         site_id:
           type: string
           title: Site Id
@@ -4314,14 +5257,54 @@ components:
         z:
           type: number
           title: Z
+        mesh_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mesh Id
+        mesh_validation:
+          type: string
+          enum:
+          - not_supplied
+          - not_declared_by_model
+          - validated
+          title: Mesh Validation
+          default: not_supplied
+        attachment:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Attachment
+        marker_status:
+          type: string
+          enum:
+          - current
+          - model_version_changed
+          - model_version_incompatible
+          - model_retired
+          - model_unknown
+          title: Marker Status
+          description: Marker migration status against the registered model.
+        render_hint:
+          type: string
+          enum:
+          - exact_point
+          - site_only
+          - not_renderable
+          title: Render Hint
+          description: 'exact_point: draw at the stored coordinates. site_only: highlight the named site, do not place the
+            old coordinates. not_renderable: show the record without a marker.'
       type: object
       required:
       - model_id
+      - model_version
       - site_id
       - site_label
       - x
       - y
       - z
+      - marker_status
+      - render_hint
       title: SurfacePointOut
     SurfaceSiteOut:
       properties:
@@ -4442,6 +5425,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/SurfacePointOut'
           - type: 'null'
+        record_kind:
+          type: string
+          const: patient_reported_symptom
+          title: Record Kind
+          default: patient_reported_symptom
         data_category:
           type: string
           enum:
@@ -4489,6 +5477,12 @@ components:
           type: string
           format: date-time
           title: Reported At
+        record_kind:
+          type: string
+          const: patient_reported_symptom
+          title: Record Kind
+          description: Self-report. Not a monitoring concern or a verified finding.
+          default: patient_reported_symptom
       type: object
       required:
       - symptom_id
@@ -4695,6 +5689,25 @@ components:
       - msg
       - type
       title: ValidationError
+    VisualRequirement:
+      properties:
+        step_id:
+          type: string
+          title: Step Id
+        action_id:
+          type: string
+          title: Action Id
+        asset_ids:
+          items:
+            type: string
+          type: array
+          title: Asset Ids
+      type: object
+      required:
+      - step_id
+      - action_id
+      - asset_ids
+      title: VisualRequirement
     ZoneOut:
       properties:
         zone_id:

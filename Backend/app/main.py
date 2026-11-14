@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import CONTRACT_VERSION, Settings
 from .db import Base, add_missing_columns, make_engine, make_session_factory
 from .errors import install_error_handlers
-from .seed import is_seeded, load_fixture, seed_demo
+from .seed import is_seeded, load_fixture, seed_demo, sync_configuration
 
 log = logging.getLogger("sentinel")
 
@@ -62,10 +62,17 @@ def startup(app: FastAPI) -> None:
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.fixture = load_fixture(settings.fixture_path)
+    from .services.habitat import check_geometry
+
+    problems = check_geometry(app.state.fixture)
+    if problems:
+        raise RuntimeError("Habitat geometry is inconsistent: " + "; ".join(problems))
     with app.state.session_factory() as db:
         if not is_seeded(db):
             seed_demo(db, app.state.fixture)
             log.info("Seeded demo fixture %s", app.state.fixture["fixture_version"])
+        for change in sync_configuration(db, app.state.fixture):
+            log.info("Configuration sync: %s", change)
         if settings.auto_import_nasa:
             from .importers.osd575 import import_if_available
 

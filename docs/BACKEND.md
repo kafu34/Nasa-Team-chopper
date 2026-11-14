@@ -30,7 +30,7 @@ No Docker, PostgreSQL, Redis, cloud service, paid API or internet dependency.
 Backend/
   app/
     main.py            app factory, startup (create tables, seed, auto-import), CORS
-    config.py          settings, CONTRACT_VERSION 2.1.0, RULESET_VERSION RULESET-P0-1.0
+    config.py          settings, CONTRACT_VERSION 2.2.0, RULESET_VERSION RULESET-P0-1.0
     db.py              engine, sessions, UTC datetime column
     errors.py          error envelope and handlers
     models.py          SQLite models (synthetic tables + research tables)
@@ -73,7 +73,7 @@ No distances are computed. Manual confirmation supported.
 `verified_ready` checked within 24 h, all required supplies, reachable zone. Shortest route wins. Signal
 strength never ranks equipment; a BLE advertisement never implies readiness.
 
-**Procedures** — `PROC-BP-01` v1.0.0-demo (educational, paraphrased from general published home
+**Procedures** — `PROC-BP-01` v1.1.0-demo (educational, paraphrased from general published home
 blood-pressure guidance, not mission-approved). Sessions in self or responder mode; ordered, idempotent step
 confirmations recorded as acknowledgements only.
 
