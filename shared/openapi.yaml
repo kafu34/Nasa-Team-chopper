@@ -1,4 +1,4 @@
-# SENTINEL AI API contract v2.1 - GENERATED from backend/app by backend/scripts/export_openapi.py.
+# SENTINEL AI API contract v2.1 - GENERATED from Backend/app by Backend/scripts/export_openapi.py.
 # Do not edit by hand. Owner: backend (Claude). Consumer: frontend (Codex).
 openapi: 3.1.0
 info:

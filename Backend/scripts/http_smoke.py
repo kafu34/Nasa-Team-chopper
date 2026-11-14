@@ -1,7 +1,7 @@
 """Real-HTTP smoke test: starts uvicorn on a temporary database and runs the canonical scenario.
 
-Usage (from backend/):  .venv/Scripts/python scripts/http_smoke.py [--port 8765]
-Uses a throwaway database under backend/var/http-smoke/ so the main demo database is untouched.
+Usage (from Backend/):  .venv/Scripts/python scripts/http_smoke.py [--port 8765]
+Uses a throwaway database under Backend/var/http-smoke/ so the main demo database is untouched.
 """
 from __future__ import annotations
 

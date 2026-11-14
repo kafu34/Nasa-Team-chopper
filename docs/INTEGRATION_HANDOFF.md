@@ -179,10 +179,10 @@ See `docs/TEST_REPORT.md`. Latest: **86 passed, 0 failed** (pytest) and **19/19*
 
 ## 10. Known contract deviations and coordination notes
 
-1. **Folder casing**: the repository has `Backend/` and `Frontend/` (capitalised, created before the backend work
-   started). The prompts say `backend/` and `frontend/`. Windows ignores the difference, Linux/CI does not.
-   Proposed smallest fix: keep the existing capitalised names and update docs/scripts to match; or the owner
-   renames both in one coordinated commit. The backend code does not depend on the folder name.
+1. **Folder casing (decided by the owner)**: the official folder names are **`Backend/`** and **`Frontend/`**
+   (capitalised), replacing `backend/` and `frontend/` from the prompts. Linux and CI file systems are
+   case-sensitive, so all paths, scripts, proxies and CI config must use the capitalised names. The git branch
+   name `backend/p0-v2.1` is unaffected.
 2. **`onset`** is an ISO 8601 timestamp (when the symptom began), not a free-text label.
 3. **Measurement `value`** is an object `{systolic, diastolic, pulse?}` (integers), not a string like "118/76".
 4. **`procedure_id`** in the equipment response is nullable (null for devices with no linked procedure, e.g. AED).

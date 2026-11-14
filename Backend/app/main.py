@@ -1,6 +1,6 @@
 """SENTINEL AI backend: FastAPI modular monolith.
 
-Run:  cd backend && .venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Run:  cd Backend && .venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 """
 from __future__ import annotations
 

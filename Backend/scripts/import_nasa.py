@@ -1,6 +1,6 @@
 """Import the NASA OSD-575 CMP CSV into the SENTINEL SQLite database.
 
-Usage (from backend/):  .venv/Scripts/python scripts/import_nasa.py [path/to/csv]
+Usage (from Backend/):  .venv/Scripts/python scripts/import_nasa.py [path/to/csv]
 Re-running with the same file is safe: duplicate ingestion is skipped.
 """
 from __future__ import annotations

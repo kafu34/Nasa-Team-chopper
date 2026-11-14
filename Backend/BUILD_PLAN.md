@@ -8,9 +8,9 @@ except small optional endpoints the prompt explicitly permits.
 
 | Topic | Decision |
 |---|---|
-| Layout | `backend/app/` modular monolith: `main.py` (app factory), `config.py`, `db.py`, `models.py`, `schemas/`, `routers/`, `services/`, `importers/`, `errors.py`, `seed.py`. Tests in `backend/tests/`. Scripts in `backend/scripts/`. |
-| Environment | `backend/.venv`, `requirements.txt`: fastapi, uvicorn, sqlalchemy 2, pydantic 2, pyyaml, pytest, httpx. |
-| Database | SQLite file `backend/var/sentinel.db` (override with `SENTINEL_DB_URL`). Tests use a temporary file DB per test through `create_app(settings)`. |
+| Layout | `Backend/app/` modular monolith: `main.py` (app factory), `config.py`, `db.py`, `models.py`, `schemas/`, `routers/`, `services/`, `importers/`, `errors.py`, `seed.py`. Tests in `Backend/tests/`. Scripts in `Backend/scripts/`. |
+| Environment | `Backend/.venv`, `requirements.txt`: fastapi, uvicorn, sqlalchemy 2, pydantic 2, pyyaml, pytest, httpx. |
+| Database | SQLite file `Backend/var/sentinel.db` (override with `SENTINEL_DB_URL`). Tests use a temporary file DB per test through `create_app(settings)`. |
 | Single source of demo truth | `shared/fixtures/demo_scenario.json` is read by `seed.py`. Relative times (`*_minutes_ago`) are resolved at seed/reset time so the demo is always fresh and deterministic in shape. |
 | Contract | FastAPI generates OpenAPI; `scripts/export_openapi.py` writes `shared/openapi.yaml` (`info.version: 2.1.0`). A test fails if the committed file drifts from the app. |
 | Errors | Every non-2xx body: `{"error": {"code", "message", "details"}}`. 404 not found, 409 conflict/state, 422 validation, 503 dataset unavailable. |
@@ -27,9 +27,9 @@ except small optional endpoints the prompt explicitly permits.
 
 ## Steps
 
-1. Create branch `backend/p0-v2.1`; create `backend/`, `shared/`, `docs/`, `data/nasa/raw/` (never touch `frontend/`).
+1. Create branch `backend/p0-v2.1`; create `Backend/`, `shared/`, `docs/`, `data/nasa/raw/` (never touch `Frontend/`).
 2. Copy the owner's NASA CSV unchanged into `data/nasa/raw/` and record its SHA-256.
-3. Create venv, `requirements.txt`, install, `backend/.gitignore`.
+3. Create venv, `requirements.txt`, install, `Backend/.gitignore`.
 4. Write `shared/fixtures/demo_scenario.json` (astronaut, habitat, zones, anchors, BLE observations, 6+ equipment, procedure, scheduled assessment, observations, symptom, emergency, anatomical regions).
 5. `config.py`, `db.py` (engine, session dependency, SQLite foreign keys), `errors.py` (error envelope + handlers).
 6. `models.py`: all P0 entities + ScheduledAssessment, FollowUpTask, LocationEstimate, ResearchDataset, DatasetImport.
@@ -55,7 +55,7 @@ except small optional endpoints the prompt explicitly permits.
 **Review 2 (after step 20).** Check: does measurement validation ever imply clinical normality (it must not)? Do step confirmations claim correct execution (they must not — `confirmation_note`)? Do routine tasks stay `interrupt: false`? Is every route still named exactly as the baseline list?
 *Reflection:* NASA import (step 21) is the only competition-eligibility blocker and depends on nothing above except `models.py`; it was placed after the workflow because the prompt's work order puts it at item 9, but the CSV is already available, so no blocker exists. Efficiency gain: the importer is a pure function (`parse_csv` → rows) tested without HTTP, so failures are isolated from routing.
 
-21. OSD-575 importer (`importers/osd575.py`): column validation, provenance, null handling, timepoint parsing, SHA-256 dedupe, import log (DB `DatasetImport` + JSON log file under `backend/var/import_logs/`). CLI `scripts/import_nasa.py`.
+21. OSD-575 importer (`importers/osd575.py`): column validation, provenance, null handling, timepoint parsing, SHA-256 dedupe, import log (DB `DatasetImport` + JSON log file under `Backend/var/import_logs/`). CLI `scripts/import_nasa.py`.
 22. Dataset registry for the 8 canonical IDs (status computed from DB + raw file presence, unverified metadata flagged honestly).
 23. Research routers: `/research/osd-575` (filters subject/analyte/timepoint, pagination), `/research/datasets`, `/research/datasets/{id}`, `/research/datasets/{id}/records`, `/environment/timeseries`, `/radiation/timeseries` (503 `DATASET_UNAVAILABLE` with source link until imported).
 24. Tests part E: ingestion, provenance/subject/timepoint/unit preservation, missing values, duplicate import, absent file → honest 503, registry statuses, research/demo isolation. Run.

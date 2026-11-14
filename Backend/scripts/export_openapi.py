@@ -1,6 +1,6 @@
 """Write the authoritative API contract generated from the FastAPI app to shared/openapi.yaml.
 
-Usage (from backend/):  .venv/Scripts/python scripts/export_openapi.py [--check]
+Usage (from Backend/):  .venv/Scripts/python scripts/export_openapi.py [--check]
 --check exits 1 if the committed file differs from the app (contract drift).
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ from app.config import REPO_DIR  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 OUT = REPO_DIR / "shared" / "openapi.yaml"
-HEADER = ("# SENTINEL AI API contract v2.1 - GENERATED from backend/app by backend/scripts/export_openapi.py.\n"
+HEADER = ("# SENTINEL AI API contract v2.1 - GENERATED from Backend/app by Backend/scripts/export_openapi.py.\n"
           "# Do not edit by hand. Owner: backend (Claude). Consumer: frontend (Codex).\n")
 
 
