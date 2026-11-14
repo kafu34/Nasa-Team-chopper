@@ -7,7 +7,9 @@ export type StudyType = 'HUMAN_SPACEFLIGHT' | 'HUMAN_GROUND_ANALOGUE' | 'HUMAN_D
 export type ApiObject = Record<string, unknown>
 export type CaseState = 'detected' | 'investigating' | 'awaiting_assessment' | 'awaiting_results' | 'action_required' | 'monitoring' | 'follow_up_due' | 'escalated' | 'resolved'
 export type CaseSummary = { case_id: string; state: CaseState; priority?: 'routine' | 'urgent'; next_action: string; updated_at: string }
-export type SymptomOut = { symptom_id: string; region_id: string; laterality: string; severity: number; onset: string; reported_at: string; note: string | null }
+export type SurfacePoint = { model_id: 'sentinel-body-v1'; site_id: string; x: number; y: number; z: number }
+export type SurfacePointOut = SurfacePoint & { site_label: string }
+export type SymptomOut = { symptom_id: string; region_id: string; laterality: string; severity: number; onset: string; reported_at: string; note: string | null; surface_point?: SurfacePointOut | null }
 export type FollowUpOut = { follow_up_id: string; title: string; due_at: string; status: string; interrupt: boolean }
 export type CaseOut = CaseSummary & { follow_up_status: string; follow_ups: FollowUpOut[]; symptoms: SymptomOut[]; measurements: ApiObject[] }
 export type BootstrapOut = {
@@ -18,8 +20,9 @@ export type BootstrapOut = {
   scheduled_assessments: { title: string; due_at: string; is_due: boolean; status: 'scheduled' | 'completed'; reason: string }[];
   open_cases: CaseSummary[];
   demo_inputs: { ble_observations: { anchor_id: string; rssi_dbm: number; age_seconds: number }[]; symptom: ApiObject; measurement: ApiObject; emergency: ApiObject };
+  surface_model?: { model_id: string; coordinate_limit: number; coordinate_note: string; sites: { site_id: string; label: string; region_id: string; laterality: string }[] };
 }
-export type SymptomCreated = { symptom_id: string; case_id: string; case_state: CaseState; next_action: string; duplicate: boolean }
+export type SymptomCreated = { symptom_id: string; case_id: string; case_state: CaseState; next_action: string; duplicate: boolean; surface_point?: SurfacePointOut | null }
 export type LocationEstimate = { zone_id: string | null; confidence: number; source: string; observed_at: string | null; explanation: string }
 export type EquipmentRecommendation = { equipment_id: string; device_model: string; zone_id: string; readiness: string; route_zone_ids: string[]; procedure_id: string | null; explanation: string }
 export type ProcedureOut = { procedure_id: string; title: string; purpose: string; content_status: string; safety_limitations: string[]; steps: { step_id: string; title: string; instruction: string; responder_note: string }[] }
@@ -59,7 +62,7 @@ const post = <T>(path: string, data?: ApiObject) => request<T>(path, { method: '
 export const api = {
   bootstrap: () => request<BootstrapOut>('/api/v1/demo/bootstrap'),
   reset: () => post<ApiObject>('/api/v1/demo/reset'),
-  symptom: (data: { astronaut_id: string; region_id: string; laterality: string; severity: number; onset: string; note?: string }) => post<SymptomCreated>('/api/v1/symptoms', data),
+  symptom: (data: { astronaut_id: string; region_id: string; laterality: string; severity: number; onset: string; note?: string; surface_point?: SurfacePoint }) => post<SymptomCreated>('/api/v1/symptoms', data),
   case: (id: string) => request<CaseOut>(`/api/v1/cases/${encodeURIComponent(id)}`),
   location: (observations: { anchor_id: string; rssi_dbm: number; observed_at: string }[]) => post<LocationEstimate>('/api/v1/location/estimate', { astronaut_id: DEMO.astronautId, observations }),
   confirmLocation: (zoneId: string) => post<LocationEstimate>('/api/v1/location/confirm', { astronaut_id: DEMO.astronautId, zone_id: zoneId, confirmed_by: DEMO.astronautId }),

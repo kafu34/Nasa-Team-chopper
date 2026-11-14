@@ -1,4 +1,5 @@
 import type { BodySelection } from './BodyMap'
+import type { SurfacePoint, SymptomOut } from './api'
 
 export type AnatomySite = { id: string; label: string; regionId: string; laterality: 'left' | 'right' | 'midline'; detailed?: boolean }
 
@@ -45,8 +46,16 @@ export function surfaceDetail(selection: BodySelection | null): string {
   return `Selected surface area: ${selection.label}. Backend region: ${selection.regionId.replaceAll('_', ' ')}.${coordinates}`
 }
 
+export function surfacePoint(selection: BodySelection | null): SurfacePoint | undefined {
+  if (!selection?.siteId || !selection.point || !ANATOMY_SITE_BY_ID.has(selection.siteId)) return undefined
+  const { x, y, z } = selection.point
+  if (![x, y, z].every(value => Number.isFinite(value) && Math.abs(value) <= 5)) return undefined
+  return { model_id: 'sentinel-body-v1', site_id: selection.siteId, x, y, z }
+}
+
 export function symptomNote(selection: BodySelection | null, userNote: string): string | undefined {
-  const detail = surfaceDetail(selection)
+  // Named-list selections have no exact point, so preserve only their site label in the note.
+  const detail = selection?.point ? '' : surfaceDetail(selection)
   const note = userNote.trim()
   const combined = [detail, note].filter(Boolean).join('\n')
   return combined ? combined.slice(0, 1000) : undefined
@@ -61,4 +70,13 @@ export function savedSurfaceSelection(note: string | null): BodySelection | null
   const [x, y, z] = match.slice(2).map(Number)
   if (!site || ![x, y, z].every(value => Number.isFinite(value) && Math.abs(value) < 5)) return null
   return selectAnatomySite(site.id, { x, y, z })
+}
+
+export function reportedSurfaceSelection(symptom: Pick<SymptomOut, 'region_id' | 'laterality' | 'note' | 'surface_point'>): BodySelection | null {
+  const point = symptom.surface_point
+  if (point?.model_id === 'sentinel-body-v1') {
+    const selection = selectAnatomySite(point.site_id, { x: point.x, y: point.y, z: point.z })
+    if (selection && selection.regionId === symptom.region_id && selection.laterality === symptom.laterality) return selection
+  }
+  return savedSurfaceSelection(symptom.note)
 }

@@ -30,4 +30,12 @@ describe('local API errors', () => {
     expect(url.searchParams.get('dataset_id')).toBe('NASA-RADLAB')
     expect(url.searchParams.get('instrument_id')).toBe('REM-Lid')
   })
+  it('sends the structured 3D point in the symptom payload', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201, text: async () => '{}' })
+    vi.stubGlobal('fetch', fetchMock)
+    await api.symptom({ astronaut_id: 'DEMO-001', region_id: 'upper_arm', laterality: 'right', severity: 4, onset: '2026-11-14T08:45:00Z', note: 'Ache when lifting', surface_point: { model_id: 'sentinel-body-v1', site_id: 'right_shoulder', x: -0.468, y: 0.704, z: 0.131 } })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.note).toBe('Ache when lifting')
+    expect(body.surface_point).toEqual({ model_id: 'sentinel-body-v1', site_id: 'right_shoulder', x: -0.468, y: 0.704, z: 0.131 })
+  })
 })
