@@ -14,6 +14,7 @@ from ..seed import reset_demo
 from ..services import cases as case_svc
 from ..services import datasets as ds
 from ..services import observations as obs_svc
+from ..services import surface_sites
 
 router = APIRouter()
 
@@ -83,6 +84,7 @@ def bootstrap(request: Request, db: Session = Depends(get_db)) -> BootstrapOut:
         open_cases=[case_svc.summary(c) for c in open_cases],
         anatomical_regions=[RegionOut(**r) for r in fx["anatomical_regions"]],
         laterality_values=fx["laterality_values"],
+        surface_model=surface_sites.catalogue(),
         demo_inputs=DemoInputs(
             ble_observations=fx["ble_observations"]["observations"],
             expected_zone_id=fx["ble_observations"]["expected_zone_id"],

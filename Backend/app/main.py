@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import CONTRACT_VERSION, Settings
-from .db import Base, make_engine, make_session_factory
+from .db import Base, add_missing_columns, make_engine, make_session_factory
 from .errors import install_error_handlers
 from .seed import is_seeded, load_fixture, seed_demo
 
@@ -57,6 +57,8 @@ def startup(app: FastAPI) -> None:
     settings: Settings = app.state.settings
     engine = make_engine(settings.db_url)
     Base.metadata.create_all(engine)
+    for column in add_missing_columns(engine):
+        log.info("Added column %s to an existing database", column)
     app.state.engine = engine
     app.state.session_factory = make_session_factory(engine)
     app.state.fixture = load_fixture(settings.fixture_path)

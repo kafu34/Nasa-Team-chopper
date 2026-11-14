@@ -69,3 +69,19 @@ def get_db(request: Request) -> Iterator[Session]:
         yield session
     finally:
         session.close()
+
+
+# Columns added after a table first shipped. create_all() never alters existing tables, so a database created by
+# an older build gets them here. Each is nullable, so existing rows stay valid.
+ADDED_COLUMNS = [("symptom_reports", "surface_point", "JSON")]
+
+
+def add_missing_columns(engine: Engine) -> list[str]:
+    added = []
+    with engine.begin() as conn:
+        for table, column, sql_type in ADDED_COLUMNS:
+            existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            if existing and column not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}")
+                added.append(f"{table}.{column}")
+    return added

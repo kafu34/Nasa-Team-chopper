@@ -3,6 +3,28 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## 3D Anatomical Twin `surface_point`, run 2026-11-14
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` with `SENTINEL_FRONTEND_SITES` pointing at Codex's `anatomy-sites.ts` (aa25e6b) | **165 passed, 0 failed** (adds 19 in `test_m_surface_point.py`) |
+| Same suite without that file | the frontend-match test is skipped; all others pass |
+| `scripts/export_openapi.py --check` | matches the app |
+| `scripts/http_smoke.py` | **23/23** |
+| Live server restart on the existing database | `symptom_reports.surface_point` column added; bootstrap lists 35 sites |
+
+`test_m_surface_point.py` covers:
+- the point is stored, returned on create and in the case, kept separate from the user's note, and recorded in
+  evidence and audit;
+- old clients without the field are unchanged, and the rules still use only the broad region;
+- shoulder and elbow reports in one region are not deduplicated against each other, while a repeat of the same
+  site is;
+- 10 rejection cases (unknown site, region or side mismatch, wrong side of the model, unknown model, out of range,
+  infinite, missing coordinate, extra field), none of which stores anything;
+- midline sites and the chest inner-edge tolerance;
+- the bootstrap catalogue, and the same 35 site IDs and region mapping as the frontend file;
+- persistence across restart, reset, and upgrading a database created before the column existed.
+
 ## OSD-817 importer, run 2026-11-14
 
 | Suite | Result |
@@ -90,7 +112,7 @@ Run in the separate backend worktree (`Chopper/Nasa-Team-chopper-backend`, branc
   files with the same layout.
 - **OSD-195:** the parser has only been tested on synthetic files, because no real processed file was supplied.
 
-## Results
+## P0 baseline results (first run, superseded by the sections above)
 
 | Suite | Command | Result |
 |---|---|---|
@@ -114,6 +136,8 @@ Run in the separate backend worktree (`Chopper/Nasa-Team-chopper-backend`, branc
 
 - Frontend integration (Codex's UI against this backend) — not run by the backend; the frontend must verify it
   displays the same OSD-575 values and units.
-- Timeseries endpoints with real data (no EDA/RadLab importer; only the 503 path is tested).
+- `/environment/timeseries` with real data (no EDA importer; only the 503 path is tested). RadLab is covered
+  by `test_k_radlab.py`.
+- OSD-195 with real NASA files (only synthetic files; the processed files have not been supplied).
 - Linux/macOS case-sensitive file systems (developed on Windows; see folder-casing note in the handoff).
 - Concurrent multi-client load.

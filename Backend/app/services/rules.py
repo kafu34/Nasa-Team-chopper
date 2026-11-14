@@ -3,7 +3,8 @@
 Rules
 -----
 R-SYM-00  Validate region/laterality/onset against the fixture.
-R-SYM-01  An identical report (same region, laterality, severity) within 10 minutes is a duplicate.
+R-SYM-01  An identical report (same region, laterality, severity and surface site) within 10 minutes is a
+          duplicate. Two different detailed sites in one broad region (e.g. shoulder and elbow) are kept apart.
 R-SYM-02  A symptom opens (or joins) the astronaut's open routine case and moves it to 'investigating'.
 R-SYM-03  If a configured scheduled assessment exists, link it and move the case to 'awaiting_assessment'.
           This is a fictional demonstration configuration. It does NOT claim the symptom is a clinical
@@ -23,6 +24,7 @@ from ..db import utcnow
 from ..errors import ApiError, not_found
 from ..schemas.cases import SymptomCreate
 from . import cases as case_svc
+from . import surface_sites
 from .audit import audit
 
 DUPLICATE_WINDOW = timedelta(minutes=10)
@@ -51,6 +53,8 @@ def report_symptom(db: Session, fx: dict, body: SymptomCreate) -> tuple[m.Sympto
     if not region["lateral"] and body.laterality in ("left", "right", "bilateral"):
         raise ApiError(422, "INVALID_LATERALITY", f"Region '{body.region_id}' does not take a side.",
                        {"allowed_laterality": ["midline", "not_applicable"]})
+    surface = surface_sites.validate(body.surface_point, body.region_id, body.laterality)         if body.surface_point is not None else None
+    site_id = surface["site_id"] if surface else None
     now = utcnow()
     if body.onset > now + timedelta(minutes=5):
         raise ApiError(422, "TIMESTAMP_IN_FUTURE", "onset is in the future.", {"onset": body.onset.isoformat()})
@@ -63,7 +67,8 @@ def report_symptom(db: Session, fx: dict, body: SymptomCreate) -> tuple[m.Sympto
                m.SymptomReport.reported_at >= now - DUPLICATE_WINDOW,
                m.MedicalCase.state.in_(case_svc.OPEN_STATES))
         .order_by(m.SymptomReport.reported_at.desc())
-    ).first()
+    ).all()
+    dup = next((s for s in dup if (s.surface_point or {}).get("site_id") == site_id), None)
     if dup is not None:
         case = db.get(m.MedicalCase, dup.case_id)
         audit(db, body.astronaut_id, "symptom.duplicate_ignored", "symptom_report", dup.symptom_id, case.case_id,
@@ -84,12 +89,15 @@ def report_symptom(db: Session, fx: dict, body: SymptomCreate) -> tuple[m.Sympto
 
     sym = m.SymptomReport(symptom_id=m.new_id("SYM"), astronaut_id=body.astronaut_id, region_id=body.region_id,
                           laterality=body.laterality, severity=body.severity, onset=body.onset, note=body.note,
+                          surface_point=surface,
                           reported_at=now, case_id=case.case_id)
     db.add(sym)
     case_svc.add_evidence(case, "symptom", sym.symptom_id,
-                          f"Self-reported {body.region_id} ({body.laterality}), severity {body.severity}/10")
+                          f"Self-reported {body.region_id} ({body.laterality})"
+                          + (f", surface site {site_id}" if site_id else "") + f", severity {body.severity}/10")
     audit(db, body.astronaut_id, "symptom.reported", "symptom_report", sym.symptom_id, case.case_id,
-          rule="R-SYM-02", region_id=body.region_id, laterality=body.laterality, severity=body.severity)
+          rule="R-SYM-02", region_id=body.region_id, laterality=body.laterality, severity=body.severity,
+          surface_site_id=site_id)
     if case.state == "detected":
         case_svc.transition(db, case, "investigating", "rules-engine", "R-SYM-02: symptom report opens investigation")
 

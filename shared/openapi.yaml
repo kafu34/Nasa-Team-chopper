@@ -53,8 +53,9 @@ paths:
       tags:
       - cases
       summary: Report a symptom from the Anatomical Twin; creates or updates a fictional case
-      description: 201 when a new report is stored. 200 with duplicate=true when an identical report (same region, laterality
-        and severity) was already received within 10 minutes.
+      description: 201 when a new report is stored. 200 with duplicate=true when an identical report (same region, laterality,
+        severity and surface site) was already received within 10 minutes. surface_point is optional; when sent, its site_id
+        must belong to region_id/laterality.
       operationId: create_symptom_api_v1_symptoms_post
       requestBody:
         content:
@@ -1312,6 +1313,8 @@ components:
             - not_applicable
           type: array
           title: Laterality Values
+        surface_model:
+          $ref: '#/components/schemas/SurfaceModelOut'
         demo_inputs:
           $ref: '#/components/schemas/DemoInputs'
         research_datasets:
@@ -1338,6 +1341,7 @@ components:
       - open_cases
       - anatomical_regions
       - laterality_values
+      - surface_model
       - demo_inputs
       - research_datasets
       title: BootstrapOut
@@ -4218,6 +4222,134 @@ components:
       - label
       - description
       title: StudyTypeInfo
+    SurfaceModelOut:
+      properties:
+        model_id:
+          type: string
+          title: Model Id
+        coordinate_limit:
+          type: number
+          title: Coordinate Limit
+        coordinate_note:
+          type: string
+          title: Coordinate Note
+        sites:
+          items:
+            $ref: '#/components/schemas/SurfaceSiteOut'
+          type: array
+          title: Sites
+      type: object
+      required:
+      - model_id
+      - coordinate_limit
+      - coordinate_note
+      - sites
+      title: SurfaceModelOut
+    SurfacePoint:
+      properties:
+        model_id:
+          type: string
+          const: sentinel-body-v1
+          title: Model Id
+          examples:
+          - sentinel-body-v1
+        site_id:
+          type: string
+          title: Site Id
+          description: Detailed surface site; must map to the request's region_id and laterality. The list is in GET /api/v1/demo/bootstrap
+            -> surface_model.sites.
+          examples:
+          - right_shoulder
+        x:
+          type: number
+          maximum: 5.0
+          minimum: -5.0
+          title: X
+          description: Model units (not centimetres); finite, within +/-5.
+          examples:
+          - -0.468
+        y:
+          type: number
+          maximum: 5.0
+          minimum: -5.0
+          title: Y
+          description: Model units (not centimetres); finite, within +/-5.
+          examples:
+          - 0.704
+        z:
+          type: number
+          maximum: 5.0
+          minimum: -5.0
+          title: Z
+          description: Model units (not centimetres); finite, within +/-5.
+          examples:
+          - 0.131
+      additionalProperties: false
+      type: object
+      required:
+      - model_id
+      - site_id
+      - x
+      - y
+      - z
+      title: SurfacePoint
+      description: A tapped point on the frontend's stylised 3D body model. A diagram location, not a measurement.
+    SurfacePointOut:
+      properties:
+        model_id:
+          type: string
+          title: Model Id
+        site_id:
+          type: string
+          title: Site Id
+        site_label:
+          type: string
+          title: Site Label
+        x:
+          type: number
+          title: X
+        y:
+          type: number
+          title: Y
+        z:
+          type: number
+          title: Z
+      type: object
+      required:
+      - model_id
+      - site_id
+      - site_label
+      - x
+      - y
+      - z
+      title: SurfacePointOut
+    SurfaceSiteOut:
+      properties:
+        site_id:
+          type: string
+          title: Site Id
+        label:
+          type: string
+          title: Label
+        region_id:
+          type: string
+          title: Region Id
+        laterality:
+          type: string
+          enum:
+          - left
+          - right
+          - bilateral
+          - midline
+          - not_applicable
+          title: Laterality
+      type: object
+      required:
+      - site_id
+      - label
+      - region_id
+      - laterality
+      title: SurfaceSiteOut
     SymptomCreate:
       properties:
         astronaut_id:
@@ -4263,6 +4395,12 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+        surface_point:
+          anyOf:
+          - $ref: '#/components/schemas/SurfacePoint'
+          - type: 'null'
+          description: Optional (v2.2). Exact point on the 3D Anatomical Twin. Stored and returned as reported; the rules
+            engine still uses only region_id and laterality.
       additionalProperties: false
       type: object
       required:
@@ -4300,6 +4438,10 @@ components:
           type: boolean
           title: Duplicate
           description: True when the report repeated an identical recent report and was deduplicated.
+        surface_point:
+          anyOf:
+          - $ref: '#/components/schemas/SurfacePointOut'
+          - type: 'null'
         data_category:
           type: string
           enum:
@@ -4339,6 +4481,10 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        surface_point:
+          anyOf:
+          - $ref: '#/components/schemas/SurfacePointOut'
+          - type: 'null'
         reported_at:
           type: string
           format: date-time

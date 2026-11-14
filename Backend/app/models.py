@@ -142,6 +142,7 @@ class SymptomReport(Base):
     severity: Mapped[int] = mapped_column(Integer)
     onset: Mapped[datetime] = mapped_column(UTCDateTime)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    surface_point: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     reported_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     case_id: Mapped[str] = mapped_column(ForeignKey("medical_cases.case_id"), index=True)
 

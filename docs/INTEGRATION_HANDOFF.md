@@ -4,10 +4,10 @@
 |---|---|
 | Contract | `shared/openapi.yaml`, **version 2.1.0**, generated from the FastAPI app (do not edit by hand) |
 | Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.1.0 |
-| Backend branch | `backend/p0-v2.1` (local commit; not pushed — awaiting owner approval) |
+| Backend branch | `backend/p0-v2.1`, pushed; PR #1 into `main` is open. Until it is merged, `main` has an older `shared/openapi.yaml`, so read the contract from this branch. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
-| Status | All 13 baseline endpoints and all 5 v2.1 research endpoints implemented and tested |
+| Status | All 13 baseline endpoints and all 5 v2.1 research endpoints implemented and tested. `/radiation/timeseries` serves real RadLab data; `/environment/timeseries` returns 503 (no EDA importer). |
 
 This file is how the backend communicates with Codex. Writing it does not mean Codex has read it.
 
@@ -201,7 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **146 passed, 0 failed** (pytest) and **23/23** real-HTTP checks against uvicorn.
+See `docs/TEST_REPORT.md`. Latest: **165 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`) and **23/23** real-HTTP checks against uvicorn.
 
 ## 10. Known contract deviations and coordination notes
 
@@ -212,8 +213,10 @@ See `docs/TEST_REPORT.md`. Latest: **146 passed, 0 failed** (pytest) and **23/23
 2. **`onset`** is an ISO 8601 timestamp (when the symptom began), not a free-text label.
 3. **Measurement `value`** is an object `{systolic, diastolic, pulse?}` (integers), not a string like "118/76".
 4. **`procedure_id`** in the equipment response is nullable (null for devices with no linked procedure, e.g. AED).
-5. Timeseries endpoints are defined but return 503 until P1 importers exist.
-6. Backend has not read or modified anything in `Frontend/`.
+5. `/radiation/timeseries` returns the RadLab ISS snapshot. `/environment/timeseries` (NASA-EDA) still returns
+   503 `DATASET_UNAVAILABLE` because no EDA file or importer exists.
+6. Backend has never modified `Frontend/`. It has read it only to stay compatible: on 2026-11-14 it read
+   Codex's `codex/frontend-followup` branch (aa25e6b) to answer `Frontend/BACKEND_3D_HANDOFF.md` (§11 item 7).
 
 ## 11. Changes requiring frontend updates
 
@@ -292,3 +295,17 @@ passes. Bump it to `2.2.0` together once Codex has adopted the fields below.
    - Never label either as an astronaut's muscle mass, strength or bone density.
    - Show `comparison_readiness.reasons` beside any before/after or flight/ground view.
    - OSD-654 is animal research. Keep it out of the human-health panels.
+7. **Structured `surface_point` for the 3D Anatomical Twin** (answers `Frontend/BACKEND_3D_HANDOFF.md`).
+   - `POST /symptoms` accepts an optional `surface_point` `{model_id: "sentinel-body-v1", site_id, x, y, z}`.
+     `SymptomCreated.surface_point` and `CaseOut.symptoms[].surface_point` return it with `site_label` added.
+   - `GET /demo/bootstrap` gains `surface_model {model_id, coordinate_limit, coordinate_note, sites[]}`. The 35
+     sites and their broad `region_id`/`laterality` are the same as `Frontend/src/anatomy-sites.ts` (aa25e6b);
+     `tests/test_m_surface_point.py` checks this when that file is present.
+   - Keep sending the broad `region_id` and `laterality`; the `site_id` must match them, or the request is
+     rejected with 422 `SURFACE_SITE_MISMATCH`. `UNKNOWN_SURFACE_SITE` and `SURFACE_POINT_WRONG_SIDE` are
+     the other new error codes.
+   - The frontend can stop writing the diagram string into `note`. Older notes are left as they were: the
+     backend does not parse or rewrite them, and historical `upper_arm` records are not reinterpreted.
+   - The rules engine still uses only the broad region. The one rule change: R-SYM-01 duplicate detection also
+     compares `site_id`, so a shoulder report does not hide an elbow report made within 10 minutes.
+   - An existing database gains the nullable `symptom_reports.surface_point` column at startup.
