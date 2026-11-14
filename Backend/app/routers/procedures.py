@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..schemas.common import error_responses
-from ..schemas.procedures import MeasurementCreate, MeasurementResult, ProcedureOut, SessionCreate, SessionOut, StepConfirm
+from ..schemas.procedures import (MeasurementCreate, MeasurementResult, ProcedureOut, SessionCreate, SessionOut,
+                                  StepConfirm, StepEventCreate, StepEventOut)
 from ..services import procedures as svc
 
 router = APIRouter(prefix="/api/v1")
@@ -41,6 +42,20 @@ def get_session(session_id: str, db: Session = Depends(get_db)) -> SessionOut:
              description="Steps must be confirmed in order. Re-confirming a completed step is idempotent.")
 def confirm_step(session_id: str, body: StepConfirm, db: Session = Depends(get_db)) -> SessionOut:
     return svc.session_out(db, svc.confirm_step(db, session_id, body.step_id, body.completion_source))
+
+
+@router.post("/procedure-sessions/{session_id}/events", response_model=StepEventOut, status_code=201,
+             responses=error_responses(404, 422), tags=["procedures"],
+             summary="Record that a step's instruction or visual demonstration was shown (contract 2.4.0)",
+             description="Events record what the crew member saw. They never change step order, session status or "
+                         "case state, and they are not evidence of correct clinical execution. A repeated "
+                         "client_event_id returns the first event with duplicate=true (status 200).")
+def record_step_event(session_id: str, body: StepEventCreate, response: Response,
+                      db: Session = Depends(get_db)) -> StepEventOut:
+    out = svc.record_step_event(db, session_id, body)
+    if out.duplicate:
+        response.status_code = 200
+    return out
 
 
 @router.post("/measurements", response_model=MeasurementResult, status_code=201,

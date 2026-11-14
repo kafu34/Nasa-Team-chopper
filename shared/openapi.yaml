@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.3.0
+  version: 2.4.0
 paths:
   /healthz:
     get:
@@ -487,6 +487,47 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/procedure-sessions/{session_id}/events:
+    post:
+      tags:
+      - procedures
+      summary: Record that a step's instruction or visual demonstration was shown (contract 2.4.0)
+      description: Events record what the crew member saw. They never change step order, session status or case state, and
+        they are not evidence of correct clinical execution. A repeated client_event_id returns the first event with duplicate=true
+        (status 200).
+      operationId: record_step_event_api_v1_procedure_sessions__session_id__events_post
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepEventCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepEventOut'
+        '404':
+          description: Resource not found
           content:
             application/json:
               schema:
@@ -3610,6 +3651,12 @@ components:
           type: string
           format: date-time
           title: Observed At
+        equipment_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Equipment Id
+          description: Optional (2.4.0). Must equal the session's device when the session has one.
       additionalProperties: false
       type: object
       required:
@@ -4858,6 +4905,15 @@ components:
           - self
           - responder
           title: Mode
+        equipment_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Equipment Id
+          description: Optional (2.4.0). The inventory device used, normally the one from POST /equipment/recommend. Must
+            be compatible with the procedure and verified ready.
+          examples:
+          - EQ-BP-01
       additionalProperties: false
       type: object
       required:
@@ -4866,6 +4922,34 @@ components:
       - actor_id
       - mode
       title: SessionCreate
+    SessionEquipment:
+      properties:
+        equipment_id:
+          type: string
+          title: Equipment Id
+        device_model:
+          type: string
+          title: Device Model
+        zone_id_at_start:
+          type: string
+          title: Zone Id At Start
+        readiness_at_start:
+          type: string
+          title: Readiness At Start
+        readiness_verified_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Readiness Verified At
+      type: object
+      required:
+      - equipment_id
+      - device_model
+      - zone_id_at_start
+      - readiness_at_start
+      - readiness_verified_at
+      title: SessionEquipment
     SessionOut:
       properties:
         session_id:
@@ -4948,10 +5032,33 @@ components:
           - escalated
           - resolved
           title: Case State
+        equipment:
+          anyOf:
+          - $ref: '#/components/schemas/SessionEquipment'
+          - type: 'null'
+          description: Device bound at session start (2.4.0).
+        step_states:
+          items:
+            $ref: '#/components/schemas/StepState'
+          type: array
+          title: Step States
+          description: Per-step visual and acknowledgement state, for restoring the coach after reopening (2.4.0).
+        stages:
+          items:
+            $ref: '#/components/schemas/SessionStage'
+          type: array
+          title: Stages
+          description: Separate records of display, viewing, acknowledgement, reading, validation, assessment and follow-up
+            (2.4.0).
         confirmation_note:
           type: string
           title: Confirmation Note
           default: A confirmed step records an acknowledgement only. It does not prove correct clinical execution.
+        visual_note:
+          type: string
+          title: Visual Note
+          default: Displayed instructions, viewed animations and acknowledged steps show what the crew member saw and confirmed.
+            They do not prove that the real-world step was performed correctly.
       type: object
       required:
       - session_id
@@ -4972,6 +5079,44 @@ components:
       - completed_at
       - case_state
       title: SessionOut
+    SessionStage:
+      properties:
+        stage:
+          type: string
+          enum:
+          - instruction_displayed
+          - animation_viewed
+          - steps_acknowledged
+          - device_reading_received
+          - technical_validation
+          - assessment_completed
+          - follow_up_created
+          title: Stage
+        status:
+          type: string
+          enum:
+          - done
+          - partial
+          - pending
+          - unavailable
+          title: Status
+        at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: At
+          description: When the stage was completed (latest contributing record).
+        detail:
+          type: string
+          title: Detail
+      type: object
+      required:
+      - stage
+      - status
+      - at
+      - detail
+      title: SessionStage
     SitePlausibility:
       properties:
         y_min_m:
@@ -5064,6 +5209,170 @@ components:
       - compatible_device_models
       - components
       title: StepEquipment
+    StepEventCreate:
+      properties:
+        step_id:
+          type: string
+          title: Step Id
+          examples:
+          - S3
+        event_type:
+          type: string
+          enum:
+          - instruction_displayed
+          - animation_viewed
+          - animation_replayed
+          - visual_unavailable
+          title: Event Type
+          description: 'instruction_displayed: the step''s instruction was shown. animation_viewed: its demonstration played
+            to the end. animation_replayed: it was played again. visual_unavailable: the frontend has no implemented scene
+            for this action and showed the unavailable state.'
+        visual_action_id:
+          type: string
+          title: Visual Action Id
+          description: Must equal the step's visual.action_id.
+          examples:
+          - VA-BP-03-WRAP-CUFF
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-001
+        client_event_id:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+          title: Client Event Id
+          description: Idempotency key. A repeat returns the first event with duplicate=true.
+        occurred_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Occurred At
+          description: Client time of the event; defaults to the server time. Must not be in the future or before the session
+            started.
+        note:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - step_id
+      - event_type
+      - visual_action_id
+      - actor_id
+      title: StepEventCreate
+    StepEventOut:
+      properties:
+        event_id:
+          type: string
+          title: Event Id
+        session_id:
+          type: string
+          title: Session Id
+        step_id:
+          type: string
+          title: Step Id
+        event_type:
+          type: string
+          enum:
+          - instruction_displayed
+          - animation_viewed
+          - animation_replayed
+          - visual_unavailable
+          title: Event Type
+        visual_action_id:
+          type: string
+          title: Visual Action Id
+        actor_id:
+          type: string
+          title: Actor Id
+        client_event_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Client Event Id
+        occurred_at:
+          type: string
+          format: date-time
+          title: Occurred At
+        recorded_at:
+          type: string
+          format: date-time
+          title: Recorded At
+        duplicate:
+          type: boolean
+          title: Duplicate
+          default: false
+      type: object
+      required:
+      - event_id
+      - session_id
+      - step_id
+      - event_type
+      - visual_action_id
+      - actor_id
+      - client_event_id
+      - occurred_at
+      - recorded_at
+      title: StepEventOut
+    StepState:
+      properties:
+        step_id:
+          type: string
+          title: Step Id
+        visual_action_id:
+          type: string
+          title: Visual Action Id
+        displayed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Displayed At
+        view_count:
+          type: integer
+          title: View Count
+        replay_count:
+          type: integer
+          title: Replay Count
+        last_viewed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Viewed At
+        visual_unavailable:
+          type: boolean
+          title: Visual Unavailable
+        acknowledged_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Acknowledged At
+        completion_source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Completion Source
+      type: object
+      required:
+      - step_id
+      - visual_action_id
+      - displayed_at
+      - view_count
+      - replay_count
+      - last_viewed_at
+      - visual_unavailable
+      - acknowledged_at
+      - completion_source
+      title: StepState
     StepVisual:
       properties:
         action_id:

@@ -80,7 +80,27 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 
 ### Milestone 3 (backend part) — procedure session state
 23. Session `equipment_id` (must be compatible with the procedure and match inventory); `POST /procedure-sessions/{id}/events` for `instruction_displayed`, `animation_viewed`, `animation_replayed`; per-step state in `SessionOut`; session stages `device_reading_received`, `technical_validation`, `assessment_completed`, `follow_up_created`.
-24. Tests for event ordering, idempotence, restore after restart, and that no event equals clinical execution.
+    Detailed sub-steps (planned 2026-11-15, after Codex confirmed 2.3.0 and started the visual coach):
+    - 23.1 Model `ProcedureStepEvent` (event_id, session_id, step_id, event_type, visual_action_id, client_event_id,
+      actor_id, occurred_at, recorded_at); reset deletes it; unique (session_id, client_event_id).
+    - 23.2 Columns `procedure_sessions.equipment_id` and `procedure_sessions.equipment_snapshot` (JSON) via
+      `add_missing_columns`.
+    - 23.3 `SessionCreate.equipment_id` (optional). Rules: device exists (404); capability, model and
+      `compatible_procedure_ids` match the procedure (422 `EQUIPMENT_INCOMPATIBLE`); readiness verified and fresh
+      (409 `EQUIPMENT_NOT_READY`). The snapshot stores model, zone and readiness at start. Reusing an in-progress
+      session with another device returns 409 `SESSION_EQUIPMENT_MISMATCH`.
+    - 23.4 Event types `instruction_displayed`, `animation_viewed`, `animation_replayed`, `visual_unavailable`.
+      Rules: the step exists (422 `UNKNOWN_STEP`); `visual_action_id` equals the step's (422
+      `VISUAL_ACTION_MISMATCH`); a repeated `client_event_id` returns the first event (`duplicate: true`).
+      Events never change step order, session status or case state.
+    - 23.5 `SessionOut` gains `equipment`, `step_states[]` (displayed_at, view_count, replay_count, last_viewed_at,
+      visual_unavailable, acknowledged_at, completion_source), `stages[]` (instruction_displayed, animation_viewed,
+      steps_acknowledged, device_reading_received, technical_validation, assessment_completed, follow_up_created)
+      and `visual_note`.
+    - 23.6 `MeasurementCreate.equipment_id` (optional) must equal the session's device (422 `EQUIPMENT_MISMATCH`).
+24. Tests `test_r_procedure_session_state.py`: equipment rules, event rules and idempotence, stages through a full
+    run, restore after restart, events not changing order or state, reset, old database upgrade. Then contract
+    export, smoke test, live restart, docs, commit.
 
 ### Milestone 4 (backend part) — habitat operations
 25. `POST /habitats/{id}/hatches/{hatch_id}` (open/close, audited, role-checked); routes recomputed; earlier recommendations marked invalid.
@@ -117,7 +137,8 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 |---|---|
 | 1–22 | done 2026-11-14 (contract 2.2.0; 201 passed, 1 skipped; smoke 25/25) |
 | 2.3.0 add-on | done 2026-11-15: `sentinel-human-male-v1` registered from Codex's GLB; 217 passed, 1 skipped |
-| 23–40 | not started; waiting for Codex to confirm the 2.2.0/2.3.0 contract (handoff §11) |
+| 23–24 | done 2026-11-15: contract 2.4.0 procedure session state; 238 passed, 1 skipped; smoke 26/26 |
+| 25–40 | not started |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only

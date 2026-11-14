@@ -175,6 +175,25 @@ class ProcedureSession(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     completed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    equipment_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    equipment_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class ProcedureStepEvent(Base):
+    """What the crew member saw in the visual Procedure Coach. Never evidence of correct clinical execution."""
+
+    __tablename__ = "procedure_step_events"
+    __table_args__ = (UniqueConstraint("session_id", "client_event_id", name="uq_step_event_client_id"),)
+    event_id: Mapped[str] = mapped_column(String, primary_key=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("procedure_sessions.session_id"), index=True)
+    step_id: Mapped[str] = mapped_column(String)
+    event_type: Mapped[str] = mapped_column(String)
+    visual_action_id: Mapped[str] = mapped_column(String)
+    client_event_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    actor_id: Mapped[str] = mapped_column(String)
+    note: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    recorded_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
 class AssessmentMeasurement(Base):
@@ -234,6 +253,7 @@ SYNTHETIC_TABLES = [
     HealthObservation,
     AssessmentMeasurement,
     FollowUpTask,
+    ProcedureStepEvent,
     ProcedureSession,
     SymptomReport,
     ScheduledAssessment,

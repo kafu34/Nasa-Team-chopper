@@ -11,7 +11,8 @@ from ..db import utcnow
 from ..errors import ApiError, not_found
 from ..schemas.cases import FollowUpOut, MeasurementOut
 from ..schemas.procedures import (CompletedStep, MeasurementCreate, MeasurementResult, MeasurementValidation,
-                                  ProcedureOut, ProcedureStep, SessionCreate, SessionOut)
+                                  ProcedureOut, ProcedureStep, SessionCreate, SessionOut, StepEventCreate,
+                                  StepEventOut)
 from . import cases as case_svc
 from .audit import audit
 
@@ -61,7 +62,154 @@ def session_out(db: Session, s: m.ProcedureSession) -> SessionOut:
                       completed_steps=[CompletedStep(**c) for c in s.completed_steps], total_steps=len(steps),
                       completed_count=len(s.completed_steps), measurement_id=s.measurement_id,
                       created_at=s.created_at, updated_at=s.updated_at, completed_at=s.completed_at,
-                      case_state=case.state)
+                      case_state=case.state, equipment=s.equipment_snapshot,
+                      **_visual_state(db, s, case, _steps(p)))
+
+
+def _visual_state(db: Session, s: m.ProcedureSession, case: m.MedicalCase, steps: list[dict]) -> dict:
+    events = db.scalars(select(m.ProcedureStepEvent).where(m.ProcedureStepEvent.session_id == s.session_id)
+                        .order_by(m.ProcedureStepEvent.occurred_at, m.ProcedureStepEvent.recorded_at)).all()
+    acks = {c["step_id"]: c for c in s.completed_steps}
+    states = []
+    for st in steps:
+        ev = [e for e in events if e.step_id == st["step_id"]]
+        shown = [e.occurred_at for e in ev if e.event_type == "instruction_displayed"]
+        views = [e.occurred_at for e in ev if e.event_type in ("animation_viewed", "animation_replayed")]
+        ack = acks.get(st["step_id"])
+        states.append({"step_id": st["step_id"], "visual_action_id": st["visual"]["action_id"],
+                       "displayed_at": min(shown) if shown else None,
+                       "view_count": sum(e.event_type == "animation_viewed" for e in ev),
+                       "replay_count": sum(e.event_type == "animation_replayed" for e in ev),
+                       "last_viewed_at": max(views) if views else None,
+                       "visual_unavailable": any(e.event_type == "visual_unavailable" for e in ev),
+                       "acknowledged_at": ack["confirmed_at"] if ack else None,
+                       "completion_source": ack["completion_source"] if ack else None})
+    n = len(states)
+
+    def count_stage(name, key, label):
+        done = [x for x in states if x[key]]
+        at = max((x[key] for x in done), default=None) if done else None
+        status = "done" if len(done) == n else "partial" if done else "pending"
+        return {"stage": name, "status": status, "at": at if status == "done" else None,
+                "detail": f"{len(done)} of {n} steps {label}."}
+
+    stages = [count_stage("instruction_displayed", "displayed_at", "displayed")]
+    unavailable = [x["step_id"] for x in states if x["visual_unavailable"]]
+    viewed = count_stage("animation_viewed", "last_viewed_at", "with a viewed demonstration")
+    if unavailable:
+        viewed["detail"] += f" Visual demonstration unavailable for {', '.join(unavailable)}."
+        if viewed["status"] != "done":
+            viewed["status"] = "unavailable"
+    stages.append(viewed)
+    ack = count_stage("steps_acknowledged", "acknowledged_at", "acknowledged (acknowledgement only)")
+    stages.append(ack)
+    meas = db.get(m.AssessmentMeasurement, s.measurement_id) if s.measurement_id else None
+    checks = []
+    if meas is not None:
+        rec = db.scalars(select(m.AuditEvent).where(m.AuditEvent.action == "measurement.recorded",
+                                                    m.AuditEvent.entity_id == meas.measurement_id)).first()
+        checks = (rec.details or {}).get("checks", []) if rec is not None else []
+    stages.append({"stage": "device_reading_received", "status": "done" if meas else "pending",
+                   "at": meas.recorded_at if meas else None,
+                   "detail": (f"Simulated reading {meas.measurement_id} from {meas.source}." if meas
+                              else "No reading submitted for this session.")})
+    stages.append({"stage": "technical_validation", "status": "done" if meas else "pending",
+                   "at": meas.recorded_at if meas else None,
+                   "detail": ("Technical checks passed: " + ", ".join(checks) + ". Not a clinical judgement."
+                              if meas else "Runs when a reading is submitted.")})
+    req = case.requested_assessment or {}
+    assessed = meas is not None and req.get("status") == "completed"
+    stages.append({"stage": "assessment_completed", "status": "done" if assessed else "pending",
+                   "at": meas.recorded_at if assessed else None,
+                   "detail": (f"Configured assessment {req.get('assessment_id') or req.get('procedure_id')} completed "
+                              "by this session." if assessed else "Completes when this session's reading is "
+                              "recorded.")})
+    fu = None
+    if meas is not None:
+        fu = db.scalars(select(m.FollowUpTask).where(m.FollowUpTask.case_id == s.case_id)
+                        .order_by(m.FollowUpTask.created_at.desc())).first()
+    stages.append({"stage": "follow_up_created", "status": "done" if fu else "pending",
+                   "at": fu.created_at if fu else None,
+                   "detail": (f"Follow-up {fu.follow_up_id} ({fu.status}) due {fu.due_at.isoformat()}." if fu
+                              else "Created after a recorded reading.")})
+    return {"step_states": states, "stages": stages}
+
+
+def _bind_equipment(db: Session, p: m.ProcedureDefinition, equipment_id: str) -> dict:
+    from .spatial import READINESS_MAX_AGE
+
+    e = db.get(m.Equipment, equipment_id)
+    if e is None:
+        raise not_found("Equipment", equipment_id)
+    d = p.definition
+    problems = []
+    if e.capability != d["required_capability"]:
+        problems.append(f"capability {e.capability} is not {d['required_capability']}")
+    if e.device_model not in d["compatible_device_models"]:
+        problems.append(f"model '{e.device_model}' is not listed for {p.procedure_id}")
+    if p.procedure_id not in (e.compatible_procedure_ids or []):
+        problems.append(f"the inventory record does not list {p.procedure_id}")
+    if problems:
+        raise ApiError(422, "EQUIPMENT_INCOMPATIBLE", f"{equipment_id} cannot be used for {p.procedure_id}: "
+                       + "; ".join(problems) + ".", {"equipment_id": equipment_id, "problems": problems})
+    now = utcnow()
+    reasons = []
+    if e.readiness != "verified_ready":
+        reasons.append(f"readiness_{e.readiness}")
+    elif e.readiness_verified_at is None or now - e.readiness_verified_at > READINESS_MAX_AGE:
+        reasons.append("readiness_check_stale")
+    missing = [x for x in e.required_supplies if not e.supplies.get(x, False)]
+    if missing:
+        reasons.append("missing_supplies:" + ",".join(missing))
+    if reasons:
+        raise ApiError(409, "EQUIPMENT_NOT_READY", f"{equipment_id} is not verified ready.",
+                       {"equipment_id": equipment_id, "reasons": reasons})
+    return {"equipment_id": e.equipment_id, "device_model": e.device_model, "zone_id_at_start": e.zone_id,
+            "readiness_at_start": e.readiness,
+            "readiness_verified_at": e.readiness_verified_at.isoformat() if e.readiness_verified_at else None}
+
+
+def record_step_event(db: Session, session_id: str, body: StepEventCreate) -> StepEventOut:
+    s = get_session(db, session_id)
+    p = get_procedure(db, s.procedure_id)
+    steps = {st["step_id"]: st for st in _steps(p)}
+    step = steps.get(body.step_id)
+    if step is None:
+        raise ApiError(422, "UNKNOWN_STEP", f"Step '{body.step_id}' is not part of {p.procedure_id} {p.version}.",
+                       {"allowed_step_ids": list(steps)})
+    expected = step["visual"]["action_id"]
+    if body.visual_action_id != expected:
+        raise ApiError(422, "VISUAL_ACTION_MISMATCH", f"Step {body.step_id} uses visual action {expected}.",
+                       {"expected_visual_action_id": expected, "received_visual_action_id": body.visual_action_id})
+    if db.get(m.Astronaut, body.actor_id) is None:
+        raise not_found("Astronaut", body.actor_id)
+    if body.client_event_id is not None:
+        prev = db.scalars(select(m.ProcedureStepEvent).where(
+            m.ProcedureStepEvent.session_id == s.session_id,
+            m.ProcedureStepEvent.client_event_id == body.client_event_id)).first()
+        if prev is not None:
+            return StepEventOut(**_event_dict(prev), duplicate=True)
+    now = utcnow()
+    at = body.occurred_at or now
+    if at > now + FUTURE_TOLERANCE:
+        raise ApiError(422, "TIMESTAMP_IN_FUTURE", "occurred_at is in the future.", {"occurred_at": at.isoformat()})
+    if at < s.created_at - timedelta(minutes=1):
+        raise ApiError(422, "TIMESTAMP_OUTSIDE_SESSION", "occurred_at is before the procedure session started.",
+                       {"session_created_at": s.created_at.isoformat()})
+    ev = m.ProcedureStepEvent(event_id=m.new_id("PSE"), session_id=s.session_id, step_id=body.step_id,
+                              event_type=body.event_type, visual_action_id=expected,
+                              client_event_id=body.client_event_id, actor_id=body.actor_id, note=body.note,
+                              occurred_at=at, recorded_at=now)
+    db.add(ev)
+    audit(db, body.actor_id, f"procedure_visual.{body.event_type}", "procedure_session", s.session_id, s.case_id,
+          step_id=body.step_id, visual_action_id=expected, note="Visual record only; not clinical execution")
+    db.commit()
+    return StepEventOut(**_event_dict(ev))
+
+
+def _event_dict(e: m.ProcedureStepEvent) -> dict:
+    return {k: getattr(e, k) for k in ("event_id", "session_id", "step_id", "event_type", "visual_action_id",
+                                       "actor_id", "client_event_id", "occurred_at", "recorded_at")}
 
 
 def create_session(db: Session, body: SessionCreate) -> tuple[m.ProcedureSession, bool]:
@@ -79,15 +227,27 @@ def create_session(db: Session, body: SessionCreate) -> tuple[m.ProcedureSession
         m.ProcedureSession.case_id == case.case_id, m.ProcedureSession.procedure_id == p.procedure_id,
         m.ProcedureSession.status == "in_progress")).first()
     if existing is not None:
+        if body.equipment_id is not None and existing.equipment_id not in (None, body.equipment_id):
+            raise ApiError(409, "SESSION_EQUIPMENT_MISMATCH", "The open session for this case uses another device.",
+                           {"session_id": existing.session_id, "session_equipment_id": existing.equipment_id,
+                            "received_equipment_id": body.equipment_id})
+        if body.equipment_id is not None and existing.equipment_id is None:
+            existing.equipment_snapshot = _bind_equipment(db, p, body.equipment_id)
+            existing.equipment_id = body.equipment_id
+            audit(db, body.actor_id, "procedure_session.equipment_bound", "procedure_session",
+                  existing.session_id, case.case_id, equipment_id=body.equipment_id)
+            db.commit()
         return existing, False
+    snapshot = _bind_equipment(db, p, body.equipment_id) if body.equipment_id is not None else None
     now = utcnow()
     first = _steps(p)[0]["step_id"]
     s = m.ProcedureSession(session_id=m.new_id("SES"), case_id=case.case_id, procedure_id=p.procedure_id,
                            procedure_version=p.version, actor_id=body.actor_id, mode=body.mode, status="in_progress",
-                           current_step_id=first, completed_steps=[], created_at=now, updated_at=now)
+                           current_step_id=first, completed_steps=[], created_at=now, updated_at=now,
+                           equipment_id=body.equipment_id, equipment_snapshot=snapshot)
     db.add(s)
     audit(db, body.actor_id, "procedure_session.created", "procedure_session", s.session_id, case.case_id,
-          procedure_id=p.procedure_id, procedure_version=p.version, mode=body.mode)
+          procedure_id=p.procedure_id, procedure_version=p.version, mode=body.mode, equipment_id=body.equipment_id)
     if case.state == "awaiting_assessment":
         case_svc.transition(db, case, "awaiting_results", "procedure-engine",
                             f"Assessment session {s.session_id} started")
@@ -142,6 +302,11 @@ def _validate_measurement(body: MeasurementCreate, s: m.ProcedureSession, case: 
         raise ApiError(409, "SESSION_INCOMPLETE", "Confirm all procedure steps before submitting the reading.",
                        {"current_step_id": s.current_step_id})
     checks.append("procedure_steps_confirmed")
+    if body.equipment_id is not None and s.equipment_id is not None and body.equipment_id != s.equipment_id:
+        raise ApiError(422, "EQUIPMENT_MISMATCH", "The reading names a different device from the session's.",
+                       {"session_equipment_id": s.equipment_id, "received_equipment_id": body.equipment_id})
+    if s.equipment_id is not None:
+        checks.append("device_matches_session")
     v = body.value.model_dump()
     bad = {k: {"received": v[k], "min": lo, "max": hi} for k, (lo, hi) in BP_LIMITS.items()
            if v.get(k) is not None and not (lo <= v[k] <= hi)}

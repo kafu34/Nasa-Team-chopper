@@ -3,6 +3,26 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.4.0 (procedure session state, Milestone 3 backend), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` with `SENTINEL_FRONTEND_SITES` and `SENTINEL_FRONTEND_HUMAN_GLB` set (Codex's files at 0240a94) | **238 passed, 1 skipped, 0 failed** (adds 21 in `test_r_procedure_session_state.py`; the skip is still the visual-registry check) |
+| `scripts/export_openapi.py` | regenerated (25 paths, version 2.4.0) |
+| `scripts/http_smoke.py` | **26/26** (session now binds the recommended device; adds an events check for all six steps) |
+| Live server restart | contract 2.4.0; `procedure_sessions.equipment_id`/`equipment_snapshot` added; `procedure_step_events` created; 5 datasets still `IMPORTED` |
+
+`test_r_procedure_session_state.py` covers:
+- binding the recommended device;
+- rejecting an incompatible, unknown-readiness, missing-cuff, unknown or stale-readiness device;
+- no device switch on a reused session, and late binding on an open session;
+- events recorded apart from acknowledgement, with no change to step order, session status or case state;
+- 6 invalid-event cases that store nothing;
+- `client_event_id` idempotence, and the `visual_unavailable` stage;
+- a full run where all seven stages complete, including a rejected wrong-device reading;
+- restore after restart (identical step states and device), and reset removing events;
+- an old database gaining the session columns, and events audited as visual-only records.
+
 ## Contract 2.3.0 (`sentinel-human-male-v1` registration), run 2026-11-15
 
 | Suite | Result |

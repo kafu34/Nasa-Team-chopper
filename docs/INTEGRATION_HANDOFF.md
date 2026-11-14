@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.3.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.3.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.4.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.4.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,8 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **217 passed, 1 skipped, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **25/25** real-HTTP checks against
+See `docs/TEST_REPORT.md`. Latest: **238 passed, 1 skipped, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **26/26** real-HTTP checks against
 uvicorn.
 
 ## 10. Known contract deviations and coordination notes
@@ -222,6 +222,47 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.4.0 — procedure session state for the visual Procedure Coach (v3.1 §5, Milestone 3 backend)
+
+Additive. All existing session, step and measurement calls work unchanged.
+
+1. **Device identity.** `POST /procedure-sessions` accepts optional `equipment_id`. Normally this is the device
+   from `POST /equipment/recommend`.
+   - 404 if the device is unknown.
+   - 422 `EQUIPMENT_INCOMPATIBLE` if its capability, model or procedure list does not match `PROC-BP-01`.
+   - 409 `EQUIPMENT_NOT_READY` if it is not `verified_ready`, the check is older than 24 h, or a supply is
+     missing. `details.reasons` uses the recommendation's reason strings.
+   - Reusing the case's open session with a different device gives 409 `SESSION_EQUIPMENT_MISMATCH`. Passing a
+     device for an open session that has none binds it.
+   - The session returns `equipment {equipment_id, device_model, zone_id_at_start, readiness_at_start,
+     readiness_verified_at}`.
+   - `POST /measurements` accepts optional `equipment_id`. It must equal the session's device (422
+     `EQUIPMENT_MISMATCH`). When the session has a device, `validation.checks` includes
+     `device_matches_session`.
+2. **New `POST /procedure-sessions/{session_id}/events`**
+   - Body: `{step_id, event_type, visual_action_id, actor_id, client_event_id?, occurred_at?, note?}`.
+   - `event_type` is one of:
+     - `instruction_displayed`: the step's text was shown.
+     - `animation_viewed`: its scene played to the end.
+     - `animation_replayed`: it was played again.
+     - `visual_unavailable`: no implemented scene for that action, so the unavailable state was shown.
+   - `visual_action_id` must equal the step's `visual.action_id` (422 `VISUAL_ACTION_MISMATCH`).
+   - Returns 201 with the event. A repeated `client_event_id` returns 200 with the first event and
+     `duplicate: true`.
+   - Events may be sent for any step (preview is allowed). They never change step order, session status or case
+     state, and they are audited as visual records only. Pausing is not recorded.
+3. **`SessionOut` additions**, for restoring the coach after refresh or case reopening:
+   - `step_states[]`: `step_id`, `visual_action_id`, `displayed_at`, `view_count`, `replay_count`,
+     `last_viewed_at`, `visual_unavailable`, `acknowledged_at`, `completion_source`.
+   - `stages[]`, each `{stage, status: done|partial|pending|unavailable, at, detail}`, for these separate
+     records: `instruction_displayed`, `animation_viewed`, `steps_acknowledged`, `device_reading_received`,
+     `technical_validation`, `assessment_completed`, `follow_up_created`.
+   - `visual_note`: viewing and acknowledging do not prove correct real-world execution.
+   - To reopen a case's coach: read `GET /cases/{id}` -> `session_ids`, then `GET /procedure-sessions/{id}`.
+4. **Visual registry gate.** The backend test still looks for `Frontend/src/visual-registry.ts`, or another path
+   in `SENTINEL_FRONTEND_VISUAL_REGISTRY`, and requires all six `VA-BP-*` IDs in it. **Codex: tell Claude the
+   registry path when it exists.**
 
 ### Contract 2.3.0 — `sentinel-human-male-v1` registered (answers `Frontend/V3_1_BACKEND_HANDOFF.md`)
 

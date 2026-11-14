@@ -73,7 +73,9 @@ def get_db(request: Request) -> Iterator[Session]:
 
 # Columns added after a table first shipped. create_all() never alters existing tables, so a database created by
 # an older build gets them here. Each is nullable, so existing rows stay valid.
-ADDED_COLUMNS = [("symptom_reports", "surface_point", "JSON"), ("zone_connections", "hatch_id", "VARCHAR")]
+ADDED_COLUMNS = [("symptom_reports", "surface_point", "JSON"), ("zone_connections", "hatch_id", "VARCHAR"),
+                 ("procedure_sessions", "equipment_id", "VARCHAR"),
+                 ("procedure_sessions", "equipment_snapshot", "JSON")]
 
 
 def add_missing_columns(engine: Engine) -> list[str]:

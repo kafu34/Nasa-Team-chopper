@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.3.0)
+# SENTINEL AI Backend API (v2.4.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -79,7 +79,13 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   `target_site_id`, `patient_role`, `equipment`, `instruction_source_ids`, `warnings[]`, `visual{action_id,
   asset_id, additional_asset_ids, camera, expected_visible_action, replay_allowed, pause_allowed}`.
 - `POST /api/v1/procedure-sessions` — `{case_id, procedure_id, actor_id, mode: self|responder}` → session.
-- `GET /api/v1/procedure-sessions/{session_id}` *(optional)* → session.
+- `GET /api/v1/procedure-sessions/{session_id}` *(optional)* → session. Since 2.4.0 a session also has
+  `equipment|null`, `step_states[]`, `stages[]` and `visual_note`; `POST /procedure-sessions` and
+  `POST /measurements` accept optional `equipment_id`.
+- `POST /api/v1/procedure-sessions/{session_id}/events` *(2.4.0)* — `{step_id, event_type: instruction_displayed|
+  animation_viewed|animation_replayed|visual_unavailable, visual_action_id, actor_id, client_event_id?,
+  occurred_at?, note?}` → 201 event (200 with `duplicate: true` for a repeated `client_event_id`). Visual
+  record only; never changes step order or case state.
 - `POST /api/v1/procedure-sessions/{session_id}/steps` — `{step_id, completion_source: self_confirmed|responder_confirmed|demo_auto}`
   → session `{status, current_step_id, current_step, completed_steps[], completed_count, total_steps, case_state, confirmation_note}`.
 - `POST /api/v1/measurements` — `{case_id, session_id, astronaut_id, type: blood_pressure,

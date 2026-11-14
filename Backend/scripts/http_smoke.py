@@ -70,9 +70,16 @@ def main() -> int:
         check("GET /api/v1/procedures/PROC-BP-01", len(proc_def["steps"]) == 6
               and len({s["visual"]["action_id"] for s in proc_def["steps"]}) == 6, proc_def["validation_level"])
         ses = c.post("/api/v1/procedure-sessions", json={"case_id": case_id, "procedure_id": "PROC-BP-01",
-                                                          "actor_id": "DEMO-001", "mode": "self"})
-        check("POST /api/v1/procedure-sessions", ses.status_code == 201)
+                                                          "actor_id": "DEMO-001", "mode": "self",
+                                                          "equipment_id": eq["equipment_id"]})
+        check("POST /api/v1/procedure-sessions", ses.status_code == 201
+              and ses.json()["equipment"]["equipment_id"] == eq["equipment_id"])
         sid = ses.json()["session_id"]
+        views = [c.post(f"/api/v1/procedure-sessions/{sid}/events",
+                        json={"step_id": st["step_id"], "event_type": "animation_viewed",
+                              "visual_action_id": st["visual"]["action_id"], "actor_id": "DEMO-001"}).status_code
+                 for st in proc_def["steps"]]
+        check("POST /api/v1/procedure-sessions/{id}/events", views == [201] * len(proc_def["steps"]))
         for st in proc_def["steps"]:
             last = c.post(f"/api/v1/procedure-sessions/{sid}/steps",
                           json={"step_id": st["step_id"], "completion_source": "self_confirmed"}).json()
