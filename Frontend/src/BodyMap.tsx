@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { BodyAlerts } from './mission-ui'
 
 export type BodySelection = { regionId: string; laterality: 'left' | 'right' | 'midline'; label: string }
 type Region = BodySelection & { x: number; y: number; w: number; h: number }
@@ -22,10 +23,10 @@ const FRONT: Region[] = [
 ]
 const BACK: Region[] = FRONT.filter(region => region.regionId !== 'eyes').map(region => ({ ...region, regionId: region.regionId === 'chest' ? 'upper_back' : region.regionId === 'abdomen' ? 'lower_back' : region.regionId, label: region.label.replace('chest', 'upper back').replace('abdomen', 'lower back') }))
 
-export function BodyMap({ value, onChange }: { value: BodySelection | null; onChange: (selection: BodySelection) => void }) {
+export function BodyMap({ value, onChange, alerts = {}, compact = false, animateAlerts = true }: { value: BodySelection | null; onChange: (selection: BodySelection) => void; alerts?: BodyAlerts; compact?: boolean; animateAlerts?: boolean }) {
   const [side, setSide] = useState<'front' | 'back'>('front')
   const regions = side === 'front' ? FRONT : BACK
-  return <div className="body-panel">
+  return <div className={`body-panel ${compact ? 'body-panel--preview' : ''} ${animateAlerts ? 'body-panel--animated' : ''}`}>
     <div className="segmented" aria-label="Body view">
       <button type="button" aria-pressed={side === 'front'} onClick={() => setSide('front')}>Front</button>
       <button type="button" aria-pressed={side === 'back'} onClick={() => setSide('back')}>Back</button>
@@ -35,8 +36,9 @@ export function BodyMap({ value, onChange }: { value: BodySelection | null; onCh
         <path className="body-outline" d="M95 12 Q110 2 125 12 L134 28 L130 54 L124 65 L132 71 L152 75 L170 89 L180 185 L170 204 L152 202 L147 155 L147 187 L140 200 L143 325 L133 344 L115 344 L110 220 L105 344 L87 344 L77 325 L80 200 L73 187 L73 155 L68 202 L50 204 L40 185 L50 89 L68 75 L88 71 L96 65 L90 54 L86 28 Z" />
         {regions.map(region => {
           const selected = value?.regionId === region.regionId && value.laterality === region.laterality
+          const alert = alerts[`${region.regionId}:${region.laterality}`]
           return <rect key={`${region.regionId}-${region.laterality}`} x={region.x} y={region.y} width={region.w} height={region.h} rx="11"
-            className={`body-region ${selected ? 'selected' : ''}`} role="button" tabIndex={0} aria-label={region.label} aria-pressed={selected}
+            className={`body-region ${selected ? 'selected' : ''} ${alert ? `body-region--${alert.tone}` : ''}`} role="button" tabIndex={0} aria-label={`${region.label}${alert ? `, reported symptom ${alert.severity} of 10` : ''}`} aria-pressed={selected}
             onClick={() => onChange(region)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onChange(region) } }} />
         })}
       </svg>

@@ -37,4 +37,32 @@ describe('offline-safe screens', () => {
     expect(fetchMock.mock.calls.some(call => call[0].includes('/NASA-RADLAB/records'))).toBe(false)
     expect(screen.getByText(/not live HAB-01 readings or a crew member’s personal dose/i)).toBeInTheDocument()
   })
+  it('places vitals beside the alerting body and expands the selected region for a report', async () => {
+    const bootstrap = { astronaut: { astronaut_id: 'DEMO-001', display_name: 'Demo Astronaut One' }, habitat: { habitat_id: 'HAB-01', zones: [] }, observations: [{ type: 'heart_rate', value: 72, unit: 'bpm', observed_at: '2026-11-14T10:00:00Z', source: 'SIMULATED_WEARABLE' }], scheduled_assessments: [], open_cases: [{ case_id: 'CASE-1', state: 'awaiting_assessment', next_action: 'Check symptoms', updated_at: '2026-11-14T10:00:00Z' }], demo_inputs: { ble_observations: [] }, equipment: [] }
+    const caseData = { case_id: 'CASE-1', state: 'awaiting_assessment', next_action: 'Check symptoms', follow_ups: [], symptoms: [{ region_id: 'chest', laterality: 'left', severity: 8 }], measurements: [] }
+    vi.stubGlobal('fetch', vi.fn((path: string) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(path.includes('/cases/CASE-1') ? caseData : path.includes('/research/datasets/') ? { dataset_id: 'OSD-195', status: 'NOT_DOWNLOADED' } : bootstrap) })))
+    render(<MemoryRouter initialEntries={['/']}><App /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Left chest, reported symptom 8 of 10' })).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'Vitals at a glance' })).toBeInTheDocument()
+    expect(screen.getByText('72')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Left chest, reported symptom 8 of 10' }))
+    expect(screen.getByRole('heading', { name: 'Point to where it hurts' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Vitals at a glance' })).not.toBeInTheDocument()
+    expect(screen.getByText('Left chest')).toBeInTheDocument()
+  })
+
+  it('lets the astronaut choose a map zone and confirms it with the backend', async () => {
+    const bootstrap = { astronaut: { astronaut_id: 'DEMO-001', display_name: 'Demo Astronaut One' }, habitat: { habitat_id: 'HAB-01', zones: [{ zone_id: 'medical', name: 'Medical' }] }, observations: [], scheduled_assessments: [], open_cases: [], demo_inputs: { ble_observations: [] }, equipment: [] }
+    const fetchMock = vi.fn((path: string, _init?: RequestInit) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(path.includes('/location/confirm') ? { zone_id: 'medical', confidence: 1, source: 'manual_confirmation', observed_at: '2026-11-14T10:00:00Z', explanation: 'Confirmed by astronaut' } : bootstrap) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter initialEntries={['/']}><App /></MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+    fireEvent.click(screen.getByRole('link', { name: /Maps · choose my location/ }))
+    expect(screen.getByRole('heading', { name: 'Habitat map & equipment' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /medical/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Confirm medical/i }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(call => call[0].includes('/location/confirm'))).toBe(true))
+    const body = JSON.parse(fetchMock.mock.calls.find(call => call[0].includes('/location/confirm'))?.[1]?.body as string)
+    expect(body.zone_id).toBe('medical')
+  })
 })

@@ -6,14 +6,16 @@ export type DataCategory = 'NASA_RESEARCH' | 'SIMULATED_ASTRONAUT' | 'SIMULATED_
 export type StudyType = 'HUMAN_SPACEFLIGHT' | 'HUMAN_GROUND_ANALOGUE' | 'HUMAN_DERIVED_CELLS' | 'ANIMAL_RESEARCH' | 'SPACEFLIGHT_ENVIRONMENT' | 'FICTIONAL_DEMONSTRATION'
 export type ApiObject = Record<string, unknown>
 export type CaseState = 'detected' | 'investigating' | 'awaiting_assessment' | 'awaiting_results' | 'action_required' | 'monitoring' | 'follow_up_due' | 'escalated' | 'resolved'
-export type CaseSummary = { case_id: string; state: CaseState; next_action: string; updated_at: string }
-export type CaseOut = CaseSummary & { follow_up_status: string; follow_ups: ApiObject[]; measurements: ApiObject[] }
+export type CaseSummary = { case_id: string; state: CaseState; priority?: 'routine' | 'urgent'; next_action: string; updated_at: string }
+export type SymptomOut = { symptom_id: string; region_id: string; laterality: string; severity: number; onset: string; reported_at: string; note: string | null }
+export type FollowUpOut = { follow_up_id: string; title: string; due_at: string; status: string; interrupt: boolean }
+export type CaseOut = CaseSummary & { follow_up_status: string; follow_ups: FollowUpOut[]; symptoms: SymptomOut[]; measurements: ApiObject[] }
 export type BootstrapOut = {
   astronaut: { astronaut_id: string; display_name: string }; habitat: { habitat_id: string; zones: { zone_id: string; name: string }[] };
   anchors: { anchor_id: string; zone_id: string; enabled: boolean }[];
   equipment: { equipment_id: string; zone_id: string; readiness: string }[];
   observations: { type: string; value: number | null; unit: string; observed_at: string; source: string }[];
-  scheduled_assessments: { title: string; due_at: string; is_due: boolean; reason: string }[];
+  scheduled_assessments: { title: string; due_at: string; is_due: boolean; status: 'scheduled' | 'completed'; reason: string }[];
   open_cases: CaseSummary[];
   demo_inputs: { ble_observations: { anchor_id: string; rssi_dbm: number; age_seconds: number }[]; symptom: ApiObject; measurement: ApiObject; emergency: ApiObject };
 }
