@@ -81,6 +81,8 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   `expression_records[]`, `samples[]`, `comparison_readiness` and `source_files[]`, and leaves `records[]`
   empty. A filter of the wrong schema returns 422 `INVALID_FILTER_FOR_DATASET`. Details:
   `docs/INTEGRATION_HANDOFF.md` §11.
+- OSD-656 (`record_schema: BIO_ASSAY_TABLE`) uses the same endpoint with filters `subject_id`, `analyte`,
+  `timepoint` and `measure`. It fills `assay_records[]` and `available_measures[]`.
 - `GET /api/v1/research/datasets/{dataset_id}` → summary + `experimental_context`, `limitations`, `latest_import`, `raw_dir`.
 - `GET /api/v1/research/datasets/{dataset_id}/records?subject_id&analyte&timepoint&limit(1-1000, default 100)&offset`
 - `GET /api/v1/research/osd-575?subject_id&analyte&timepoint&limit(1-1000, default 1000)&offset`

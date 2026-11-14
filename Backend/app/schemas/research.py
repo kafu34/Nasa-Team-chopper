@@ -154,6 +154,33 @@ class GeneExpressionRecord(BaseModel):
     data_category: DataCategory = "NASA_RESEARCH"
 
 
+class AssayRecord(BaseModel):
+    """One value from a wide bio-assay table (BIO_ASSAY_TABLE), e.g. OSD-656 urine inflammation panel."""
+
+    record_id: int
+    dataset_id: DatasetId
+    sample_name: str = Field(description="'Sample Name' exactly as in the source, e.g. C001_urine_L-92.")
+    subject_id: str = Field(description="Anonymised research subject ID as published (e.g. C001).")
+    specimen: str = Field(description="Specimen type parsed from the sample name, e.g. urine.")
+    analyte: str = Field(description="Target name as in the column header, e.g. il6.")
+    measure: Literal["concentration_npq", "percent_normalized_value"]
+    value: Optional[float] = Field(description="Numeric value; null when the source says NA.")
+    value_raw: str
+    unit: str
+    timepoint: str
+    timepoint_phase: Literal["PREFLIGHT", "POSTFLIGHT"]
+    timepoint_day_offset: int
+    timepoint_order: int
+    target_name: Optional[str] = Field(description="From the NASA target information file; null if no exact match.")
+    gene_name: Optional[str]
+    uniprot_id: Optional[str]
+    protein_name: Optional[str]
+    source_file: str
+    source_row_number: int
+    source_column: str = Field(description="Exact column header in the source file.")
+    data_category: DataCategory = "NASA_RESEARCH"
+
+
 class ResearchRecordsPage(BaseModel):
     dataset_id: DatasetId
     title: str
@@ -176,6 +203,10 @@ class ResearchRecordsPage(BaseModel):
     expression_records: list[GeneExpressionRecord] = Field(
         default_factory=list, description="GENE_EXPRESSION_V1 records. Empty for other schemas.")
     samples: list[ResearchSample] = Field(default_factory=list, description="Sample metadata (expression datasets).")
+    assay_records: list[AssayRecord] = Field(
+        default_factory=list, description="BIO_ASSAY_TABLE records (OSD-656). Empty for other schemas.")
+    available_measures: list[str] = Field(default_factory=list,
+                                          description="BIO_ASSAY_TABLE measure names present in the dataset.")
     comparison_readiness: Optional[ComparisonReadiness] = None
     source_files: list[Provenance] = Field(default_factory=list,
                                            description="Provenance of every imported file (multi-file datasets).")

@@ -96,7 +96,7 @@ verbatim from NASA pages during this build and must be checked before quoting.
 
 | ID | Priority | What it contains (from the OSDR metadata API unless noted) | Title verified | Source URL |
 |---|---|---|---|---|
-| `OSD-656` | P1 | Inspiration4 crew urine, NULISA-seq 200-plex inflammation panel, pre/post flight | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-656 |
+| `OSD-656` | P1 | **Now imported — see §2c.** Inspiration4 crew urine, NULISA-seq 200-plex inflammation panel, pre/post flight | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-656 |
 | `NASA-EDA` | P1 | Environmental Data App: ISS cabin/hardware telemetry (temperature, humidity, CO2) and radiation summaries | Yes ("Environmental Data App") | https://visualization.osdr.nasa.gov/eda/ |
 | `NASA-RADLAB` | P1 | Space radiation dosimetry data — portal name and URL **not confirmed** | No | https://visualization.osdr.nasa.gov/radlab/ (unconfirmed lead) |
 | `OSD-654` | P2 | Mouse tibia bone DXA and micro-CT, hindlimb-unloading ground analogue | No | https://osdr.nasa.gov/bio/repo/data/studies/OSD-654 |
@@ -130,10 +130,10 @@ have duplicate "(1)" copies) and **no `*_processed.txt` files**. Raw Affymetrix 
 (P2), so OSD-195 shows no values.
 
 Supplied but not yet imported: `GLDS-546_array_differential_expression.csv` (NASA's limma results),
-`GLDS-546_array_contrasts.csv`, the probe-level intensity tables, the runsheet, and the OSD-656 files
-`LSDS-64_Multiplex_urine.immune.AlamarPanel_TRANSFORMED.csv` / `_SUBMITTED (1).xlsx` / `200plex v1-Target
-Information.csv`. `LSDS-8_Comprehensive_Metabolic_Panel_CMP_TRANSFORMED.csv` is an alternative OSD-575 table;
-SENTINEL keeps the SUBMITTED CSV already imported.
+`GLDS-546_array_contrasts.csv`, the probe-level intensity tables, the runsheet, and the OSD-656
+`_SUBMITTED (1).xlsx`. The OSD-656 TRANSFORMED CSV and target information file are imported (§2c).
+`LSDS-8_Comprehensive_Metabolic_Panel_CMP_TRANSFORMED.csv` is an alternative OSD-575 table; SENTINEL keeps
+the SUBMITTED CSV already imported.
 
 ### OSD-195 — human skeletal muscle, bed rest (`HUMAN_GROUND_ANALOGUE`)
 
@@ -180,6 +180,40 @@ SENTINEL keeps the SUBMITTED CSV already imported.
   codes and fails if the SampleTable group disagrees with the verified flight/ground factor.
 - Not a measurement of astronaut bone density, bone mineral density or fracture risk. SENTINEL does not
   recompute or reinterpret differential expression.
+
+## 2c. OSD-656: Inspiration4 urine inflammation panel (P1, imported)
+
+`HUMAN_SPACEFLIGHT`. Record schema `BIO_ASSAY_TABLE`. Importer: `Backend/app/importers/osd656.py`.
+
+| File in `data/nasa/raw/OSD-656/` | SHA-256 |
+|---|---|
+| `LSDS-64_Multiplex_urine.immune.AlamarPanel_TRANSFORMED.csv` | `f81b6dff9c34accab6dffe7a0b2970854f2f0b8d2712e92cfd0e91e6bb59c94a` |
+| `LSDS-64_Multiplex_200plex v1-Target Information.csv` (annotation) | `7ced5075db3df9e47b8cf14e1bc57e49ab34cb49b6d5f76325d6def88ae7ee2a` |
+
+**What was imported**
+- **8,888 values:** 22 urine samples × 404 named measurement columns, covering 203 targets.
+- **Measures per target:** `concentration_npq` (NPQ units) and `percent_normalized_value`, both as published.
+- **Missing values:** 52 `NA` values stored as `null`. Most are in `c1qa_percent_normalized_value` (22),
+  `il17c_…` (12) and `bdnf_…` (10).
+- **Samples and timepoints:** subjects C001–C004 at L-92, L-44, L-3, R+1, R+45 and R+82. These are ground
+  samples taken before launch and after return. Not every subject has every timepoint: C001 has no L-3 or
+  R+1 sample.
+- **Annotation:** gene name, UniProt ID and protein name come from NASA's target information file, joined
+  on exact normalised target name. All 203 targets matched.
+- **Verified:** IL6 `concentration_npq` for C001 at all 4 timepoints equals the source file, and an automated
+  test compares every 37th column of every row with the CSV.
+
+**Not imported**
+- **Two blank columns:** NASA's file has two columns with an **empty header**, at positions 3 and 215. The
+  first follows `activin_a_concentration_npq` and is probably Activin A's percent value, but that can't be
+  verified, so neither column is imported. Both are listed in the import summary.
+- **The SUBMITTED `.xlsx`:** not read. The TRANSFORMED CSV is NASA's tabular release.
+
+**Limitations**
+- NPQ and percent-normalized values are relative assay units, not clinical concentrations, and there are no
+  reference ranges.
+- Four crew members only.
+- Never used as SENTINEL astronaut data.
 
 ### Transformation
 

@@ -11,7 +11,8 @@ from .. import models as m
 from ..db import get_db
 from ..errors import ApiError
 from ..schemas.common import error_responses
-from ..schemas.research import (CmpRecord, ComparisonReadiness, DatasetDetail, DatasetList, GeneExpressionRecord,
+from ..importers import osd656
+from ..schemas.research import (AssayRecord, CmpRecord, ComparisonReadiness, DatasetDetail, DatasetList, GeneExpressionRecord,
                                 Provenance, ResearchRecordsPage, ResearchSample, StudyTypeInfo, TimeseriesPage)
 from ..services import datasets as ds
 from ..importers import expression as ex
@@ -154,15 +155,60 @@ def _expression_page(db: Session, settings, dataset_id: str, subject_id: Optiona
         source_files=[_provenance(dataset_id, imp, ex.TRANSFORMATION) for imp in current.values()])
 
 
+def _assay_page(db: Session, settings, dataset_id: str, subject_id: Optional[str], analyte: Optional[str],
+                timepoint: Optional[str], measure: Optional[str], limit: int, offset: int) -> ResearchRecordsPage:
+    A = m.AssayMeasurement
+    imp = db.scalars(select(m.DatasetImport).where(m.DatasetImport.dataset_id == dataset_id,
+                                                   m.DatasetImport.status == "IMPORTED")
+                     .order_by(m.DatasetImport.started_at.desc())).first()
+    if imp is None or ds.record_count(db, dataset_id) == 0:
+        raise _unavailable(db, settings, dataset_id)
+    where = A.dataset_id == dataset_id
+    subjects = sorted(db.scalars(select(A.subject_id).where(where).distinct()))
+    analytes = sorted(db.scalars(select(A.analyte).where(where).distinct()))
+    measures = sorted(db.scalars(select(A.measure).where(where).distinct()))
+    tps = [t for t, _ in db.execute(select(A.timepoint, func.min(A.timepoint_order)).where(where)
+                                   .group_by(A.timepoint).order_by(func.min(A.timepoint_order)))]
+    for name, val, allowed in (("subject_id", subject_id, subjects), ("analyte", analyte, analytes),
+                               ("timepoint", timepoint, tps), ("measure", measure, measures)):
+        if val is not None and val not in allowed:
+            raise ApiError(422, "UNKNOWN_FILTER_VALUE", f"{name} '{val}' is not present in {dataset_id}.",
+                           {"parameter": name, "allowed_values": allowed})
+    base = select(A).where(where)
+    for col, val in ((A.subject_id, subject_id), (A.analyte, analyte), (A.timepoint, timepoint), (A.measure, measure)):
+        if val:
+            base = base.where(col == val)
+    total = db.scalar(select(func.count()).select_from(base.subquery()))
+    rows = db.scalars(base.order_by(A.analyte, A.measure, A.subject_id, A.timepoint_order)
+                      .limit(limit).offset(offset)).all()
+    meta = ds.REGISTRY[dataset_id]
+    prov = _provenance(dataset_id, imp, osd656.TRANSFORMATION)
+    return ResearchRecordsPage(
+        dataset_id=dataset_id, title=meta["title"], source_url=meta["source_url"], source_file=imp.source_file,
+        record_schema=meta["record_schema"], provenance=prov, total=total, limit=limit, offset=offset,
+        filters_applied={"subject_id": subject_id, "analyte": analyte, "timepoint": timepoint, "measure": measure},
+        available_subjects=subjects, available_analytes=analytes, available_timepoints=tps,
+        available_measures=measures, limitations=meta["limitations"], records=[],
+        study_type=ds.CLASSIFICATION[dataset_id]["study_type"], source_files=[prov],
+        assay_records=[AssayRecord(record_id=r.id, dataset_id=dataset_id,
+                                   **{k: getattr(r, k) for k in AssayRecord.model_fields
+                                      if k not in ("record_id", "dataset_id", "data_category")}) for r in rows])
+
+
 def _records_page(db: Session, settings, dataset_id: str, subject_id: Optional[str], analyte: Optional[str],
                   timepoint: Optional[str], limit: int, offset: int, sample_id: Optional[str] = None,
-                  probe_id: Optional[str] = None, gene_symbol: Optional[str] = None) -> ResearchRecordsPage:
+                  probe_id: Optional[str] = None, gene_symbol: Optional[str] = None,
+                  measure: Optional[str] = None) -> ResearchRecordsPage:
     if dataset_id not in ds.REGISTRY:
         raise _unknown_dataset(dataset_id)
-    if ds.REGISTRY[dataset_id]["record_schema"] == "GENE_EXPRESSION_V1":
-        _wrong_filter(dataset_id, {"analyte": analyte, "timepoint": timepoint})
+    schema = ds.REGISTRY[dataset_id]["record_schema"]
+    if schema == "GENE_EXPRESSION_V1":
+        _wrong_filter(dataset_id, {"analyte": analyte, "timepoint": timepoint, "measure": measure})
         return _expression_page(db, settings, dataset_id, subject_id, sample_id, probe_id, gene_symbol, limit, offset)
     _wrong_filter(dataset_id, {"sample_id": sample_id, "probe_id": probe_id, "gene_symbol": gene_symbol})
+    if schema == "BIO_ASSAY_TABLE":
+        return _assay_page(db, settings, dataset_id, subject_id, analyte, timepoint, measure, limit, offset)
+    _wrong_filter(dataset_id, {"measure": measure})
     imp = db.scalars(select(m.DatasetImport).where(m.DatasetImport.dataset_id == dataset_id,
                                                    m.DatasetImport.status == "IMPORTED")
                      .order_by(m.DatasetImport.started_at.desc())).first()
@@ -218,9 +264,10 @@ def dataset_records(dataset_id: str, request: Request, db: Session = Depends(get
                     sample_id: Optional[str] = Query(None, examples=["GSM2813750"]),
                     probe_id: Optional[str] = Query(None),
                     gene_symbol: Optional[str] = Query(None, examples=["MSTN"]),
+                    measure: Optional[str] = Query(None, examples=["concentration_npq"]),
                     limit: int = Query(100, ge=1, le=1000), offset: int = Query(0, ge=0)) -> ResearchRecordsPage:
     return _records_page(db, request.app.state.settings, dataset_id, subject_id, analyte, timepoint, limit, offset,
-                         sample_id, probe_id, gene_symbol)
+                         sample_id, probe_id, gene_symbol, measure)
 
 
 @router.get("/research/osd-575", response_model=ResearchRecordsPage, responses=error_responses(422, 503),

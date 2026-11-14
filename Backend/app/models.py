@@ -315,3 +315,38 @@ class GeneExpressionValue(Base):
     gene_symbol: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     value_raw: Mapped[str] = mapped_column(String)
+
+
+class AssayMeasurement(Base):
+    """One value from a wide NASA bio-assay table (BIO_ASSAY_TABLE), e.g. OSD-656 urine NULISA panel.
+
+    One record per (sample row, measurement column). Research data only (NASA_RESEARCH).
+    """
+
+    __tablename__ = "assay_measurements"
+    __table_args__ = (
+        UniqueConstraint("dataset_id", "source_file", "source_row_number", "source_column", name="uq_assay_cell"),
+        Index("ix_assay_subject_analyte", "dataset_id", "subject_id", "analyte"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(String, index=True)
+    import_id: Mapped[str] = mapped_column(ForeignKey("dataset_imports.import_id"))
+    source_file: Mapped[str] = mapped_column(String)
+    source_row_number: Mapped[int] = mapped_column(Integer)
+    source_column: Mapped[str] = mapped_column(String)
+    sample_name: Mapped[str] = mapped_column(String)
+    subject_id: Mapped[str] = mapped_column(String)
+    specimen: Mapped[str] = mapped_column(String)
+    analyte: Mapped[str] = mapped_column(String)
+    measure: Mapped[str] = mapped_column(String)
+    value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    value_raw: Mapped[str] = mapped_column(String)
+    unit: Mapped[str] = mapped_column(String)
+    timepoint: Mapped[str] = mapped_column(String)
+    timepoint_phase: Mapped[str] = mapped_column(String)
+    timepoint_day_offset: Mapped[int] = mapped_column(Integer)
+    timepoint_order: Mapped[int] = mapped_column(Integer)
+    target_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    gene_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    uniprot_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    protein_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)

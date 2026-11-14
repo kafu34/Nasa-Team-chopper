@@ -586,6 +586,16 @@ paths:
           examples:
           - MSTN
           title: Gene Symbol
+      - name: measure
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          examples:
+          - concentration_npq
+          title: Measure
       - name: limit
         in: query
         required: false
@@ -931,6 +941,138 @@ components:
       - verified_at
       - verified_by
       title: AnchorOut
+    AssayRecord:
+      properties:
+        record_id:
+          type: integer
+          title: Record Id
+        dataset_id:
+          type: string
+          enum:
+          - OSD-575
+          - OSD-656
+          - NASA-EDA
+          - NASA-RADLAB
+          - OSD-654
+          - OSD-684
+          - OSD-573
+          - OSD-817
+          - OSD-195
+          - OSD-546
+          title: Dataset Id
+        sample_name:
+          type: string
+          title: Sample Name
+          description: '''Sample Name'' exactly as in the source, e.g. C001_urine_L-92.'
+        subject_id:
+          type: string
+          title: Subject Id
+          description: Anonymised research subject ID as published (e.g. C001).
+        specimen:
+          type: string
+          title: Specimen
+          description: Specimen type parsed from the sample name, e.g. urine.
+        analyte:
+          type: string
+          title: Analyte
+          description: Target name as in the column header, e.g. il6.
+        measure:
+          type: string
+          enum:
+          - concentration_npq
+          - percent_normalized_value
+          title: Measure
+        value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Value
+          description: Numeric value; null when the source says NA.
+        value_raw:
+          type: string
+          title: Value Raw
+        unit:
+          type: string
+          title: Unit
+        timepoint:
+          type: string
+          title: Timepoint
+        timepoint_phase:
+          type: string
+          enum:
+          - PREFLIGHT
+          - POSTFLIGHT
+          title: Timepoint Phase
+        timepoint_day_offset:
+          type: integer
+          title: Timepoint Day Offset
+        timepoint_order:
+          type: integer
+          title: Timepoint Order
+        target_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Name
+          description: From the NASA target information file; null if no exact match.
+        gene_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Gene Name
+        uniprot_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uniprot Id
+        protein_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Protein Name
+        source_file:
+          type: string
+          title: Source File
+        source_row_number:
+          type: integer
+          title: Source Row Number
+        source_column:
+          type: string
+          title: Source Column
+          description: Exact column header in the source file.
+        data_category:
+          type: string
+          enum:
+          - NASA_RESEARCH
+          - SIMULATED_ASTRONAUT
+          - SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: NASA_RESEARCH
+      type: object
+      required:
+      - record_id
+      - dataset_id
+      - sample_name
+      - subject_id
+      - specimen
+      - analyte
+      - measure
+      - value
+      - value_raw
+      - unit
+      - timepoint
+      - timepoint_phase
+      - timepoint_day_offset
+      - timepoint_order
+      - target_name
+      - gene_name
+      - uniprot_id
+      - protein_name
+      - source_file
+      - source_row_number
+      - source_column
+      title: AssayRecord
+      description: One value from a wide bio-assay table (BIO_ASSAY_TABLE), e.g. OSD-656 urine inflammation panel.
     AstronautOut:
       properties:
         astronaut_id:
@@ -3559,6 +3701,18 @@ components:
           type: array
           title: Samples
           description: Sample metadata (expression datasets).
+        assay_records:
+          items:
+            $ref: '#/components/schemas/AssayRecord'
+          type: array
+          title: Assay Records
+          description: BIO_ASSAY_TABLE records (OSD-656). Empty for other schemas.
+        available_measures:
+          items:
+            type: string
+          type: array
+          title: Available Measures
+          description: BIO_ASSAY_TABLE measure names present in the dataset.
         comparison_readiness:
           anyOf:
           - $ref: '#/components/schemas/ComparisonReadiness'

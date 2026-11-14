@@ -50,10 +50,21 @@ REGISTRY: dict[str, dict] = {
         source_url_verified=False,
         record_schema="BIO_ASSAY_TABLE",
         priority="P1",
-        expected_files=["LSDS-64_Multiplex_urine.immune.AlamarPanel_TRANSFORMED.csv"],
-        importer=False,
-        experimental_context="SpaceX Inspiration4; ground samples before launch and after return.",
-        limitations=["No importer in P0.", "Small cohort; research context only."],
+        expected_files=["LSDS-64_Multiplex_urine.immune.AlamarPanel_TRANSFORMED.csv",
+                        "LSDS-64_Multiplex_200plex v1-Target Information.csv"],
+        importer=True,
+        experimental_context="SpaceX Inspiration4 (about 3 days in low Earth orbit). Urine collected on the ground "
+                             "before launch (L-92, L-44, L-3) and after return (R+1, R+45, R+82). Not in-flight "
+                             "samples. 22 samples from crew members C001-C004 (not every member at every "
+                             "timepoint).",
+        limitations=[
+            "Four civilian crew members; far too small for clinical conclusions.",
+            "Preflight and postflight ground samples only; not in-flight measurements.",
+            "NPQ and percent-normalized values are relative assay units as published, not clinical "
+            "concentrations; no reference ranges exist in the file.",
+            "Two columns with an empty header in the NASA file are not imported (meaning cannot be verified).",
+            "Research context only. Never used to diagnose or assess a SENTINEL astronaut.",
+        ],
     ),
     "NASA-EDA": dict(
         title="Environmental Data App (EDA)",
@@ -279,8 +290,8 @@ def latest_import(db: Session, dataset_id: str) -> m.DatasetImport | None:
 
 
 def record_count(db: Session, dataset_id: str) -> int:
-    table = m.GeneExpressionValue if REGISTRY[dataset_id]["record_schema"] == "GENE_EXPRESSION_V1" \
-        else m.ResearchMeasurement
+    table = {"GENE_EXPRESSION_V1": m.GeneExpressionValue, "BIO_ASSAY_TABLE": m.AssayMeasurement}.get(
+        REGISTRY[dataset_id]["record_schema"], m.ResearchMeasurement)
     return db.scalar(select(func.count()).select_from(table).where(table.dataset_id == dataset_id)) or 0
 
 

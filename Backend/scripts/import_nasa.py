@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import Settings  # noqa: E402
 from app.db import Base, make_engine, make_session_factory  # noqa: E402
-from app.importers import expression  # noqa: E402
+from app.importers import expression, osd656  # noqa: E402
 from app.importers.osd575 import import_csv, import_if_available  # noqa: E402
 
 OK = ("imported", "skipped_duplicate")
@@ -34,12 +34,15 @@ def main() -> int:
             dataset_id = args[args.index("--dataset") + 1]
             if dataset_id == "OSD-575":
                 report["OSD-575"] = [asdict(import_if_available(db, settings))]
+            elif dataset_id == "OSD-656":
+                report["OSD-656"] = [asdict(osd656.import_if_available(db, settings))]
             else:
                 report[dataset_id] = [asdict(r) for r in expression.import_dataset(db, settings, dataset_id)]
         elif args:
             report["OSD-575"] = [asdict(import_csv(db, settings, Path(args[0])))]
         else:
             report["OSD-575"] = [asdict(import_if_available(db, settings))]
+            report["OSD-656"] = [asdict(osd656.import_if_available(db, settings))]
             for dataset_id, results in expression.import_all_available(db, settings).items():
                 report[dataset_id] = [asdict(r) for r in results]
     print(json.dumps(report, indent=2))

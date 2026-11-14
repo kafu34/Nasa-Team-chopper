@@ -170,8 +170,13 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
   (SHA-256 `dab247eb794edab59aaaa683c85fd1f2dbf4ae3684872739338e10ead4192a0c`).
 - Imported: 531/531 rows, 4 subjects (C001–C004), 19 analytes, 7 timepoints. 22 `NA` values and 56 `N/A`
   upper bounds stored as `null`. Status `IMPORTED`.
-- The other seven catalogue datasets report `NOT_DOWNLOADED` (no importer yet). Show their `source_url` and
-  status honestly; do not chart them.
+- **OSD-656 (urine inflammation panel) is `IMPORTED`:** 8,888 values (203 targets × 22 samples, 2 measures).
+  - Records come in `assay_records[]`.
+  - Filters: `subject_id`, `analyte` (e.g. `il6`), `timepoint` and `measure` (`concentration_npq` |
+    `percent_normalized_value`).
+  - Example: `GET /api/v1/research/datasets/OSD-656/records?analyte=il6&measure=concentration_npq`.
+- NASA-EDA, NASA-RADLAB, OSD-654, OSD-684, OSD-573 and OSD-817 report `NOT_DOWNLOADED` (no importer yet).
+  Show their `source_url` and status honestly; do not chart them.
 - **v2.2:** OSD-195 (bed-rest muscle, `HUMAN_GROUND_ANALOGUE`) and OSD-546 (bone-marrow stem cells on the
   ISS, `HUMAN_DERIVED_CELLS`) have importers.
   - **OSD-546 is `IMPORTED`:** 432,861 real values (33,297 probesets × 13 samples).
@@ -184,7 +189,7 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **111 passed, 0 failed** (pytest) and **21/21** real-HTTP checks against uvicorn.
+See `docs/TEST_REPORT.md`. Latest: **123 passed, 0 failed** (pytest) and **22/22** real-HTTP checks against uvicorn.
 
 ## 10. Known contract deviations and coordination notes
 
@@ -236,8 +241,18 @@ passes. Bump it to `2.2.0` together once Codex has adopted the fields below.
      `gene_symbol|null`, `value|null`, `value_raw`, `value_unit`, `normalization`, `normalization_verified`,
      `source_file`, `source_row_number`, `source_column` and `data_category`.
    - Gene-expression datasets leave `records[]` empty.
-5. `POST /demo/reset`: `research_records_before/after` now count CMP records **plus** expression values. They
-   are still equal before and after a reset.
+5. `POST /demo/reset`: `research_records_before/after` now count CMP records, OSD-656 assay values **and**
+   expression values. They are still equal before and after a reset.
+5b. **OSD-656 (`BIO_ASSAY_TABLE`)** fills `assay_records[]` (`AssayRecord`) and `available_measures[]`.
+   - New query parameter `measure`, valid for this schema only.
+   - Each `AssayRecord` has:
+     - sample fields: `sample_name`, `subject_id`, `specimen`;
+     - measurement fields: `analyte`, `measure`, `value|null`, `value_raw`, `unit`;
+     - timepoint fields: `timepoint`, `timepoint_phase`, `timepoint_day_offset`, `timepoint_order`;
+     - target annotation: `target_name`, `gene_name`, `uniprot_id`, `protein_name` (each nullable);
+     - provenance: `source_file`, `source_row_number`, `source_column`, `data_category`.
+   - Units are relative assay units (NPQ, percent normalized), not clinical concentrations. Show no reference
+     ranges.
 6. Display rules:
    - OSD-195 is a bed-rest study on Earth. OSD-546 is cells in culture.
    - Never label either as an astronaut's muscle mass, strength or bone density.

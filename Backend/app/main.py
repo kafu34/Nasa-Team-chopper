@@ -69,7 +69,10 @@ def startup(app: FastAPI) -> None:
 
             result = import_if_available(db, settings)
             log.info("OSD-575 auto-import: %s", result.outcome)
+            from .importers import osd656
             from .importers.expression import import_all_available
+
+            log.info("OSD-656 auto-import: %s", osd656.import_if_available(db, settings).outcome)
 
             for dataset_id, results in import_all_available(db, settings).items():
                 log.info("%s auto-import: %s", dataset_id, [r.outcome for r in results])

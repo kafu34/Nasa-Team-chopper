@@ -3,6 +3,26 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## OSD-656 importer, run 2026-11-14
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **123 passed, 0 failed** (adds 12 in `test_j_osd656.py`) |
+| `scripts/http_smoke.py` | **22/22** (adds an OSD-656 check; reported `IMPORTED`) |
+| `scripts/import_nasa.py --dataset OSD-656` with the real NASA file | `imported` 8,888 values (203 targets × 22 samples), 52 NA → null, 2 blank-header columns skipped. Re-run: `skipped_duplicate` |
+| Spot check against the source | IL6 `concentration_npq`, C001, all 4 timepoints: API equals the CSV |
+
+`test_j_osd656.py` covers:
+- the not-downloaded state and a 503 from the records endpoint;
+- values, `value_raw`, NA → null, timepoint parsing and target annotation, including the normalised
+  `ifna1;_ifna13` match;
+- skipping blank-header columns, and nulls when the target file is absent;
+- duplicate imports, and a changed target file triggering a re-import;
+- 5 malformed-file cases that must fail atomically, plus schema-specific filters;
+- separation from the patient workflow, and reset safety;
+- the **real NASA file**: 22 × 404 values, 52 NAs, SHA-256, every 37th column of every row equal to the
+  source, 203 analytes, 4 subjects and 6 timepoints.
+
 ## v2.2 update (OSD-195 / OSD-546), run 2026-11-14
 
 | Suite | Result |
