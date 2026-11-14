@@ -33,7 +33,10 @@ def get_procedure(db: Session, procedure_id: str) -> m.ProcedureDefinition:
 
 def procedure_out(p: m.ProcedureDefinition) -> ProcedureOut:
     d = p.definition
-    return ProcedureOut(**{k: d[k] for k in ProcedureOut.model_fields if k in d})
+    reqs = [{"step_id": s["step_id"], "action_id": s["visual"]["action_id"],
+             "asset_ids": [s["visual"]["asset_id"], *s["visual"]["additional_asset_ids"]]}
+            for s in sorted(d["steps"], key=lambda s: s["order"])]
+    return ProcedureOut(**{k: d[k] for k in ProcedureOut.model_fields if k in d}, visual_requirements=reqs)
 
 
 def _steps(p: m.ProcedureDefinition) -> list[dict]:

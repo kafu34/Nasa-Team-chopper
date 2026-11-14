@@ -36,6 +36,7 @@ class ConnectionOut(Out):
     to_zone_id: str
     accessible: bool
     note: str
+    hatch_id: Optional[str] = None
 
 
 class HabitatOut(BaseModel):
@@ -100,11 +101,19 @@ class RegionOut(BaseModel):
     lateral: bool
 
 
+class SitePlausibility(BaseModel):
+    y_min_m: float
+    y_max_m: float
+    surface: Literal["front", "back", "any"]
+
+
 class SurfaceSiteOut(BaseModel):
     site_id: str
     label: str
     region_id: str
     laterality: Laterality
+    plausibility: Optional[SitePlausibility] = Field(default=None, description="Coarse height/face band checked "
+                                                     "on report, for models that declare it.")
 
 
 class SurfaceModelOut(BaseModel):
@@ -112,6 +121,47 @@ class SurfaceModelOut(BaseModel):
     coordinate_limit: float
     coordinate_note: str
     sites: list[SurfaceSiteOut]
+
+
+class SurfaceMeshOut(BaseModel):
+    mesh_id: str
+    triangle_count: int
+    description: Optional[str] = None
+    layer: Optional[str] = None
+    selectable: bool = True
+    node_transform: Optional[dict[str, list[float]]] = Field(default=None, description="translation and scale "
+                                                             "from mesh-local to model coordinates.")
+    local_bounds: Optional[dict[str, list[float]]] = None
+
+
+class SurfaceModelVersionOut(BaseModel):
+    model_version: str
+    coordinates_compatible: bool
+    note: str
+
+
+class RegisteredSurfaceModelOut(BaseModel):
+    """A 3D Anatomical Twin model from shared/anatomy/<model_id>.json (contract 2.2.0)."""
+
+    model_id: str
+    model_version: str
+    status: Literal["active", "retired"]
+    kind: str
+    description: str
+    asset: Optional[dict[str, Any]] = Field(default=None, description="Frontend asset file, hash, licence and "
+                                            "attribution.")
+    coordinate_frame: dict[str, Any]
+    side_tolerance: float
+    meshes: Optional[list[SurfaceMeshOut]] = Field(description="Null when the model does not declare its meshes; "
+                                                               "mesh_id is then stored but not validated.")
+    previous_versions: list[SurfaceModelVersionOut]
+    sites: list[SurfaceSiteOut]
+
+
+class AnnotationKindOut(BaseModel):
+    kind: Literal["surface_selection", "region_classification", "patient_reported_symptom", "monitoring_concern",
+                  "verified_finding"]
+    description: str
 
 
 class BleObservationTemplate(BaseModel):
@@ -149,7 +199,9 @@ class BootstrapOut(BaseModel):
     open_cases: list[CaseSummary]
     anatomical_regions: list[RegionOut]
     laterality_values: list[Laterality]
-    surface_model: SurfaceModelOut
+    surface_model: SurfaceModelOut = Field(description="Default model in the v2.2 shape. See surface_models.")
+    surface_models: list[RegisteredSurfaceModelOut]
+    anatomical_annotation_kinds: list[AnnotationKindOut]
     demo_inputs: DemoInputs
     research_datasets: list[DatasetSummary]
 

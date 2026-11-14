@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import timedelta
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -25,12 +26,14 @@ from .. import models as m
 from ..db import utcnow
 from ..errors import ApiError, not_found
 from ..schemas.spatial import (EquipmentRecommendation, ExcludedEquipment, LocationEstimateOut,
-                               LocationEstimateRequest, RejectedObservation, ZoneScore)
+                               LocationEstimateRequest, LocationLatestOut, RejectedObservation, ZoneScore)
+from . import habitat
 from .audit import audit
 
 STALE_AFTER = timedelta(seconds=30)
 FUTURE_TOLERANCE = timedelta(seconds=5)
 HYSTERESIS_WINDOW = timedelta(seconds=60)
+MANUAL_STALE_AFTER = timedelta(minutes=15)
 HYSTERESIS_MARGIN_DB = 3
 READINESS_MAX_AGE = timedelta(hours=24)
 
@@ -40,12 +43,19 @@ def _require_astronaut(db: Session, astronaut_id: str) -> None:
         raise not_found("Astronaut", astronaut_id)
 
 
+def _map_version(db: Session) -> Optional[str]:
+    hab = db.scalars(select(m.Habitat)).first()
+    return hab.map_version if hab is not None else None
+
+
 def _store(db: Session, out: LocationEstimateOut) -> LocationEstimateOut:
+    out.map_version = _map_version(db)
     db.add(m.LocationEstimate(estimate_id=out.estimate_id, astronaut_id=out.astronaut_id, zone_id=out.zone_id,
                               confidence=out.confidence, source=out.source, observed_at=out.observed_at,
                               estimated_at=out.estimated_at,
                               details=out.model_dump(mode="json", include={"used_anchor_ids", "rejected",
-                                                                           "zone_scores", "method"})))
+                                                                           "zone_scores", "method",
+                                                                           "explanation"})))
     audit(db, "location-engine", "location.estimated", "location_estimate", out.estimate_id,
           zone_id=out.zone_id, confidence=out.confidence, source=out.source)
     db.commit()
@@ -122,6 +132,36 @@ def confirm(db: Session, astronaut_id: str, zone_id: str, confirmed_by: str) -> 
         zone_scores=[], explanation=f"Zone confirmed manually by {confirmed_by}."))
 
 
+def latest(db: Session, astronaut_id: str) -> LocationLatestOut:
+    """Newest stored estimate with an honest freshness label. Old observations are never shown as current."""
+    _require_astronaut(db, astronaut_id)
+    row = db.scalars(select(m.LocationEstimate).where(m.LocationEstimate.astronaut_id == astronaut_id)
+                     .order_by(m.LocationEstimate.estimated_at.desc())).first()
+    if row is None:
+        return LocationLatestOut(astronaut_id=astronaut_id, display_mode="unavailable", estimate=None,
+                                 age_seconds=None, stale_after_seconds=None, label="No location estimate yet.")
+    d = row.details or {}
+    est = LocationEstimateOut(
+        estimate_id=row.estimate_id, astronaut_id=row.astronaut_id, zone_id=row.zone_id, confidence=row.confidence,
+        source=row.source, observed_at=row.observed_at, estimated_at=row.estimated_at,
+        method=d.get("method", "unknown"), used_anchor_ids=d.get("used_anchor_ids", []),
+        rejected=d.get("rejected", []), zone_scores=d.get("zone_scores", []),
+        explanation=d.get("explanation", "Stored estimate."), map_version=_map_version(db))
+    if row.zone_id is None:
+        return LocationLatestOut(astronaut_id=astronaut_id, display_mode="unavailable", estimate=est,
+                                 age_seconds=None, stale_after_seconds=None,
+                                 label="Location unavailable at the last estimate.")
+    limit = MANUAL_STALE_AFTER if row.source == "manual" else STALE_AFTER
+    age = (utcnow() - (row.observed_at or row.estimated_at)).total_seconds()
+    if age > limit.total_seconds():
+        est.display_mode = "stale"
+        label = f"Last known zone {row.zone_id}, {int(age)} s old. Not a current position."
+    else:
+        label = f"Current zone estimate {row.zone_id} ({row.source}, confidence {row.confidence})."
+    return LocationLatestOut(astronaut_id=astronaut_id, display_mode=est.display_mode, estimate=est,
+                             age_seconds=round(age, 1), stale_after_seconds=int(limit.total_seconds()), label=label)
+
+
 def accessible_routes(db: Session, start: str) -> dict[str, list[str]]:
     """BFS over accessible connections. Returns zone_id -> route (inclusive)."""
     adj: dict[str, list[str]] = {}
@@ -139,7 +179,7 @@ def accessible_routes(db: Session, start: str) -> dict[str, list[str]]:
     return routes
 
 
-def recommend(db: Session, case_id: str, zone_id: str, capability: str) -> EquipmentRecommendation:
+def recommend(db: Session, fx: dict, case_id: str, zone_id: str, capability: str) -> EquipmentRecommendation:
     if db.get(m.MedicalCase, case_id) is None:
         raise not_found("Case", case_id)
     if db.get(m.Zone, zone_id) is None:
@@ -173,7 +213,10 @@ def recommend(db: Session, case_id: str, zone_id: str, capability: str) -> Equip
     pick = min(candidates, key=lambda d: (len(routes[d.zone_id]), d.equipment_id))
     route = routes[pick.zone_id]
     procedure_id = pick.compatible_procedure_ids[0] if pick.compatible_procedure_ids else None
+    geo = habitat.route_geometry(db, fx, route, pick)
     out = EquipmentRecommendation(
+        map_version=geo["geometry"]["map_version"], coordinate_frame_id=geo["geometry"]["frame_id"],
+        start_reference=geo["start_reference"], route_hatch_ids=geo["hatch_ids"], route_geometry=geo["geometry"],
         equipment_id=pick.equipment_id, device_model=pick.device_model, zone_id=pick.zone_id,
         readiness=pick.readiness, readiness_verified_at=pick.readiness_verified_at, route_zone_ids=route,
         route_hops=len(route) - 1, procedure_id=procedure_id, capability=capability, supplies=pick.supplies,
@@ -181,6 +224,7 @@ def recommend(db: Session, case_id: str, zone_id: str, capability: str) -> Equip
         explanation=(f"{pick.equipment_id} is the nearest accessible device with verified readiness and supplies "
                      f"({len(route) - 1} zone hop(s)). {len(excluded)} other device(s) excluded."))
     audit(db, "equipment-engine", "equipment.recommended", "equipment", pick.equipment_id, case_id,
-          from_zone_id=zone_id, route_zone_ids=route, excluded=[e.equipment_id for e in excluded])
+          from_zone_id=zone_id, route_zone_ids=route, route_hatch_ids=geo["hatch_ids"],
+          map_version=geo["geometry"]["map_version"], excluded=[e.equipment_id for e in excluded])
     db.commit()
     return out

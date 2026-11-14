@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.1.0)
+# SENTINEL AI Backend API (v2.3.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -54,16 +54,30 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   `{estimate_id, zone_id|null, confidence 0-1, source (ble_simulated | ble_simulated_smoothed | manual | unavailable),
   observed_at, used_anchor_ids, rejected[{anchor_id, reason}], zone_scores[], explanation, limitation}`.
 - `POST /api/v1/location/confirm` *(optional)* — `{astronaut_id, zone_id, confirmed_by}` → same shape, `source: manual`.
+  Since 2.2.0 estimates also carry `display_mode` (`zone_only` | `unavailable`), `position: null`,
+  `position_uncertainty_m: null` and `map_version`.
+- `GET /api/v1/location/{astronaut_id}/latest` *(2.2.0)* → `{astronaut_id, display_mode (zone_only | stale |
+  unavailable), estimate|null, age_seconds, stale_after_seconds (30 BLE, 900 manual), label}`.
+- `GET /api/v1/habitats/{habitat_id}/map` *(2.2.0)* → `{map_version, coordinate_frame (metres), decks[],
+  compartments[{zone_id, polygon, navigation_reference}], passages[{passage_id, hatch_id, polygon, hatch_point,
+  accessible, hatch_state}], anchors[{anchor_id, point, enabled}], equipment[{equipment_id, point|null,
+  position_status}], route_network{nodes[], edges[]}}`.
 - `POST /api/v1/equipment/recommend` — `{case_id, zone_id, capability}` →
   `{equipment_id, device_model, zone_id, readiness, readiness_verified_at, route_zone_ids, route_hops, procedure_id,
   capability, supplies, excluded[{equipment_id, zone_id, reasons}], explanation, readiness_note}`.
+  Since 2.2.0 it also returns `map_version`, `coordinate_frame_id`, `start_reference` (zone navigation
+  reference), `route_hatch_ids[]` and `route_geometry{frame_id, map_version, points[[x,y]], node_ids, length_m,
+  end_equipment_point}`.
   Exclusion reasons: `readiness_unknown`, `readiness_needs_service`, `readiness_in_use`, `readiness_check_stale`,
   `missing_supplies:<list>`, `zone_not_accessible`.
 
 ### Procedures and measurements
 - `GET /api/v1/procedures/{procedure_id}` → definition with `version`, `purpose`, `required_capability`,
   `compatible_device_models`, `anatomical_region_ids`, `content_status: EDUCATIONAL_DEMO_ONLY`, `source_basis`,
-  `safety_limitations[]`, ordered `steps[]`, `follow_up`.
+  `safety_limitations[]`, ordered `steps[]`, `follow_up`. Since 2.2.0: `validation_level`, `intended_patient`,
+  `instruction_sources[]`, `visual_requirements[]`, and per step `target_region_id`, `target_laterality`,
+  `target_site_id`, `patient_role`, `equipment`, `instruction_source_ids`, `warnings[]`, `visual{action_id,
+  asset_id, additional_asset_ids, camera, expected_visible_action, replay_allowed, pause_allowed}`.
 - `POST /api/v1/procedure-sessions` — `{case_id, procedure_id, actor_id, mode: self|responder}` → session.
 - `GET /api/v1/procedure-sessions/{session_id}` *(optional)* → session.
 - `POST /api/v1/procedure-sessions/{session_id}/steps` — `{step_id, completion_source: self_confirmed|responder_confirmed|demo_auto}`

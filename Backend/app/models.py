@@ -52,6 +52,7 @@ class ZoneConnection(Base):
     to_zone_id: Mapped[str] = mapped_column(ForeignKey("zones.zone_id"))
     accessible: Mapped[bool] = mapped_column(Boolean)
     note: Mapped[str] = mapped_column(String, default="")
+    hatch_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
 class WirelessAnchor(Base):

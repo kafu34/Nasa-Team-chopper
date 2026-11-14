@@ -38,7 +38,7 @@ def test_get_procedure(client):
     r = client.get("/api/v1/procedures/PROC-BP-01")
     assert r.status_code == 200
     p = r.json()
-    assert p["version"] == "1.0.0-demo" and p["content_status"] == "EDUCATIONAL_DEMO_ONLY"
+    assert p["version"] == "1.1.0-demo" and p["content_status"] == "EDUCATIONAL_DEMO_ONLY"
     assert p["required_capability"] == "blood_pressure" and [s["step_id"] for s in p["steps"]] == STEPS
     assert "upper_arm" in p["anatomical_region_ids"] and p["safety_limitations"]
     assert client.get("/api/v1/procedures/PROC-NOPE").status_code == 404
@@ -46,7 +46,7 @@ def test_get_procedure(client):
 
 def test_session_creation_moves_case_to_awaiting_results(client, symptom_payload):
     case_id, s = _session(client, symptom_payload, mode="responder")
-    assert s["mode"] == "responder" and s["current_step_id"] == "S1" and s["procedure_version"] == "1.0.0-demo"
+    assert s["mode"] == "responder" and s["current_step_id"] == "S1" and s["procedure_version"] == "1.1.0-demo"
     assert s["case_state"] == "awaiting_results" and s["total_steps"] == 6
     again = client.post("/api/v1/procedure-sessions", json={"case_id": case_id, "procedure_id": "PROC-BP-01",
                                                              "actor_id": "DEMO-001", "mode": "self"})

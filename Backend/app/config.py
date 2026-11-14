@@ -8,7 +8,7 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 REPO_DIR = BACKEND_DIR.parent
 
-CONTRACT_VERSION = "2.1.0"
+CONTRACT_VERSION = "2.3.0"
 RULESET_VERSION = "RULESET-P0-1.0"
 
 
