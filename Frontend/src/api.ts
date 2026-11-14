@@ -1,4 +1,4 @@
-/** Client models maintained against shared/openapi.yaml v2.1.0. */
+/** Client models maintained against shared/openapi.yaml v2.3.0. */
 export const DEMO = { astronautId: 'DEMO-001', responderId: 'DEMO-002', habitatId: 'HAB-01', procedureId: 'PROC-BP-01', datasetId: 'OSD-575' } as const
 export const DATASET_IDS = ['OSD-575', 'OSD-656', 'NASA-EDA', 'NASA-RADLAB', 'OSD-195', 'OSD-546', 'OSD-654', 'OSD-684', 'OSD-573', 'OSD-817'] as const
 export type DatasetAvailability = 'NOT_DOWNLOADED' | 'READY_TO_IMPORT' | 'IMPORTED' | 'IMPORT_FAILED' | 'UNSUPPORTED_FORMAT'
@@ -7,8 +7,8 @@ export type StudyType = 'HUMAN_SPACEFLIGHT' | 'HUMAN_GROUND_ANALOGUE' | 'HUMAN_D
 export type ApiObject = Record<string, unknown>
 export type CaseState = 'detected' | 'investigating' | 'awaiting_assessment' | 'awaiting_results' | 'action_required' | 'monitoring' | 'follow_up_due' | 'escalated' | 'resolved'
 export type CaseSummary = { case_id: string; state: CaseState; priority?: 'routine' | 'urgent'; next_action: string; updated_at: string }
-export type SurfacePoint = { model_id: 'sentinel-body-v1'; site_id: string; x: number; y: number; z: number }
-export type SurfacePointOut = SurfacePoint & { site_label: string }
+export type SurfacePoint = { model_id: string; model_version?: string; site_id: string; x: number; y: number; z: number; mesh_id?: string; mesh_local_point?: { x: number; y: number; z: number }; attachment?: { triangle_index: number; barycentric: [number, number, number] } }
+export type SurfacePointOut = Omit<SurfacePoint, 'mesh_id' | 'mesh_local_point' | 'attachment'> & { model_version: string; site_label: string; mesh_validation: 'not_supplied' | 'not_declared_by_model' | 'validated'; mesh_id?: string | null; mesh_local_point?: { x: number; y: number; z: number } | null; attachment?: { triangle_index: number; barycentric: [number, number, number] } | null; marker_status: 'current' | 'model_version_changed' | 'model_version_incompatible' | 'model_retired' | 'model_unknown'; render_hint: 'exact_point' | 'site_only' | 'not_renderable' }
 export type SymptomOut = { symptom_id: string; region_id: string; laterality: string; severity: number; onset: string; reported_at: string; note: string | null; surface_point?: SurfacePointOut | null }
 export type FollowUpOut = { follow_up_id: string; title: string; due_at: string; status: string; interrupt: boolean }
 export type CaseOut = CaseSummary & { follow_up_status: string; follow_ups: FollowUpOut[]; symptoms: SymptomOut[]; measurements: ApiObject[] }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { BodyAlerts } from './mission-ui'
 
-export type BodySelection = { regionId: string; laterality: 'left' | 'right' | 'midline'; label: string; siteId?: string; point?: { x: number; y: number; z: number }; modelId?: string; modelVersion?: number; meshId?: string; meshLocalPoint?: { x: number; y: number; z: number } }
+export type BodySelection = { regionId: string; laterality: 'left' | 'right' | 'midline'; label: string; siteId?: string; point?: { x: number; y: number; z: number }; modelId?: string; modelVersion?: string; meshId?: string; meshLocalPoint?: { x: number; y: number; z: number }; attachment?: { triangleIndex: number; barycentric: [number, number, number] }; renderHint?: 'exact_point' | 'site_only' | 'not_renderable'; markerStatus?: string }
 type Region = BodySelection & { x: number; y: number; w: number; h: number }
 
 const FRONT: Region[] = [

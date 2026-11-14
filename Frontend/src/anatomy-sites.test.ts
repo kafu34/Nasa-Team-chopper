@@ -7,7 +7,7 @@ describe('3D surface report compatibility', () => {
     expect(selection).toMatchObject({ regionId: 'upper_arm', laterality: 'left', label: 'Left shoulder' })
     expect(surfacePoint(selection)).toEqual({ model_id: 'sentinel-body-v1', site_id: 'left_shoulder', x: 0.5124, y: 0.8362, z: 0.1448 })
     expect(symptomNote(selection, ' Pain when moving arm ')).toBe('Pain when moving arm')
-    expect(reportedSurfaceSelection({ region_id: 'upper_arm', laterality: 'left', note: 'Pain when moving arm', surface_point: { ...surfacePoint(selection)!, site_label: 'Left shoulder' } })).toEqual(selection)
+    expect(reportedSurfaceSelection({ region_id: 'upper_arm', laterality: 'left', note: 'Pain when moving arm', surface_point: { ...surfacePoint(selection)!, model_version: '1.0.0', site_label: 'Left shoulder', mesh_validation: 'not_supplied', marker_status: 'current', render_hint: 'exact_point' } })).toMatchObject({ ...selection, modelId: 'sentinel-body-v1', modelVersion: '1.0.0' })
   })
 
   it('reads historical note points and rejects arbitrary notes', () => {
@@ -16,6 +16,9 @@ describe('3D surface report compatibility', () => {
     expect(savedSurfaceSelection(legacy)).not.toBeNull()
     expect(savedSurfaceSelection('left shoulder, unknown source')).toBeNull()
     expect(selectAnatomySite('unknown')).toBeNull()
+    const oldPoint = { model_id: 'sentinel-body-v1', model_version: '0.9.0', site_id: 'left_shoulder', site_label: 'Left shoulder', x: 0.512, y: 0.836, z: 0.145, mesh_validation: 'not_supplied' as const, marker_status: 'model_version_incompatible' as const, render_hint: 'site_only' as const }
+    expect(reportedSurfaceSelection({ region_id: 'upper_arm', laterality: 'left', note: legacy, surface_point: oldPoint })).toMatchObject({ siteId: 'left_shoulder', renderHint: 'site_only' })
+    expect(reportedSurfaceSelection({ region_id: 'upper_arm', laterality: 'left', note: legacy, surface_point: oldPoint })?.point).toBeUndefined()
   })
 
   it('keeps a named-only area in the note without inventing a point', () => {

@@ -1,8 +1,8 @@
 import { ANATOMY_BY_KEY, jointAnchor } from 'open-anatomy-3d'
-import { selectAnatomySite } from './anatomy-sites'
+import { HUMAN_MODEL_ID, HUMAN_MODEL_VERSION, selectAnatomySite } from './anatomy-sites'
 import type { BodySelection } from './BodyMap'
 
-export const HUMAN_MODEL_ID = 'sentinel-human-male-v1'
+export { HUMAN_MODEL_ID, HUMAN_MODEL_VERSION } from './anatomy-sites'
 export type ModelPoint = { x: number; y: number; z: number }
 
 const jointRadius: Record<string, number> = { shoulder: 0.115, elbow: 0.095, wrist: 0.075, knee: 0.095, ankle: 0.075 }
@@ -36,8 +36,8 @@ export function humanSiteAt(point: ModelPoint): string {
   return `${side}_foot`
 }
 
-export function humanSelection(point: ModelPoint, meshId: string, meshLocalPoint: ModelPoint): BodySelection {
+export function humanSelection(point: ModelPoint, meshId: string, meshLocalPoint: ModelPoint, attachment?: BodySelection['attachment']): BodySelection {
   const site = selectAnatomySite(humanSiteAt(point))
   if (!site) throw new Error('Human anatomy point mapped to an unknown site')
-  return { ...site, point, modelId: HUMAN_MODEL_ID, modelVersion: 1, meshId, meshLocalPoint }
+  return { ...site, point, modelId: HUMAN_MODEL_ID, modelVersion: HUMAN_MODEL_VERSION, meshId, meshLocalPoint, attachment }
 }

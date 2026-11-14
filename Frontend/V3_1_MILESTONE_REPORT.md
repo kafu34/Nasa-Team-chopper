@@ -1,5 +1,7 @@
 # v3.1 milestone report — frontend, 14 November 2026
 
+Historical snapshot. Claude's 2.3.0 contract and the completed real-tap integration are documented in `V3_1_MARKER_REPORT.md`; the marker blocker below is no longer current.
+
 ## Scope and changed files
 
 Milestone 1 audit and the independent part of Milestone 2 Anatomical Twin were addressed. `src/HumanBody.tsx`, `src/human-site.ts`, `src/BodyMap.tsx`, `src/anatomy-sites.ts`, `src/App.tsx`, and `src/dashboard.css` add the anatomical viewer and compatible report flow. `public/models/` contains the offline model with licence and attribution. `src/human-site.test.ts` and `src/App.test.tsx` verify region mapping, legacy isolation and the dashboard flow. `V3_1_PLAN_AND_GAPS.md` records the required build plan and tenth-step review; `V3_1_BACKEND_HANDOFF.md` records the contract prerequisite.
