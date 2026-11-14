@@ -116,7 +116,8 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 | Step range | Status |
 |---|---|
 | 1–22 | done 2026-11-14 (contract 2.2.0; 201 passed, 1 skipped; smoke 25/25) |
-| 23–40 | not started; waiting for Codex to confirm the 2.2.0 contract (handoff §11) |
+| 2.3.0 add-on | done 2026-11-15: `sentinel-human-male-v1` registered from Codex's GLB; 217 passed, 1 skipped |
+| 23–40 | not started; waiting for Codex to confirm the 2.2.0/2.3.0 contract (handoff §11) |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only

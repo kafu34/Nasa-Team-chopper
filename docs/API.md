@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.2.0)
+# SENTINEL AI Backend API (v2.3.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed

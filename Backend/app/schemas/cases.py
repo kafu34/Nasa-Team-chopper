@@ -26,6 +26,15 @@ class SurfaceAttachment(Strict):
         return v
 
 
+class MeshLocalPoint(Strict):
+    """The point in the hit mesh's own coordinates (before its node transform)."""
+
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    x: float = Field(ge=-10, le=10)
+    y: float = Field(ge=-10, le=10)
+    z: float = Field(ge=-10, le=10)
+
+
 class SurfacePoint(Strict):
     """A tapped point on a registered 3D Anatomical Twin model. A diagram location, not a measurement."""
 
@@ -46,6 +55,9 @@ class SurfacePoint(Strict):
     attachment: Optional[SurfaceAttachment] = Field(
         default=None, description="Optional (2.2.0). Triangle + barycentric position on mesh_id, for markers "
         "that stay attached when the model is posed or re-rendered.")
+    mesh_local_point: Optional[MeshLocalPoint] = Field(
+        default=None, description="Optional (2.3.0). The point in mesh_id's local coordinates. Checked against the "
+        "mesh's declared transform when the model manifest declares one.")
 
 
 MarkerStatus = Literal["current", "model_version_changed", "model_version_incompatible", "model_retired",
@@ -64,6 +76,7 @@ class SurfacePointOut(BaseModel):
     mesh_id: Optional[str] = None
     mesh_validation: Literal["not_supplied", "not_declared_by_model", "validated"] = "not_supplied"
     attachment: Optional[dict[str, Any]] = None
+    mesh_local_point: Optional[dict[str, float]] = None
     marker_status: MarkerStatus = Field(description="Marker migration status against the registered model.")
     render_hint: Literal["exact_point", "site_only", "not_renderable"] = Field(
         description="exact_point: draw at the stored coordinates. site_only: highlight the named site, do not "

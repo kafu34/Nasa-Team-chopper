@@ -108,9 +108,16 @@ def validate(point, region_id: str, laterality: str) -> dict:
                        f"x={point.x} is on the other side of the model from a {laterality} site "
                        "(right is negative x, left is positive x).",
                        {"site_id": site["site_id"], "x": point.x, "tolerance": tol})
+    _check_site_plausibility(model, site, point)
+    if (point.attachment is not None or point.mesh_local_point is not None) and point.mesh_id is None:
+        raise ApiError(422, "ATTACHMENT_REQUIRES_MESH",
+                       "A triangle/barycentric attachment or mesh_local_point needs mesh_id.", {})
     mesh_validation = "not_supplied"
+    meshes = model["mesh_by_id"]
+    if point.mesh_id is None and meshes is not None:
+        raise ApiError(422, "MESH_REQUIRED", f"Model '{model['model_id']}' declares its meshes; a tapped point "
+                       "must name the mesh it lies on.", {"selectable_mesh_ids": _selectable(meshes)})
     if point.mesh_id is not None:
-        meshes = model["mesh_by_id"]
         if meshes is None:
             mesh_validation = "not_declared_by_model"
         else:
@@ -118,22 +125,71 @@ def validate(point, region_id: str, laterality: str) -> dict:
             if mesh is None:
                 raise ApiError(422, "UNKNOWN_MESH", f"Mesh '{point.mesh_id}' is not declared for "
                                f"{model['model_id']}.", {"declared_mesh_ids": sorted(meshes)})
+            if not mesh.get("selectable", True):
+                raise ApiError(422, "MESH_NOT_SELECTABLE", f"Mesh '{point.mesh_id}' is not used for symptom "
+                               "reports.", {"selectable_mesh_ids": _selectable(meshes)})
             if point.attachment is not None and point.attachment.triangle_index >= mesh["triangle_count"]:
                 raise ApiError(422, "TRIANGLE_OUT_OF_RANGE", f"Mesh '{point.mesh_id}' has "
                                f"{mesh['triangle_count']} triangles.", {"triangle_count": mesh["triangle_count"]})
+            _check_mesh_geometry(model, mesh, point)
             mesh_validation = "validated"
-    if point.attachment is not None and point.mesh_id is None:
-        raise ApiError(422, "ATTACHMENT_REQUIRES_MESH", "A triangle/barycentric attachment needs mesh_id.", {})
     return {"model_id": model["model_id"], "model_version": version, "site_id": site["site_id"],
             "site_label": site["label"], "x": point.x, "y": point.y, "z": point.z,
             "mesh_id": point.mesh_id, "mesh_validation": mesh_validation,
-            "attachment": point.attachment.model_dump() if point.attachment is not None else None}
+            "attachment": point.attachment.model_dump() if point.attachment is not None else None,
+            "mesh_local_point": point.mesh_local_point.model_dump() if point.mesh_local_point is not None else None}
+
+
+def _selectable(meshes: dict) -> list[str]:
+    return sorted(k for k, v in meshes.items() if v.get("selectable", True))
+
+
+def _check_site_plausibility(model: dict, site: dict, point) -> None:
+    """Coarse check that the point is at a plausible height and face for its site (models that declare it)."""
+    band = site.get("plausibility")
+    if band is None:
+        return
+    tol = model.get("surface_tolerance_m", 0.0)
+    problems = []
+    if not band["y_min_m"] - tol <= point.y <= band["y_max_m"] + tol:
+        problems.append(f"y={point.y} is outside {band['y_min_m']}-{band['y_max_m']} m")
+    if band["surface"] == "front" and point.z < -tol:
+        problems.append("the point is on the back of the model")
+    if band["surface"] == "back" and point.z > tol:
+        problems.append("the point is on the front of the model")
+    if problems:
+        raise ApiError(422, "SURFACE_POINT_OUTSIDE_SITE",
+                       f"Point does not fit site '{site['site_id']}': " + "; ".join(problems) + ".",
+                       {"site_id": site["site_id"], "plausibility": band})
+
+
+def _check_mesh_geometry(model: dict, mesh: dict, point) -> None:
+    """For meshes that declare their transform: the point lies in the mesh bounds, and the mesh-local point (if
+    sent) maps onto the reported point. The backend holds no triangles, so exact surface contact is not checked."""
+    xf, bounds = mesh.get("node_transform"), mesh.get("local_bounds")
+    if xf is None or bounds is None:
+        return
+    tol = model.get("surface_tolerance_m", 0.0)
+    t, s = xf["translation"], xf["scale"]
+    world = (point.x, point.y, point.z)
+    lo = [t[k] + s[k] * bounds["min"][k] for k in range(3)]
+    hi = [t[k] + s[k] * bounds["max"][k] for k in range(3)]
+    if any(not lo[k] - tol <= world[k] <= hi[k] + tol for k in range(3)):
+        raise ApiError(422, "MESH_POINT_MISMATCH", f"The point lies outside mesh '{mesh['mesh_id']}'.",
+                       {"mesh_bounds_min": lo, "mesh_bounds_max": hi})
+    if point.mesh_local_point is not None:
+        local = (point.mesh_local_point.x, point.mesh_local_point.y, point.mesh_local_point.z)
+        mapped = [t[k] + s[k] * local[k] for k in range(3)]
+        gap = max(abs(mapped[k] - world[k]) for k in range(3))
+        if gap > tol:
+            raise ApiError(422, "MESH_POINT_MISMATCH", f"mesh_local_point does not map onto the reported point "
+                           f"(gap {gap:.4f} m, tolerance {tol} m).", {"mapped_point": mapped, "gap_m": gap})
 
 
 def describe(stored: dict) -> dict:
     """Add marker migration status and render hint to a stored point (read side)."""
     out = {"model_version": LEGACY_MODEL_VERSION, "mesh_id": None, "mesh_validation": "not_supplied",
-           "attachment": None, **stored}
+           "attachment": None, "mesh_local_point": None, **stored}
     model = MODELS.get(out["model_id"])
     if model is None:
         status, hint = "model_unknown", "not_renderable"
@@ -156,7 +212,7 @@ def describe(stored: dict) -> dict:
 
 def _public(model: dict) -> dict:
     return {"model_id": model["model_id"], "model_version": model["model_version"], "status": model["status"],
-            "kind": model["kind"], "description": model["description"],
+            "kind": model["kind"], "description": model["description"], "asset": model.get("asset"),
             "coordinate_frame": model["coordinate_frame"], "side_tolerance": model["side_tolerance"],
             "meshes": model.get("meshes"), "previous_versions": model.get("previous_versions", []),
             "sites": model["sites"]}

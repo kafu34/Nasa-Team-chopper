@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.2.0",
-  "contract_version": "2.2.0",
+  "fixture_version": "2.3.0",
+  "contract_version": "2.3.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -1126,5 +1126,87 @@
   "nasa_research_dataset": {
     "dataset_id": "OSD-575",
     "note": "Genuine NASA research data are imported from data/nasa/raw/ and are never copied into this fixture or into DEMO-001 records."
+  },
+  "surface_marker_examples": {
+    "description": "Synthetic test points for sentinel-human-male-v1. They lie inside the skin mesh bounds and its declared transform; they were not ray-cast, so exact surface contact and the triangle index are illustrative. A real tap from the frontend supplies its own values.",
+    "right_shoulder": {
+      "region_id": "upper_arm",
+      "laterality": "right",
+      "surface_point": {
+        "model_id": "sentinel-human-male-v1",
+        "model_version": "1.0.0",
+        "site_id": "right_shoulder",
+        "x": -0.2,
+        "y": 1.42,
+        "z": 0.05,
+        "mesh_id": "skin",
+        "mesh_local_point": {
+          "x": -0.232628,
+          "y": 0.651709,
+          "z": 0.058172
+        },
+        "attachment": {
+          "triangle_index": 1204,
+          "barycentric": [
+            0.2,
+            0.3,
+            0.5
+          ]
+        }
+      }
+    },
+    "left_shoulder": {
+      "region_id": "upper_arm",
+      "laterality": "left",
+      "surface_point": {
+        "model_id": "sentinel-human-male-v1",
+        "model_version": "1.0.0",
+        "site_id": "left_shoulder",
+        "x": 0.2,
+        "y": 1.42,
+        "z": 0.05,
+        "mesh_id": "skin",
+        "mesh_local_point": {
+          "x": 0.232643,
+          "y": 0.651709,
+          "z": 0.058172
+        },
+        "attachment": {
+          "triangle_index": 1310,
+          "barycentric": [
+            0.6,
+            0.3,
+            0.1
+          ]
+        }
+      }
+    },
+    "rejected_region_mismatch": {
+      "region_id": "chest",
+      "laterality": "right",
+      "surface_point": {
+        "model_id": "sentinel-human-male-v1",
+        "model_version": "1.0.0",
+        "site_id": "right_shoulder",
+        "x": -0.2,
+        "y": 1.42,
+        "z": 0.05,
+        "mesh_id": "skin",
+        "mesh_local_point": {
+          "x": -0.232628,
+          "y": 0.651709,
+          "z": 0.058172
+        },
+        "attachment": {
+          "triangle_index": 1204,
+          "barycentric": [
+            0.2,
+            0.3,
+            0.5
+          ]
+        }
+      },
+      "expected_error": "SURFACE_SITE_MISMATCH"
+    }
   }
 }

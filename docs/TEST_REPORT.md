@@ -3,6 +3,29 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.3.0 (`sentinel-human-male-v1` registration), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` with `SENTINEL_FRONTEND_SITES` and `SENTINEL_FRONTEND_HUMAN_GLB` pointing at Codex's files from `origin/main` (43e2703) | **217 passed, 1 skipped, 0 failed** (adds 16 in `test_q_human_model.py`; the skip is still the visual-registry check) |
+| `scripts/export_openapi.py` | regenerated (24 paths, version 2.3.0) |
+| `scripts/http_smoke.py` | **25/25** |
+| Live server restart | contract 2.3.0; bootstrap lists `sentinel-body-v1` and `sentinel-human-male-v1`, both active |
+
+`test_q_human_model.py` covers:
+- the registration (asset, licence, skin mesh with 40,676 triangles, the same 35 sites, plausibility bands);
+- the manifest's byte count and SHA-256 against the real GLB;
+- right-shoulder persistence across a restart and case reopen (model, version, mesh, site, side, local point,
+  attachment);
+- the left counterpart, and v1 markers kept on their own model;
+- the shared-fixture region mismatch;
+- 9 rejection cases (wrong side, height band, missing mesh, muscle mesh, outside bounds, local point mismatch,
+  triangle range, numeric version "1", coordinate limit);
+- the front/back face check, and a non-selectable mesh.
+
+Not covered: exact surface contact (the backend has no triangle data), and a real ray-cast tap. Codex's browser
+test must cover that.
+
 ## Contract 2.2.0 (Specification v3.1 Milestone 1, backend contracts), run 2026-11-14
 
 | Suite | Result |

@@ -1,0 +1,448 @@
+{
+  "manifest_version": "1.0",
+  "model_id": "sentinel-human-male-v1",
+  "model_version": "1.0.0",
+  "status": "active",
+  "kind": "anatomical_reference_mesh",
+  "description": "Adult male anatomical reference mesh (BodyParts3D-derived, open-anatomy-3d) with distinct skin, muscle and skeleton geometry. An educational reference, not a scan of any crew member.",
+  "frontend_source": "Frontend/src/HumanBody.tsx and Frontend/src/human-site.ts at commit 43e2703",
+  "asset": {
+    "path": "Frontend/public/models/anatomy-male.glb",
+    "bytes": 7614076,
+    "sha256": "25248bef02f0ca43eedbd25231f8b6f9681865a57016f9d5e352d407407336c7",
+    "format": "glTF 2.0 binary (EXT_meshopt_compression, KHR_mesh_quantization)",
+    "licence": "CC BY 4.0",
+    "attribution": "Anatomy: BodyParts3D (c) The Database Center for Life Science (CC BY 4.0). Modified by open-anatomy-3d (https://github.com/MervinR07/open-anatomy-3d), CC BY 4.0."
+  },
+  "coordinate_frame": {
+    "space": "model_world",
+    "units": "metres (the figure is 1.72 m tall, feet at y = 0)",
+    "x": "body left (+) / right (-)",
+    "y": "up",
+    "z": "front (+)",
+    "limit": 2.0
+  },
+  "side_tolerance": 0.02,
+  "surface_tolerance_m": 0.02,
+  "meshes": [
+    {
+      "mesh_id": "skin",
+      "layer": "skin",
+      "selectable": true,
+      "triangle_count": 40676,
+      "description": "Exterior surface. The only mesh used for symptom reports.",
+      "node_transform": {
+        "translation": [
+          -6.482e-06,
+          0.859715582,
+          -1.0997e-05
+        ],
+        "scale": [
+          0.85971558,
+          0.85971558,
+          0.85971558
+        ]
+      },
+      "local_bounds": {
+        "min": [
+          -0.387616,
+          -1.0,
+          -0.169805
+        ],
+        "max": [
+          0.387616,
+          1.0,
+          0.169805
+        ]
+      }
+    }
+  ],
+  "previous_versions": [],
+  "sites": [
+    {
+      "site_id": "head",
+      "label": "Head",
+      "region_id": "head",
+      "laterality": "midline",
+      "plausibility": {
+        "y_min_m": 1.5,
+        "y_max_m": 1.72,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "neck",
+      "label": "Neck",
+      "region_id": "neck",
+      "laterality": "midline",
+      "plausibility": {
+        "y_min_m": 1.35,
+        "y_max_m": 1.58,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "pelvis",
+      "label": "Pelvis",
+      "region_id": "abdomen",
+      "laterality": "midline",
+      "plausibility": {
+        "y_min_m": 0.78,
+        "y_max_m": 0.98,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_eye",
+      "label": "Right eye",
+      "region_id": "eyes",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 1.5,
+        "y_max_m": 1.7,
+        "surface": "front"
+      }
+    },
+    {
+      "site_id": "right_chest",
+      "label": "Right chest",
+      "region_id": "chest",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 1.05,
+        "y_max_m": 1.52,
+        "surface": "front"
+      }
+    },
+    {
+      "site_id": "right_upper_back",
+      "label": "Right upper back",
+      "region_id": "upper_back",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 1.05,
+        "y_max_m": 1.52,
+        "surface": "back"
+      }
+    },
+    {
+      "site_id": "right_abdomen",
+      "label": "Right abdomen",
+      "region_id": "abdomen",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.88,
+        "y_max_m": 1.25,
+        "surface": "front"
+      }
+    },
+    {
+      "site_id": "right_lower_back",
+      "label": "Right lower back",
+      "region_id": "lower_back",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.88,
+        "y_max_m": 1.25,
+        "surface": "back"
+      }
+    },
+    {
+      "site_id": "right_shoulder",
+      "label": "Right shoulder",
+      "region_id": "upper_arm",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 1.28,
+        "y_max_m": 1.55,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_upper_arm",
+      "label": "Right upper arm",
+      "region_id": "upper_arm",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 1.05,
+        "y_max_m": 1.5,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_elbow",
+      "label": "Right elbow",
+      "region_id": "upper_arm",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 1.0,
+        "y_max_m": 1.24,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_forearm",
+      "label": "Right forearm",
+      "region_id": "forearm_hand",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.85,
+        "y_max_m": 1.25,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_wrist",
+      "label": "Right wrist",
+      "region_id": "forearm_hand",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.78,
+        "y_max_m": 0.98,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_hand",
+      "label": "Right hand",
+      "region_id": "forearm_hand",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.62,
+        "y_max_m": 0.98,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_upper_leg",
+      "label": "Right upper leg",
+      "region_id": "upper_leg",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.42,
+        "y_max_m": 0.95,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_knee",
+      "label": "Right knee",
+      "region_id": "lower_leg_foot",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.34,
+        "y_max_m": 0.58,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_lower_leg",
+      "label": "Right lower leg",
+      "region_id": "lower_leg_foot",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.06,
+        "y_max_m": 0.56,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_ankle",
+      "label": "Right ankle",
+      "region_id": "lower_leg_foot",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.0,
+        "y_max_m": 0.2,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "right_foot",
+      "label": "Right foot",
+      "region_id": "lower_leg_foot",
+      "laterality": "right",
+      "plausibility": {
+        "y_min_m": 0.0,
+        "y_max_m": 0.16,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_eye",
+      "label": "Left eye",
+      "region_id": "eyes",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 1.5,
+        "y_max_m": 1.7,
+        "surface": "front"
+      }
+    },
+    {
+      "site_id": "left_chest",
+      "label": "Left chest",
+      "region_id": "chest",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 1.05,
+        "y_max_m": 1.52,
+        "surface": "front"
+      }
+    },
+    {
+      "site_id": "left_upper_back",
+      "label": "Left upper back",
+      "region_id": "upper_back",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 1.05,
+        "y_max_m": 1.52,
+        "surface": "back"
+      }
+    },
+    {
+      "site_id": "left_abdomen",
+      "label": "Left abdomen",
+      "region_id": "abdomen",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.88,
+        "y_max_m": 1.25,
+        "surface": "front"
+      }
+    },
+    {
+      "site_id": "left_lower_back",
+      "label": "Left lower back",
+      "region_id": "lower_back",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.88,
+        "y_max_m": 1.25,
+        "surface": "back"
+      }
+    },
+    {
+      "site_id": "left_shoulder",
+      "label": "Left shoulder",
+      "region_id": "upper_arm",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 1.28,
+        "y_max_m": 1.55,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_upper_arm",
+      "label": "Left upper arm",
+      "region_id": "upper_arm",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 1.05,
+        "y_max_m": 1.5,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_elbow",
+      "label": "Left elbow",
+      "region_id": "upper_arm",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 1.0,
+        "y_max_m": 1.24,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_forearm",
+      "label": "Left forearm",
+      "region_id": "forearm_hand",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.85,
+        "y_max_m": 1.25,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_wrist",
+      "label": "Left wrist",
+      "region_id": "forearm_hand",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.78,
+        "y_max_m": 0.98,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_hand",
+      "label": "Left hand",
+      "region_id": "forearm_hand",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.62,
+        "y_max_m": 0.98,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_upper_leg",
+      "label": "Left upper leg",
+      "region_id": "upper_leg",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.42,
+        "y_max_m": 0.95,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_knee",
+      "label": "Left knee",
+      "region_id": "lower_leg_foot",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.34,
+        "y_max_m": 0.58,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_lower_leg",
+      "label": "Left lower leg",
+      "region_id": "lower_leg_foot",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.06,
+        "y_max_m": 0.56,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_ankle",
+      "label": "Left ankle",
+      "region_id": "lower_leg_foot",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.0,
+        "y_max_m": 0.2,
+        "surface": "any"
+      }
+    },
+    {
+      "site_id": "left_foot",
+      "label": "Left foot",
+      "region_id": "lower_leg_foot",
+      "laterality": "left",
+      "plausibility": {
+        "y_min_m": 0.0,
+        "y_max_m": 0.16,
+        "surface": "any"
+      }
+    }
+  ]
+}

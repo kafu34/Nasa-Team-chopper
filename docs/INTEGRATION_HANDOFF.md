@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.2.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.2.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.3.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.3.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,7 +201,7 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **201 passed, 1 skipped, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+See `docs/TEST_REPORT.md`. Latest: **217 passed, 1 skipped, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
 `anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **25/25** real-HTTP checks against
 uvicorn.
 
@@ -222,6 +222,42 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.3.0 — `sentinel-human-male-v1` registered (answers `Frontend/V3_1_BACKEND_HANDOFF.md`)
+
+Additive. Exact points on Codex's anatomical reference mesh can now be saved and restored.
+
+1. **Model registered** in `shared/anatomy/sentinel-human-male-v1.json`, version **`1.0.0`** (send the string
+   `"1.0.0"`, not the number `1`).
+   - Asset: `Frontend/public/models/anatomy-male.glb`, 7,614,076 bytes, SHA-256 in the manifest, CC BY 4.0 with
+     the BodyParts3D / open-anatomy-3d credit.
+   - Frame: model coordinates in metres, feet at y = 0, height 1.72 m, x = body left (+) / right (-), z = front.
+   - The same 35 site IDs and region/side mapping as `anatomy-sites.ts`.
+   - One selectable mesh, `skin` (40,676 triangles), with its node transform and local bounds read from the GLB.
+     Muscle and skeleton meshes are not accepted for reports.
+2. **Request** (`surface_point`): `{model_id: "sentinel-human-male-v1", model_version: "1.0.0", site_id, x, y, z,
+   mesh_id: "skin", mesh_local_point: {x, y, z}, attachment?: {triangle_index, barycentric[3]}}`. Send
+   `hit.point` as x/y/z and `mesh.worldToLocal(hit.point)` as `mesh_local_point`. Triangle + barycentric is
+   optional but preferred (`hit.faceIndex` and the barycentric weights of `hit.point` in that face).
+3. **Validation** (422 codes):
+   - `MESH_REQUIRED`: a model that declares meshes needs `mesh_id`.
+   - `UNKNOWN_MESH`, `MESH_NOT_SELECTABLE`, `TRIANGLE_OUT_OF_RANGE`.
+   - `MESH_POINT_MISMATCH`: the point is outside the skin bounds, or `mesh_local_point` does not map onto
+     x/y/z through the declared transform (tolerance 0.02 m).
+   - `SURFACE_SITE_MISMATCH`, `SURFACE_POINT_WRONG_SIDE` (tolerance 0.02 m).
+   - `SURFACE_POINT_OUTSIDE_SITE`: the point is outside the site's coarse height band, or on the wrong face for
+     eyes, chest, abdomen (front) and upper/lower back (back). The bands are in `sites[].plausibility` and are
+     wider than the zones in `human-site.ts`.
+   - Limitation: the backend holds no triangles, so it cannot prove the point lies exactly on the surface.
+4. **Response**: the create response and `GET /cases/{id}` return the stored point with `mesh_local_point`,
+   `attachment`, `mesh_validation: "validated"`, `marker_status` and `render_hint`.
+5. **Old markers**: `sentinel-body-v1` stays active. Its points keep their model ID and are never reprojected.
+   A later GLB revision gets a new `model_version`. Its `previous_versions` entry says whether old coordinates
+   stay valid; if not, old markers come back as `site_only`.
+6. **Shared fixture** `surface_marker_examples` holds a right-shoulder point, a left counterpart and a rejected
+   region mismatch. They are synthetic points inside the skin bounds, not ray-cast taps.
+   `tests/test_q_human_model.py` stores the right-shoulder point, restarts the server, reopens the case and gets
+   back the same model, version, mesh, site, side, local point and attachment.
 
 ### Contract 2.2.0 — Engineering Specification v3.1, Milestone 1 (backend contracts)
 

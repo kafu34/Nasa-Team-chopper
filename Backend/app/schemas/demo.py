@@ -101,11 +101,19 @@ class RegionOut(BaseModel):
     lateral: bool
 
 
+class SitePlausibility(BaseModel):
+    y_min_m: float
+    y_max_m: float
+    surface: Literal["front", "back", "any"]
+
+
 class SurfaceSiteOut(BaseModel):
     site_id: str
     label: str
     region_id: str
     laterality: Laterality
+    plausibility: Optional[SitePlausibility] = Field(default=None, description="Coarse height/face band checked "
+                                                     "on report, for models that declare it.")
 
 
 class SurfaceModelOut(BaseModel):
@@ -119,6 +127,11 @@ class SurfaceMeshOut(BaseModel):
     mesh_id: str
     triangle_count: int
     description: Optional[str] = None
+    layer: Optional[str] = None
+    selectable: bool = True
+    node_transform: Optional[dict[str, list[float]]] = Field(default=None, description="translation and scale "
+                                                             "from mesh-local to model coordinates.")
+    local_bounds: Optional[dict[str, list[float]]] = None
 
 
 class SurfaceModelVersionOut(BaseModel):
@@ -135,6 +148,8 @@ class RegisteredSurfaceModelOut(BaseModel):
     status: Literal["active", "retired"]
     kind: str
     description: str
+    asset: Optional[dict[str, Any]] = Field(default=None, description="Frontend asset file, hash, licence and "
+                                            "attribution.")
     coordinate_frame: dict[str, Any]
     side_tolerance: float
     meshes: Optional[list[SurfaceMeshOut]] = Field(description="Null when the model does not declare its meshes; "

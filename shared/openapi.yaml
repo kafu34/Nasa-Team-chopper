@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.2.0
+  version: 2.3.0
 paths:
   /healthz:
     get:
@@ -3746,6 +3746,31 @@ components:
       - technical_checks_passed
       - checks
       title: MeasurementValidation
+    MeshLocalPoint:
+      properties:
+        x:
+          type: number
+          maximum: 10.0
+          minimum: -10.0
+          title: X
+        y:
+          type: number
+          maximum: 10.0
+          minimum: -10.0
+          title: Y
+        z:
+          type: number
+          maximum: 10.0
+          minimum: -10.0
+          title: Z
+      additionalProperties: false
+      type: object
+      required:
+      - x
+      - y
+      - z
+      title: MeshLocalPoint
+      description: The point in the hit mesh's own coordinates (before its node transform).
     Mission:
       properties:
         mission_id:
@@ -4302,6 +4327,12 @@ components:
         description:
           type: string
           title: Description
+        asset:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Asset
+          description: Frontend asset file, hash, licence and attribution.
         coordinate_frame:
           type: object
           title: Coordinate Frame
@@ -4941,6 +4972,27 @@ components:
       - completed_at
       - case_state
       title: SessionOut
+    SitePlausibility:
+      properties:
+        y_min_m:
+          type: number
+          title: Y Min M
+        y_max_m:
+          type: number
+          title: Y Max M
+        surface:
+          type: string
+          enum:
+          - front
+          - back
+          - any
+          title: Surface
+      type: object
+      required:
+      - y_min_m
+      - y_max_m
+      - surface
+      title: SitePlausibility
     StartReference:
       properties:
         kind:
@@ -5115,6 +5167,34 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        layer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Layer
+        selectable:
+          type: boolean
+          title: Selectable
+          default: true
+        node_transform:
+          anyOf:
+          - additionalProperties:
+              items:
+                type: number
+              type: array
+            type: object
+          - type: 'null'
+          title: Node Transform
+          description: translation and scale from mesh-local to model coordinates.
+        local_bounds:
+          anyOf:
+          - additionalProperties:
+              items:
+                type: number
+              type: array
+            type: object
+          - type: 'null'
+          title: Local Bounds
       type: object
       required:
       - mesh_id
@@ -5223,6 +5303,12 @@ components:
           - type: 'null'
           description: Optional (2.2.0). Triangle + barycentric position on mesh_id, for markers that stay attached when the
             model is posed or re-rendered.
+        mesh_local_point:
+          anyOf:
+          - $ref: '#/components/schemas/MeshLocalPoint'
+          - type: 'null'
+          description: Optional (2.3.0). The point in mesh_id's local coordinates. Checked against the mesh's declared transform
+            when the model manifest declares one.
       additionalProperties: false
       type: object
       required:
@@ -5275,6 +5361,13 @@ components:
           - type: object
           - type: 'null'
           title: Attachment
+        mesh_local_point:
+          anyOf:
+          - additionalProperties:
+              type: number
+            type: object
+          - type: 'null'
+          title: Mesh Local Point
         marker_status:
           type: string
           enum:
@@ -5326,6 +5419,11 @@ components:
           - midline
           - not_applicable
           title: Laterality
+        plausibility:
+          anyOf:
+          - $ref: '#/components/schemas/SitePlausibility'
+          - type: 'null'
+          description: Coarse height/face band checked on report, for models that declare it.
       type: object
       required:
       - site_id
