@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models as m
-from ..errors import not_found
+from ..errors import ApiError, not_found
 
 
 def _inside(pt, poly) -> bool:
@@ -159,9 +159,50 @@ def build_map(db: Session, fx: dict, habitat_id: str) -> dict:
                           "zone_id": e.zone_id, "readiness": e.readiness, "point": pt,
                           "position_status": "registered" if pt is not None else "not_registered_for_current_zone"})
     return {"habitat_id": habitat_id, "name": hab_row.name, "map_version": hab_row.map_version,
+            "state_version": hab_row.state_version or 1,
             "description": g["description"], "coordinate_frame": g["coordinate_frame"], "decks": g["decks"],
             "compartments": compartments, "passages": passages, "anchors": anchors, "equipment": equipment,
             "route_network": {"nodes": nodes, "edges": edges}}
+
+
+def change_hatch(db: Session, habitat_id: str, hatch_id: str, state: str, actor_id: str, reason: str) -> dict:
+    from ..db import utcnow
+    from .audit import audit
+
+    hab = db.get(m.Habitat, habitat_id)
+    if hab is None:
+        raise not_found("Habitat", habitat_id)
+    row = _live_connections(db, habitat_id).get(hatch_id)
+    if row is None:
+        raise not_found("Hatch", hatch_id)
+    actor = db.get(m.Astronaut, actor_id)
+    if actor is None or actor.habitat_id != habitat_id:
+        raise ApiError(403, "NOT_HABITAT_CREW", f"{actor_id} is not a registered crew member of {habitat_id}.",
+                       {"actor_id": actor_id})
+    want = state == "open"
+    out = {"habitat_id": habitat_id, "hatch_id": hatch_id, "from_zone_id": row.from_zone_id,
+           "to_zone_id": row.to_zone_id, "state": state, "invalidated_recommendation_ids": []}
+    if bool(row.accessible) == want:
+        return {**out, "changed": False, "state_version": hab.state_version or 1}
+    now = utcnow()
+    row.accessible = want
+    row.note = f"{'Opened' if want else 'Closed'} by {actor_id}: {reason}"
+    hab.state_version = (hab.state_version or 1) + 1
+    invalid = []
+    for rec in db.scalars(select(m.EquipmentRecommendationRecord).where(
+            m.EquipmentRecommendationRecord.status == "active")):
+        if want or hatch_id in (rec.route_hatch_ids or []):
+            rec.status = "invalidated"
+            rec.invalidated_at = now
+            rec.invalidated_reason = (f"Hatch {hatch_id} opened; a shorter route may now exist." if want
+                                      else f"Hatch {hatch_id} on this route was closed.")
+            invalid.append(rec.recommendation_id)
+            audit(db, "equipment-engine", "equipment_recommendation.invalidated", "equipment_recommendation",
+                  rec.recommendation_id, rec.case_id, reason=rec.invalidated_reason)
+    audit(db, actor_id, f"hatch.{state}", "hatch", hatch_id, None, reason=reason,
+          state_version=hab.state_version, invalidated=invalid)
+    db.commit()
+    return {**out, "changed": True, "state_version": hab.state_version, "invalidated_recommendation_ids": invalid}
 
 
 def route_geometry(db: Session, fx: dict, zone_path: list[str], equipment: m.Equipment) -> dict:

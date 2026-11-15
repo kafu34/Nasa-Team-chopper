@@ -90,6 +90,8 @@ class HabitatMapOut(BaseModel):
     habitat_id: str
     name: str
     map_version: str
+    state_version: int = Field(description="Increases on every hatch change. Geometry is fixed per map_version; "
+                                           "live state (hatches) per state_version.")
     description: str
     coordinate_frame: CoordinateFrame
     decks: list[DeckOut]
@@ -101,6 +103,26 @@ class HabitatMapOut(BaseModel):
     note: str = ("Fictional habitat. Equipment and anchor points are registry positions, not live tracking. "
                  "Crew locations are zone-level estimates and are never drawn as precise points.")
     data_category: DataCategory = "SIMULATED_ENVIRONMENT_OR_DEVICE"
+
+
+class HatchChange(BaseModel):
+    state: Literal["open", "closed"]
+    actor_id: str = Field(examples=["DEMO-002"])
+    reason: str = Field(min_length=3, max_length=300, examples=["Fictional maintenance finished"])
+
+
+class HatchChangeOut(BaseModel):
+    habitat_id: str
+    hatch_id: str
+    from_zone_id: str
+    to_zone_id: str
+    state: Literal["open", "closed"]
+    changed: bool = Field(description="False when the hatch was already in the requested state.")
+    state_version: int
+    invalidated_recommendation_ids: list[str]
+    access_note: str = ("Any registered crew member of this habitat may change a hatch in this prototype. "
+                        "Role-based authorisation is not implemented yet.")
+    data_category: Literal["SIMULATED_ENVIRONMENT_OR_DEVICE"] = "SIMULATED_ENVIRONMENT_OR_DEVICE"
 
 
 class StartReference(BaseModel):

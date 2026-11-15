@@ -61,6 +61,15 @@ def main() -> int:
         eq = c.post("/api/v1/equipment/recommend", json={"case_id": case_id, "zone_id": loc["zone_id"],
                                                           "capability": "blood_pressure"}).json()
         check("POST /api/v1/equipment/recommend", eq.get("equipment_id") == "EQ-BP-01", "->".join(eq["route_zone_ids"]))
+        stored = c.get(f"/api/v1/equipment/recommendations/{eq['recommendation_id']}").json()
+        check("GET /api/v1/equipment/recommendations/{id}", stored["status"] == "active")
+        sim = c.post("/api/v1/simulation/movement", json={"scenario_id": "SIM-WALK-CQ-MED",
+                                                           "astronaut_id": "DEMO-002"}).json()
+        check("POST /api/v1/simulation/movement", sim["evaluation"]["zone_matches"] == sim["evaluation"]["tick_count"],
+              f"{sim['evaluation']['zone_matches']}/{sim['evaluation']['tick_count']}")
+        hatch = c.post("/api/v1/habitats/HAB-01/hatches/H-CQ-LAB", json={"state": "closed", "actor_id": "DEMO-002",
+                                                                         "reason": "Smoke test"}).json()
+        check("POST /api/v1/habitats/HAB-01/hatches/{id}", hatch["changed"] and hatch["state_version"] == 2)
         latest = c.get("/api/v1/location/DEMO-001/latest").json()
         check("GET /api/v1/location/{id}/latest", latest["display_mode"] == "zone_only", latest["label"])
         hab_map = c.get("/api/v1/habitats/HAB-01/map").json()
@@ -70,9 +79,16 @@ def main() -> int:
         check("GET /api/v1/procedures/PROC-BP-01", len(proc_def["steps"]) == 6
               and len({s["visual"]["action_id"] for s in proc_def["steps"]}) == 6, proc_def["validation_level"])
         ses = c.post("/api/v1/procedure-sessions", json={"case_id": case_id, "procedure_id": "PROC-BP-01",
-                                                          "actor_id": "DEMO-001", "mode": "self"})
-        check("POST /api/v1/procedure-sessions", ses.status_code == 201)
+                                                          "actor_id": "DEMO-001", "mode": "self",
+                                                          "equipment_id": eq["equipment_id"]})
+        check("POST /api/v1/procedure-sessions", ses.status_code == 201
+              and ses.json()["equipment"]["equipment_id"] == eq["equipment_id"])
         sid = ses.json()["session_id"]
+        views = [c.post(f"/api/v1/procedure-sessions/{sid}/events",
+                        json={"step_id": st["step_id"], "event_type": "animation_viewed",
+                              "visual_action_id": st["visual"]["action_id"], "actor_id": "DEMO-001"}).status_code
+                 for st in proc_def["steps"]]
+        check("POST /api/v1/procedure-sessions/{id}/events", views == [201] * len(proc_def["steps"]))
         for st in proc_def["steps"]:
             last = c.post(f"/api/v1/procedure-sessions/{sid}/steps",
                           json={"step_id": st["step_id"], "completion_source": "self_confirmed"}).json()

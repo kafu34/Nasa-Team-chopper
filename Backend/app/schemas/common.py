@@ -72,6 +72,7 @@ class ErrorResponse(BaseModel):
 
 def error_responses(*codes: int) -> dict:
     desc = {
+        403: "Not permitted",
         404: "Resource not found",
         409: "Conflict with current workflow state",
         422: "Validation error",

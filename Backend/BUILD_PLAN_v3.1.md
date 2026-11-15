@@ -80,13 +80,59 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 
 ### Milestone 3 (backend part) — procedure session state
 23. Session `equipment_id` (must be compatible with the procedure and match inventory); `POST /procedure-sessions/{id}/events` for `instruction_displayed`, `animation_viewed`, `animation_replayed`; per-step state in `SessionOut`; session stages `device_reading_received`, `technical_validation`, `assessment_completed`, `follow_up_created`.
-24. Tests for event ordering, idempotence, restore after restart, and that no event equals clinical execution.
+    Detailed sub-steps (planned 2026-11-15, after Codex confirmed 2.3.0 and started the visual coach):
+    - 23.1 Model `ProcedureStepEvent` (event_id, session_id, step_id, event_type, visual_action_id, client_event_id,
+      actor_id, occurred_at, recorded_at); reset deletes it; unique (session_id, client_event_id).
+    - 23.2 Columns `procedure_sessions.equipment_id` and `procedure_sessions.equipment_snapshot` (JSON) via
+      `add_missing_columns`.
+    - 23.3 `SessionCreate.equipment_id` (optional). Rules: device exists (404); capability, model and
+      `compatible_procedure_ids` match the procedure (422 `EQUIPMENT_INCOMPATIBLE`); readiness verified and fresh
+      (409 `EQUIPMENT_NOT_READY`). The snapshot stores model, zone and readiness at start. Reusing an in-progress
+      session with another device returns 409 `SESSION_EQUIPMENT_MISMATCH`.
+    - 23.4 Event types `instruction_displayed`, `animation_viewed`, `animation_replayed`, `visual_unavailable`.
+      Rules: the step exists (422 `UNKNOWN_STEP`); `visual_action_id` equals the step's (422
+      `VISUAL_ACTION_MISMATCH`); a repeated `client_event_id` returns the first event (`duplicate: true`).
+      Events never change step order, session status or case state.
+    - 23.5 `SessionOut` gains `equipment`, `step_states[]` (displayed_at, view_count, replay_count, last_viewed_at,
+      visual_unavailable, acknowledged_at, completion_source), `stages[]` (instruction_displayed, animation_viewed,
+      steps_acknowledged, device_reading_received, technical_validation, assessment_completed, follow_up_created)
+      and `visual_note`.
+    - 23.6 `MeasurementCreate.equipment_id` (optional) must equal the session's device (422 `EQUIPMENT_MISMATCH`).
+24. Tests `test_r_procedure_session_state.py`: equipment rules, event rules and idempotence, stages through a full
+    run, restore after restart, events not changing order or state, reset, old database upgrade. Then contract
+    export, smoke test, live restart, docs, commit.
 
 ### Milestone 4 (backend part) — habitat operations
 25. `POST /habitats/{id}/hatches/{hatch_id}` (open/close, audited, role-checked); routes recomputed; earlier recommendations marked invalid.
 26. Repeatable movement simulator (`scripts/simulate_movement.py` + service) with separate ground truth, generated observations and backend estimate; ground truth never returned by user-facing endpoints.
 27. Route start from responder or patient location; uncertainty: when confidence < 0.7, route from each candidate zone and report the spread.
 28. Tests: movement between compartments, conflicting, missing and stale anchors, hatch change invalidating a route.
+    Detailed sub-steps (planned 2026-11-15; the picture guide is Codex's work, so the backend moves to M4):
+    - 25.1 Table `equipment_recommendations` (id, case, equipment, start zone, route zones, route hatches,
+      habitat state version, status `active|invalidated`, invalidated reason/time). `recommend` stores each result
+      and returns `recommendation_id`, `status`, `habitat_state_version`.
+    - 25.2 `Habitat.state_version` column (starts at 1). Hatch change: body `{state: open|closed, actor_id,
+      reason}`; 404 unknown hatch; actor must be a registered crew member of this habitat (full role-based access is
+      step 36, documented as PARTIAL); unchanged state returns `changed: false`. A change flips
+      `ZoneConnection.accessible`, bumps `state_version`, audits, and invalidates every active recommendation
+      that uses the closed hatch (closing) or every active recommendation (opening, because a shorter route may
+      now exist). The response lists the invalidated IDs.
+    - 25.3 `GET /equipment/recommendations/{id}` returns the stored recommendation with its status. Map gains
+      `state_version`.
+    - 26.1 Fixture `movement_scenarios`: waypoints in the map frame, ticks per segment, seed, noise, dropped
+      anchors, observation age. Four scenarios: walk crew-quarters -> medical, stand in the CQ-EX passage
+      (conflicting), lab with its enabled anchor failed (missing), stale observations.
+    - 26.2 `services/simulation.py`: ground truth (interpolated points, true zone by polygon), generated RSSI
+      (log-distance model, wall attenuation, seeded noise; documented as a simulation, not a calibrated radio
+      model), backend estimate through the normal `spatial.estimate`. Ground truth is returned only inside an
+      `evaluation` block of the simulation endpoint and never by map, location or recommendation endpoints.
+    - 26.3 `POST /simulation/movement` `{scenario_id, astronaut_id}` and `scripts/simulate_movement.py`.
+    - 27.1 `EquipmentRecommendRequest`: `zone_id` becomes optional; new optional `astronaut_id` and
+      `start_role: patient|responder`. Without `zone_id` the start is the astronaut's latest estimate; stale or
+      unavailable gives 409 `LOCATION_UNAVAILABLE` (manual confirmation advised).
+    - 27.2 When the start estimate's confidence is below 0.7, `start_uncertainty` lists every candidate zone
+      within 6 dB of the best with its route hops to the chosen device and the spread.
+    - 28.1 Tests `test_s_habitat_operations.py` and `test_t_movement_simulation.py`.
 
 ### Milestone 5 (backend part) — proactive health intelligence
 29. Baseline model (versioned, per astronaut and observation type, quality rules, frozen while a concern is open so deterioration never becomes the new normal).
@@ -117,7 +163,9 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 |---|---|
 | 1–22 | done 2026-11-14 (contract 2.2.0; 201 passed, 1 skipped; smoke 25/25) |
 | 2.3.0 add-on | done 2026-11-15: `sentinel-human-male-v1` registered from Codex's GLB; 217 passed, 1 skipped |
-| 23–40 | not started; waiting for Codex to confirm the 2.2.0/2.3.0 contract (handoff §11) |
+| 23–24 | done 2026-11-15: contract 2.4.0 procedure session state; 238 passed, 1 skipped; smoke 26/26 |
+| 25–28 | done 2026-11-15: contract 2.5.0 habitat operations and movement simulator; 257 passed; smoke 29/29 |
+| 29–40 | not started |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only

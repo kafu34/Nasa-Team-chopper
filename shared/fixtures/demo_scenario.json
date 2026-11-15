@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.3.0",
-  "contract_version": "2.3.0",
+  "fixture_version": "2.5.0",
+  "contract_version": "2.5.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -1208,5 +1208,110 @@
       },
       "expected_error": "SURFACE_SITE_MISMATCH"
     }
+  },
+  "movement_scenarios": [
+    {
+      "scenario_id": "SIM-WALK-CQ-MED",
+      "description": "Walk from crew quarters through exercise to medical along the open route.",
+      "waypoints": [
+        [
+          2.5,
+          2.0
+        ],
+        [
+          5.5,
+          2.0
+        ],
+        [
+          8.5,
+          2.0
+        ],
+        [
+          8.5,
+          4.5
+        ],
+        [
+          8.5,
+          7.0
+        ]
+      ],
+      "ticks_per_segment": 2,
+      "noise_db": 2.0,
+      "seed": 7,
+      "dropped_anchor_ids": [],
+      "observation_age_seconds": 2
+    },
+    {
+      "scenario_id": "SIM-CONFLICT-PASSAGE",
+      "description": "Stand in the crew-quarters/exercise hatch, equally far from both rooms' anchors.",
+      "waypoints": [
+        [
+          3.5,
+          2.0
+        ],
+        [
+          5.5,
+          2.0
+        ],
+        [
+          5.5,
+          2.1
+        ]
+      ],
+      "ticks_per_segment": 2,
+      "noise_db": 1.0,
+      "seed": 11,
+      "dropped_anchor_ids": [],
+      "observation_age_seconds": 2
+    },
+    {
+      "scenario_id": "SIM-MISSING-ANCHOR",
+      "description": "Stay in the laboratory while its enabled anchor has failed (the other lab anchor is disabled).",
+      "waypoints": [
+        [
+          2.5,
+          7.0
+        ],
+        [
+          3.0,
+          7.5
+        ]
+      ],
+      "ticks_per_segment": 2,
+      "noise_db": 1.0,
+      "seed": 3,
+      "dropped_anchor_ids": [
+        "ANC-LAB-01"
+      ],
+      "observation_age_seconds": 2
+    },
+    {
+      "scenario_id": "SIM-STALE",
+      "description": "Stay in crew quarters, but every observation arrives 45 s late.",
+      "waypoints": [
+        [
+          2.5,
+          2.0
+        ],
+        [
+          2.6,
+          2.0
+        ]
+      ],
+      "ticks_per_segment": 1,
+      "noise_db": 1.0,
+      "seed": 5,
+      "dropped_anchor_ids": [],
+      "observation_age_seconds": 45
+    }
+  ],
+  "movement_model": {
+    "model_id": "SIM-RSSI-1.0",
+    "tx_rssi_at_1m_dbm": -40,
+    "path_loss_exponent": 2.0,
+    "wall_loss_db": 12,
+    "passage_wall_loss_db": 4,
+    "min_distance_m": 0.5,
+    "note": "Simple log-distance simulation for demonstration. Not a calibrated radio model of any habitat."
   }
 }

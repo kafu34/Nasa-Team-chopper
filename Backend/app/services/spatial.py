@@ -1,11 +1,15 @@
 """Simulated zone-level positioning and equipment routing.
 
-Location method (LOC-P0-1.0)
+Location method (LOC-P0-1.1; 1.1 adds step 5)
   1. Reject observations from unknown or disabled anchors, stale (> 30 s) or future (> 5 s) timestamps.
   2. Score each zone by its strongest valid RSSI.
   3. confidence = min(0.95, 0.5 + margin_dB / 30), margin = best minus runner-up zone (15 dB if only one zone).
   4. Hysteresis: if a previous BLE estimate is < 60 s old, the margin is < 3 dB and the previous zone is still a
      candidate, keep the previous zone (source = ble_simulated_smoothed).
+  5. Unobserved zones: a zone none of whose enabled anchors produced a valid observation cannot be ruled out.
+     If such a zone is next to the chosen zone (any connection, open or closed), confidence is capped at 0.5 and the
+     zone is listed in `unobserved_zone_ids`. Found with the movement simulator (SIM-MISSING-ANCHOR): without this
+     rule a failed laboratory anchor produced a wrong crew-quarters estimate at 0.63-0.67 confidence.
   No distance is ever computed from RSSI.
 
 Equipment method (EQ-P0-1.0)
@@ -55,7 +59,8 @@ def _store(db: Session, out: LocationEstimateOut) -> LocationEstimateOut:
                               estimated_at=out.estimated_at,
                               details=out.model_dump(mode="json", include={"used_anchor_ids", "rejected",
                                                                            "zone_scores", "method",
-                                                                           "explanation"})))
+                                                                           "explanation",
+                                                                           "unobserved_zone_ids"})))
     audit(db, "location-engine", "location.estimated", "location_estimate", out.estimate_id,
           zone_id=out.zone_id, confidence=out.confidence, source=out.source)
     db.commit()
@@ -93,7 +98,8 @@ def estimate(db: Session, body: LocationEstimateRequest) -> LocationEstimateOut:
     scores = sorted((ZoneScore(zone_id=z, best_rssi_dbm=r, anchor_count=counts[z]) for z, r in best.items()),
                     key=lambda s: (-s.best_rssi_dbm, s.zone_id))
     base = dict(estimate_id=m.new_id("LOC"), astronaut_id=body.astronaut_id, estimated_at=now,
-                method="LOC-P0-1.0 strongest-anchor-per-zone with margin confidence and hysteresis",
+                method="LOC-P0-1.1 strongest-anchor-per-zone with margin confidence, hysteresis and "
+                       "unobserved-zone cap",
                 used_anchor_ids=used, rejected=rejected, zone_scores=scores)
     if not scores:
         return _store(db, LocationEstimateOut(
@@ -116,8 +122,27 @@ def estimate(db: Session, body: LocationEstimateRequest) -> LocationEstimateOut:
                            "to avoid zone flicker.")
         else:
             explanation = f"Conflicting signals ({margin} dB margin); low confidence in {zone}."
+    unobserved = _unobserved_neighbours(db, zone, set(best))
+    if unobserved:
+        confidence = min(confidence, UNOBSERVED_CAP)
+        explanation += (f" No anchor in {', '.join(unobserved)} reported, so the person could be there; "
+                        f"confidence capped at {UNOBSERVED_CAP}.")
     return _store(db, LocationEstimateOut(**base, zone_id=zone, confidence=confidence, source=source,
-                                          observed_at=newest, explanation=explanation))
+                                          observed_at=newest, explanation=explanation,
+                                          unobserved_zone_ids=unobserved))
+
+
+UNOBSERVED_CAP = 0.5
+
+
+def _unobserved_neighbours(db: Session, zone: str, observed: set[str]) -> list[str]:
+    neighbours = set()
+    for c in db.scalars(select(m.ZoneConnection)):
+        if c.from_zone_id == zone:
+            neighbours.add(c.to_zone_id)
+        elif c.to_zone_id == zone:
+            neighbours.add(c.from_zone_id)
+    return sorted(z for z in neighbours if z not in observed)
 
 
 def confirm(db: Session, astronaut_id: str, zone_id: str, confirmed_by: str) -> LocationEstimateOut:
@@ -146,7 +171,8 @@ def latest(db: Session, astronaut_id: str) -> LocationLatestOut:
         source=row.source, observed_at=row.observed_at, estimated_at=row.estimated_at,
         method=d.get("method", "unknown"), used_anchor_ids=d.get("used_anchor_ids", []),
         rejected=d.get("rejected", []), zone_scores=d.get("zone_scores", []),
-        explanation=d.get("explanation", "Stored estimate."), map_version=_map_version(db))
+        explanation=d.get("explanation", "Stored estimate."), map_version=_map_version(db),
+        unobserved_zone_ids=d.get("unobserved_zone_ids", []))
     if row.zone_id is None:
         return LocationLatestOut(astronaut_id=astronaut_id, display_mode="unavailable", estimate=est,
                                  age_seconds=None, stale_after_seconds=None,
@@ -179,9 +205,54 @@ def accessible_routes(db: Session, start: str) -> dict[str, list[str]]:
     return routes
 
 
-def recommend(db: Session, fx: dict, case_id: str, zone_id: str, capability: str) -> EquipmentRecommendation:
+UNCERTAIN_BELOW = 0.7
+CANDIDATE_WITHIN_DB = 6
+
+
+def _resolve_start(db: Session, body) -> dict:
+    if body.zone_id is not None:
+        if body.astronaut_id is not None:
+            _require_astronaut(db, body.astronaut_id)
+        return {"zone_id": body.zone_id, "start_basis": "request_zone", "estimate": None}
+    if body.astronaut_id is None:
+        raise ApiError(422, "START_REQUIRED", "Send zone_id, or astronaut_id to start from their latest estimate.", {})
+    lat = latest(db, body.astronaut_id)
+    if lat.display_mode in ("stale", "unavailable") or lat.estimate is None:
+        raise ApiError(409, "LOCATION_UNAVAILABLE", f"No current location for {body.astronaut_id} "
+                       f"({lat.display_mode}). Confirm the zone manually or send zone_id.",
+                       {"astronaut_id": body.astronaut_id, "display_mode": lat.display_mode, "label": lat.label})
+    return {"zone_id": lat.estimate.zone_id, "start_basis": "latest_estimate", "estimate": lat.estimate}
+
+
+def _uncertainty(db: Session, est, target_zone: str):
+    if est is None or est.confidence >= UNCERTAIN_BELOW or not est.zone_scores:
+        return None
+    best = est.zone_scores[0].best_rssi_dbm
+    cands = []
+    zones = [(s.zone_id, s.best_rssi_dbm) for s in est.zone_scores if best - s.best_rssi_dbm <= CANDIDATE_WITHIN_DB]
+    zones += [(z, None) for z in est.unobserved_zone_ids]
+    for zid, rssi in zones:
+        route = accessible_routes(db, zid).get(target_zone)
+        cands.append({"zone_id": zid, "best_rssi_dbm": rssi, "route_hops": len(route) - 1 if route else None})
+    hops = [c["route_hops"] for c in cands if c["route_hops"] is not None]
+    return {"confidence": est.confidence, "candidates": cands,
+            "hop_spread": (max(hops) - min(hops)) if hops else None}
+
+
+def get_recommendation(db: Session, recommendation_id: str) -> EquipmentRecommendation:
+    rec = db.get(m.EquipmentRecommendationRecord, recommendation_id)
+    if rec is None:
+        raise not_found("Equipment recommendation", recommendation_id)
+    return EquipmentRecommendation(**{**rec.response, "status": rec.status,
+                                      "invalidated_reason": rec.invalidated_reason})
+
+
+def recommend(db: Session, fx: dict, body) -> EquipmentRecommendation:
+    case_id, capability = body.case_id, body.capability
     if db.get(m.MedicalCase, case_id) is None:
         raise not_found("Case", case_id)
+    start = _resolve_start(db, body)
+    zone_id = start["zone_id"]
     if db.get(m.Zone, zone_id) is None:
         raise not_found("Zone", zone_id)
     now = utcnow()
@@ -214,7 +285,13 @@ def recommend(db: Session, fx: dict, case_id: str, zone_id: str, capability: str
     route = routes[pick.zone_id]
     procedure_id = pick.compatible_procedure_ids[0] if pick.compatible_procedure_ids else None
     geo = habitat.route_geometry(db, fx, route, pick)
+    est = start["estimate"]
+    hab = db.get(m.Habitat, fx["habitat"]["habitat_id"])
     out = EquipmentRecommendation(
+        recommendation_id=m.new_id("REC"), habitat_state_version=hab.state_version or 1,
+        start_basis=start["start_basis"], start_role=body.start_role, start_astronaut_id=body.astronaut_id,
+        start_estimate_id=est.estimate_id if est else None, start_confidence=est.confidence if est else None,
+        start_uncertainty=_uncertainty(db, est, pick.zone_id),
         map_version=geo["geometry"]["map_version"], coordinate_frame_id=geo["geometry"]["frame_id"],
         start_reference=geo["start_reference"], route_hatch_ids=geo["hatch_ids"], route_geometry=geo["geometry"],
         equipment_id=pick.equipment_id, device_model=pick.device_model, zone_id=pick.zone_id,
@@ -225,6 +302,12 @@ def recommend(db: Session, fx: dict, case_id: str, zone_id: str, capability: str
                      f"({len(route) - 1} zone hop(s)). {len(excluded)} other device(s) excluded."))
     audit(db, "equipment-engine", "equipment.recommended", "equipment", pick.equipment_id, case_id,
           from_zone_id=zone_id, route_zone_ids=route, route_hatch_ids=geo["hatch_ids"],
-          map_version=geo["geometry"]["map_version"], excluded=[e.equipment_id for e in excluded])
+          map_version=geo["geometry"]["map_version"], excluded=[e.equipment_id for e in excluded],
+          recommendation_id=out.recommendation_id, start_basis=out.start_basis, start_role=out.start_role)
+    db.add(m.EquipmentRecommendationRecord(
+        recommendation_id=out.recommendation_id, case_id=case_id, equipment_id=pick.equipment_id,
+        start_zone_id=zone_id, route_zone_ids=route, route_hatch_ids=geo["hatch_ids"],
+        habitat_state_version=out.habitat_state_version, status="active", created_at=now,
+        response=out.model_dump(mode="json")))
     db.commit()
     return out

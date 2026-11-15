@@ -106,6 +106,74 @@ class SessionCreate(TzModel):
     procedure_id: str = Field(examples=["PROC-BP-01"])
     actor_id: str = Field(examples=["DEMO-001"])
     mode: Literal["self", "responder"]
+    equipment_id: Optional[str] = Field(
+        default=None, examples=["EQ-BP-01"], description="Optional (2.4.0). The inventory device used, normally "
+        "the one from POST /equipment/recommend. Must be compatible with the procedure and verified ready.")
+
+
+StepEventType = Literal["instruction_displayed", "animation_viewed", "animation_replayed", "visual_unavailable"]
+VISUAL_NOTE = ("Displayed instructions, viewed animations and acknowledged steps show what the crew member saw and "
+               "confirmed. They do not prove that the real-world step was performed correctly.")
+
+
+class StepEventCreate(TzModel):
+    step_id: str = Field(examples=["S3"])
+    event_type: StepEventType = Field(description="instruction_displayed: the step's instruction was shown. "
+                                      "animation_viewed: its demonstration played to the end. animation_replayed: it "
+                                      "was played again. visual_unavailable: the frontend has no implemented scene "
+                                      "for this action and showed the unavailable state.")
+    visual_action_id: str = Field(examples=["VA-BP-03-WRAP-CUFF"], description="Must equal the step's visual.action_id.")
+    actor_id: str = Field(examples=["DEMO-001"])
+    client_event_id: Optional[str] = Field(default=None, max_length=64, description="Idempotency key. A repeat "
+                                           "returns the first event with duplicate=true.")
+    occurred_at: Optional[datetime] = Field(default=None, description="Client time of the event; defaults to the "
+                                            "server time. Must not be in the future or before the session started.")
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+class StepEventOut(BaseModel):
+    event_id: str
+    session_id: str
+    step_id: str
+    event_type: StepEventType
+    visual_action_id: str
+    actor_id: str
+    client_event_id: Optional[str]
+    occurred_at: datetime
+    recorded_at: datetime
+    duplicate: bool = False
+
+
+class SessionEquipment(BaseModel):
+    equipment_id: str
+    device_model: str
+    zone_id_at_start: str
+    readiness_at_start: str
+    readiness_verified_at: Optional[datetime]
+
+
+class StepState(BaseModel):
+    step_id: str
+    visual_action_id: str
+    displayed_at: Optional[datetime]
+    view_count: int
+    replay_count: int
+    last_viewed_at: Optional[datetime]
+    visual_unavailable: bool
+    acknowledged_at: Optional[datetime]
+    completion_source: Optional[str]
+
+
+SessionStageName = Literal["instruction_displayed", "animation_viewed", "steps_acknowledged",
+                           "device_reading_received", "technical_validation", "assessment_completed",
+                           "follow_up_created"]
+
+
+class SessionStage(BaseModel):
+    stage: SessionStageName
+    status: Literal["done", "partial", "pending", "unavailable"]
+    at: Optional[datetime] = Field(description="When the stage was completed (latest contributing record).")
+    detail: str
 
 
 class StepConfirm(TzModel):
@@ -137,7 +205,13 @@ class SessionOut(BaseModel):
     updated_at: datetime
     completed_at: Optional[datetime]
     case_state: CaseState
+    equipment: Optional[SessionEquipment] = Field(default=None, description="Device bound at session start (2.4.0).")
+    step_states: list[StepState] = Field(default_factory=list, description="Per-step visual and acknowledgement "
+                                         "state, for restoring the coach after reopening (2.4.0).")
+    stages: list[SessionStage] = Field(default_factory=list, description="Separate records of display, viewing, "
+                                       "acknowledgement, reading, validation, assessment and follow-up (2.4.0).")
     confirmation_note: str = CONFIRMATION_NOTE
+    visual_note: str = VISUAL_NOTE
 
 
 class BloodPressureValue(BaseModel):
@@ -156,6 +230,8 @@ class MeasurementCreate(TzModel):
     source: Literal["SIMULATED_DEVICE", "SIMULATED_MANUAL_ENTRY"] = Field(
         description="Only simulated sources are accepted in this prototype.")
     observed_at: datetime
+    equipment_id: Optional[str] = Field(default=None, description="Optional (2.4.0). Must equal the session's "
+                                        "device when the session has one.")
 
 
 class MeasurementValidation(BaseModel):
