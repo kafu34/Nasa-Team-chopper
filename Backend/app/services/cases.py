@@ -103,6 +103,9 @@ def open_case(db: Session, astronaut_id: str, kind: str) -> m.MedicalCase | None
 
 
 def attention_for(case: m.MedicalCase) -> Attention:
+    if case.state == "resolved":
+        return Attention(priority=case.priority, interrupt=False,
+                         reason="Resolved case: kept in the history without interrupting.")
     if case.priority == "urgent":
         return Attention(priority="urgent", interrupt=True, reason="Urgent case: immediate crew attention.")
     return Attention(priority="routine", interrupt=False,
@@ -151,6 +154,7 @@ def case_out(db: Session, case: m.MedicalCase) -> CaseOut:
                                                .where(m.MonitoringConcern.case_id == cid)
                                                .order_by(m.MonitoringConcern.opened_at))),
         priority_protection=priority_protection(case),
+        resolved_at=case.resolved_at, resolved_by=case.resolved_by, resolution_note=case.resolution_note,
     )
 
 

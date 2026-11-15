@@ -216,8 +216,24 @@ class CaseOut(BaseModel):
                                               "rules that joined this case (2.6.0).")
     priority_protection: Optional[PriorityProtection] = Field(default=None, description="Present while urgent: "
                                                               "the priority is never lowered automatically (2.6.0).")
+    resolved_at: Optional[datetime] = Field(default=None, description="Controlled closure (2.11.0).")
+    resolved_by: Optional[str] = None
+    resolution_note: Optional[str] = None
     data_category: DataCategory = "SIMULATED_ASTRONAUT"
     disclaimer: str = "Fictional demonstration case. Not a diagnosis."
+
+
+class CaseResolve(Strict):
+    actor_id: str = Field(examples=["DEMO-002"])
+    note: str = Field(min_length=3, max_length=2000)
+    close_outstanding_follow_ups: bool = Field(default=False, description="Cancel scheduled or due follow-ups "
+                                               "(each cancellation is audited).")
+
+
+class CaseResolveOut(BaseModel):
+    case: "CaseOut"
+    cancelled_follow_up_ids: list[str]
+    warnings: list[str]
 
 
 class CaseAcknowledge(TzModel):

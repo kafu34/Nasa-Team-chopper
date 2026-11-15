@@ -10,7 +10,7 @@ from .. import models as m
 from ..db import get_db, utcnow
 from ..errors import not_found
 from ..errors import ApiError
-from ..schemas.cases import (CaseAcknowledge, CaseOut, ObservationBatch, ObservationBatchOut, ObservationCreate,
+from ..schemas.cases import (CaseAcknowledge, CaseOut, CaseResolve, CaseResolveOut, ObservationBatch, ObservationBatchOut, ObservationCreate,
                              ObservationCreated, SymptomCreate, SymptomCreated)
 from ..services import access, detection
 from ..schemas.common import error_responses
@@ -50,6 +50,20 @@ def get_case(case_id: str, request: Request, viewer_id: Optional[str] = Query(de
                         case.case_id, case.astronaut_id)
     refresh_follow_ups(db, case)
     return case_svc.case_out(db, case)
+
+
+@router.post("/cases/{case_id}/resolve", response_model=CaseResolveOut, responses=error_responses(403, 404, 409, 422),
+             summary="Resolve a case (crew medical officer or flight surgeon) once its open items are closed",
+             description="409 CASE_NOT_READY_TO_RESOLVE lists every blocker: open concern, session in progress, "
+                         "requested assessment, outstanding follow-up (unless close_outstanding_follow_ups), state. "
+                         "The priority value is kept; a resolved case stops interrupting (2.11.0).")
+def resolve_case(case_id: str, body: CaseResolve, request: Request, db: Session = Depends(get_db)) -> CaseResolveOut:
+    from ..services import closure
+
+    case = case_svc.get_case(db, case_id)
+    out = closure.resolve(db, request.app.state.fixture, case, body.actor_id, body.note,
+                          body.close_outstanding_follow_ups)
+    return CaseResolveOut(case=case_svc.case_out(db, case), **out)
 
 
 @router.post("/cases/{case_id}/acknowledge", response_model=CaseOut, responses=error_responses(403, 404),

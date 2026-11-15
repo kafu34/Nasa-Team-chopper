@@ -158,6 +158,13 @@ def main() -> int:
               f"readings={len(env['radiation']['latest_readings'])}")
         rec = c.get("/api/v1/system/recovery").json()
         check("GET /api/v1/system/recovery", sent.json()["message_id"] in rec["undelivered_message_ids"])
+        inv = {e["equipment_id"]: e["usable"] for e in c.get("/api/v1/equipment").json()}
+        check("GET /api/v1/equipment", inv.get("EQ-BP-01") is True and inv.get("EQ-BP-02") is False)
+        open_case = rec["open_case_ids"][0] if rec["open_case_ids"] else None
+        blocked = c.post(f"/api/v1/cases/{open_case}/resolve", json={"actor_id": "DEMO-002", "note": "smoke"}) \
+            if open_case else None
+        check("POST /api/v1/cases/{id}/resolve (409 blockers expected)", blocked is not None
+              and blocked.status_code == 409 and blocked.json()["error"]["code"] == "CASE_NOT_READY_TO_RESOLVE")
         cors = c.options("/api/v1/demo/bootstrap", headers={"Origin": "http://127.0.0.1:5173",
                                                             "Access-Control-Request-Method": "GET"})
         check("CORS preflight from 127.0.0.1:5173", cors.headers.get("access-control-allow-origin") == "http://127.0.0.1:5173")

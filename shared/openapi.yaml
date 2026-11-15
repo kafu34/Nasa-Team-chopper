@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.10.0
+  version: 2.11.0
 paths:
   /healthz:
     get:
@@ -164,6 +164,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/cases/{case_id}/resolve:
+    post:
+      tags:
+      - cases
+      summary: Resolve a case (crew medical officer or flight surgeon) once its open items are closed
+      description: '409 CASE_NOT_READY_TO_RESOLVE lists every blocker: open concern, session in progress, requested assessment,
+        outstanding follow-up (unless close_outstanding_follow_ups), state. The priority value is kept; a resolved case stops
+        interrupting (2.11.0).'
+      operationId: resolve_case_api_v1_cases__case_id__resolve_post
+      parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Case Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaseResolve'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseResolveOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/cases/{case_id}/acknowledge:
     post:
       tags:
@@ -887,6 +940,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/equipment:
+    get:
+      tags:
+      - equipment
+      summary: Equipment inventory with usability (2.11.0)
+      operationId: list_equipment_api_v1_equipment_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/EquipmentStatus'
+                type: array
+                title: Response List Equipment Api V1 Equipment Get
+  /api/v1/equipment/{equipment_id}/status:
+    post:
+      tags:
+      - equipment
+      summary: Update a device's readiness, supplies or location (crew roles; audited)
+      description: Invalidates active recommendations for the device and its capability. verified_ready counts as a fresh
+        readiness check.
+      operationId: update_equipment_api_v1_equipment__equipment_id__status_post
+      parameters:
+      - name: equipment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Equipment Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentUpdateOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/access/roles:
     get:
       tags:
@@ -2948,6 +3063,23 @@ components:
           - $ref: '#/components/schemas/PriorityProtection'
           - type: 'null'
           description: 'Present while urgent: the priority is never lowered automatically (2.6.0).'
+        resolved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolved At
+          description: Controlled closure (2.11.0).
+        resolved_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resolved By
+        resolution_note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resolution Note
         data_category:
           type: string
           enum:
@@ -2983,6 +3115,49 @@ components:
       - updated_at
       - audit
       title: CaseOut
+    CaseResolve:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-002
+        note:
+          type: string
+          maxLength: 2000
+          minLength: 3
+          title: Note
+        close_outstanding_follow_ups:
+          type: boolean
+          title: Close Outstanding Follow Ups
+          description: Cancel scheduled or due follow-ups (each cancellation is audited).
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      - note
+      title: CaseResolve
+    CaseResolveOut:
+      properties:
+        case:
+          $ref: '#/components/schemas/CaseOut'
+        cancelled_follow_up_ids:
+          items:
+            type: string
+          type: array
+          title: Cancelled Follow Up Ids
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+      type: object
+      required:
+      - case
+      - cancelled_follow_up_ids
+      - warnings
+      title: CaseResolveOut
     CaseSummary:
       properties:
         case_id:
@@ -4843,6 +5018,147 @@ components:
       - route_hatch_ids
       - route_geometry
       title: EquipmentRecommendation
+    EquipmentStatus:
+      properties:
+        equipment_id:
+          type: string
+          title: Equipment Id
+        device_model:
+          type: string
+          title: Device Model
+        capability:
+          type: string
+          title: Capability
+        zone_id:
+          type: string
+          title: Zone Id
+        readiness:
+          type: string
+          title: Readiness
+        readiness_verified_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Readiness Verified At
+        supplies:
+          additionalProperties:
+            type: boolean
+          type: object
+          title: Supplies
+        required_supplies:
+          items:
+            type: string
+          type: array
+          title: Required Supplies
+        compatible_procedure_ids:
+          items:
+            type: string
+          type: array
+          title: Compatible Procedure Ids
+        status_updated_at:
+          type: string
+          format: date-time
+          title: Status Updated At
+        usable:
+          type: boolean
+          title: Usable
+          description: Ready, freshly checked and supplied. Zone accessibility depends on the route start and is checked by
+            /equipment/recommend.
+        unusable_reasons:
+          items:
+            type: string
+          type: array
+          title: Unusable Reasons
+        data_category:
+          type: string
+          const: SIMULATED_ENVIRONMENT_OR_DEVICE
+          title: Data Category
+          default: SIMULATED_ENVIRONMENT_OR_DEVICE
+      type: object
+      required:
+      - equipment_id
+      - device_model
+      - capability
+      - zone_id
+      - readiness
+      - readiness_verified_at
+      - supplies
+      - required_supplies
+      - compatible_procedure_ids
+      - status_updated_at
+      - usable
+      - unusable_reasons
+      title: EquipmentStatus
+    EquipmentUpdate:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-002
+        readiness:
+          anyOf:
+          - type: string
+            enum:
+            - verified_ready
+            - unknown
+            - needs_service
+            - in_use
+          - type: 'null'
+          title: Readiness
+        supplies:
+          anyOf:
+          - additionalProperties:
+              type: boolean
+            type: object
+          - type: 'null'
+          title: Supplies
+        zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zone Id
+        note:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      - note
+      title: EquipmentUpdate
+    EquipmentUpdateOut:
+      properties:
+        equipment:
+          $ref: '#/components/schemas/EquipmentStatus'
+        changed:
+          type: boolean
+          title: Changed
+        before:
+          type: object
+          title: Before
+        invalidated_recommendation_ids:
+          items:
+            type: string
+          type: array
+          title: Invalidated Recommendation Ids
+        affected_session_ids:
+          items:
+            type: string
+          type: array
+          title: Affected Session Ids
+          description: In-progress sessions using this device; not cancelled.
+      type: object
+      required:
+      - equipment
+      - changed
+      - before
+      - invalidated_recommendation_ids
+      - affected_session_ids
+      title: EquipmentUpdateOut
     ErrorBody:
       properties:
         code:

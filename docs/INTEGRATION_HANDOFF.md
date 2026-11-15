@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.10.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.10.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.11.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.11.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,8 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **346 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **45/45** real-HTTP checks against
+See `docs/TEST_REPORT.md`. Latest: **355 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **47/47** real-HTTP checks against
 uvicorn.
 
 ## 10. Known contract deviations and coordination notes
@@ -222,6 +222,33 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.11.0 — inventory updates and controlled case closure (plan steps 41–43)
+
+Additive, with one behaviour change: a resolved case reports `attention.interrupt: false`.
+
+1. **Inventory.**
+   - `GET /equipment` lists every device with `usable` and `unusable_reasons`: `readiness_<state>`,
+     `readiness_check_stale` (older than 24 h) and `missing_supplies:<items>`.
+   - `POST /equipment/{id}/status {actor_id, readiness?, supplies?, zone_id?, note}` is for crew roles only
+     (403 otherwise). Errors: 422 `UNKNOWN_SUPPLY` and 422 `UNKNOWN_ZONE`.
+   - `verified_ready` counts as a fresh check.
+   - The response lists `invalidated_recommendation_ids` (the device's and its capability's active routes) and
+     `affected_session_ids` (in-progress sessions on the device, which are not cancelled).
+   - **Note for the live demo database:** its readiness checks date from 2026-11-14, so every device now reports
+     `readiness_check_stale`, and `/equipment/recommend` refuses them as before. Run `POST /demo/reset`, or
+     re-verify a device with this endpoint.
+2. **Case resolution.** `POST /cases/{id}/resolve {actor_id, note, close_outstanding_follow_ups?}`.
+   - It needs the crew medical officer or the flight surgeon.
+   - It is refused with 409 `CASE_NOT_READY_TO_RESOLVE` and `details.blockers[]` while any of these remain:
+     `open_monitoring_concern`, `session_in_progress`, `assessment_requested`, `follow_up_outstanding`,
+     `state_not_resolvable`.
+   - `close_outstanding_follow_ups: true` cancels follow-ups; each cancellation is audited and the follow-up
+     status becomes `cancelled`.
+   - The response is `{case, cancelled_follow_up_ids, warnings}`. Warnings include unacknowledged urgent
+     messages.
+   - `CaseOut` gains `resolved_at`, `resolved_by` and `resolution_note`. The priority value is kept, and
+     `attention.interrupt` becomes false. A new symptom after resolution opens a new case.
 
 ### Contract 2.10.0 — communications, environment and recovery (plan steps 37–39)
 

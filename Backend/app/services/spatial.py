@@ -263,15 +263,10 @@ def recommend(db: Session, fx: dict, body) -> EquipmentRecommendation:
         raise ApiError(404, "NO_SUITABLE_EQUIPMENT", f"No equipment with capability '{capability}' is registered.",
                        {"capability": capability, "excluded": []})
     candidates, excluded = [], []
+    from .inventory import device_reasons
+
     for d in devices:
-        reasons = []
-        if d.readiness != "verified_ready":
-            reasons.append(f"readiness_{d.readiness}")
-        elif d.readiness_verified_at is None or now - d.readiness_verified_at > READINESS_MAX_AGE:
-            reasons.append("readiness_check_stale")
-        missing = [s for s in d.required_supplies if not d.supplies.get(s, False)]
-        if missing:
-            reasons.append("missing_supplies:" + ",".join(missing))
+        reasons = device_reasons(d, now)
         if d.zone_id not in routes:
             reasons.append("zone_not_accessible")
         if reasons:
