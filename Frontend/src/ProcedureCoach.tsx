@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { NavLink } from 'react-router-dom'
 import { api, DEMO, type CaseOut, type EquipmentRecommendation, type MeasurementResult, type ProcedureOut, type SessionOut } from './api'
 import { ProcedurePictures } from './ProcedurePictures'
 import { visualFor } from './visual-registry'
@@ -51,6 +52,7 @@ export function ProcedureCoach({ caseId, equipment, procedure, session, measurem
   }, [caseId, session?.case_id, restore.run, onSession])
   useEffect(() => { if (session?.current_step_id) setSelectedStep(session.current_step_id); if (session?.mode) setMode(session.mode) }, [session?.current_step_id, session?.mode])
   useEffect(() => { if (session?.session_id) { const raw = readLocal(viewedKey(session.session_id)); try { setViewed(raw ? JSON.parse(raw) as string[] : []) } catch { setViewed([]) } } }, [session?.session_id])
+  useEffect(() => { if (!session?.session_id) return; const refresh = () => { void api.getSession(session.session_id).then(onSession).catch(() => { /* Existing session remains visible during a brief backend outage. */ }) }; refresh(); const timer = window.setInterval(refresh, 15_000); return () => window.clearInterval(timer) }, [session?.session_id, onSession])
 
   async function startSession() {
     if (!caseId) return
@@ -76,6 +78,7 @@ export function ProcedureCoach({ caseId, equipment, procedure, session, measurem
     <header className="page-title"><div><p className="eyebrow">Guided assessment / 04</p><h1>Visual Procedure Coach</h1><p className="intro">Watch each backend-defined action, then acknowledge the real-world step separately.</p></div></header>
     <div className="procedure-context"><div><span className="tag simulated">{procedure?.validation_level?.replaceAll('_', ' ') ?? 'EDUCATIONAL DEMONSTRATION'}</span><h2>{procedure?.title ?? 'Loading PROC-BP-01'}</h2><p>{procedure?.purpose ?? 'Waiting for the local procedure definition.'}</p></div><div className="procedure-context-facts"><span>Procedure <strong>{DEMO.procedureId}{procedure ? ` · ${procedure.version}` : ''}</strong></span><span>Selected device <strong>{equipment ? `${equipment.equipment_id} · ${equipment.device_model} · ${equipment.readiness}` : 'No device selected yet'}</strong></span><span>Compatible model <strong>{procedure?.compatible_device_models.join(', ') ?? 'Waiting for definition'}</strong></span><span>Case <strong>{caseId ?? 'No case yet'}</strong></span></div></div>
     {!deviceMatch && <p className="status error">The selected device is not listed as compatible with this procedure. Choose a compatible ready device before assessment.</p>}
+    {(session?.attention?.interrupt || !!session?.urgent_events?.length) && <div className="status error" role="alert"><strong>Urgent case interruption.</strong> {session.attention?.reason ?? session.urgent_events?.[0]?.next_action} The routine procedure remains recorded, but urgent instructions take priority. <NavLink to="/emergency">Open emergency assistance</NavLink>{session.urgent_events?.map(item => <p key={item.case_id}>{item.case_id}: {item.next_action}</p>)}</div>}
     {load.error && <p className="status error">{load.error} <button type="button" onClick={() => void load.run(() => api.procedure(DEMO.procedureId)).then(value => { if (value) onProcedure(value) })}>Retry</button></p>}
     <div className="procedure-main"><section className="card procedure-scene-card">
       {!activeStep ? <p className="muted">The local backend has not supplied the six procedure steps.</p> : <>
