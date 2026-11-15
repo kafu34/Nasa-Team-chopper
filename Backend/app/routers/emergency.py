@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -15,8 +15,9 @@ router = APIRouter(prefix="/api/v1", tags=["emergency"])
              summary="Activate the simulated emergency workflow (no localisation or equipment step required)",
              description="201 for a new activation; 200 with duplicate=true if an emergency for the same astronaut "
                          "was activated within the last 10 minutes.")
-def activate_emergency(body: EmergencyCreate, response: Response, db: Session = Depends(get_db)) -> EmergencyOut:
-    out, created = emergency.activate(db, body)
+def activate_emergency(body: EmergencyCreate, response: Response, request: Request,
+                       db: Session = Depends(get_db)) -> EmergencyOut:
+    out, created = emergency.activate(db, body, request.app.state.fixture)
     if not created:
         response.status_code = 200
     return out

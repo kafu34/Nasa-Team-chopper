@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.9.0",
-  "contract_version": "2.9.0",
+  "fixture_version": "2.10.0",
+  "contract_version": "2.10.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -2072,5 +2072,10 @@
       "location": "mission_control",
       "fictional": true
     }
-  ]
+  ],
+  "comms": {
+    "one_way_delay_seconds": 300,
+    "transmit_seconds": 5,
+    "note": "Fictional simulation of a delayed habitat-to-ground link (300 s one way). There is no real ground link."
+  }
 }

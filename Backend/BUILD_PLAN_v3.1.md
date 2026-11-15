@@ -303,7 +303,9 @@ Detailed sub-steps for steps 35–40 (planned 2026-11-15):
 | 29–33 | done 2026-11-15: contract 2.6.0 proactive health intelligence (scenarios A–E); 288 passed; smoke 33/33 |
 | 2.7.0 add-on | done 2026-11-15: steps 33.2, 33.3, 36.1 (history, live scenarios, review role check); 299 passed; smoke 38/38 |
 | 34 | done 2026-11-15: contract 2.8.0 PROC-PO-01 and PROC-TEMP-01, DET-1.1; 319 passed; smoke 40/40 |
-| 35–40 | not started (36 partly done: 36.1) |
+| 35–36 | done 2026-11-15: contract 2.9.0 screening and role matrix |
+| 37–40 | done 2026-11-15: contract 2.10.0 comms queue, environment context, recovery; 346 passed; smoke 45/45 |
+| Milestone 8 | NOT STARTED: out of scope by owner decision |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only
@@ -339,3 +341,25 @@ machine have one source each. The remaining risk is time-based behaviour (the re
 suppression window). Tests move the stored timestamps instead of sleeping, as `test_follow_up_becomes_due`
 already does. Efficiency: steps 31.1 and 32.1 were built with step 30 because they share the same functions.
 Step 31 therefore only adds the closing and review rules (31.2), and step 33 adds the D and E tests.
+
+**Review 4 outcome (2026-11-15, after step 40).**
+- Status words: `docs/ACCEPTANCE_RECORD.md` gives every v3.1 §8 subsystem a backend status and a validation
+  level. Environmental intelligence, safety and privacy, and habitat intelligence are PARTIAL, with the reason
+  given. NASA-EDA and OSD-195 are BLOCKED. Milestone 8 is NOT STARTED.
+- Nothing simulated is labelled hardware tested or clinically validated. All three procedures are
+  `EDUCATIONAL_DEMONSTRATION`. The only places the higher validation levels appear are the enum definition in
+  `schemas/procedures.py`, and every comms message and link response carries `simulated: true`.
+- Research integrity: all 5 imported datasets are still `IMPORTED` on the live database after the 2.9.0 and
+  2.10.0 upgrades. Reset counts are unchanged (`test_a`).
+- Deviations from the plan:
+  - Milestone 8 was dropped by the owner.
+  - A message created during an outage waits for a free 5-second transmission slot after the link returns. That
+    is the planned serial channel, but the first smoke check expected `in_transit` and was corrected to accept
+    `queued`.
+  - The RadLab context test found the snapshot lives under `raw/NASA-RADLAB/`, not `raw/`.
+
+*Reflection:* the main remaining risk is honesty about security. Role enforcement without authentication can be
+mistaken for access control, so the limitation appears in `/access/roles`, the handoff and the acceptance
+record. Efficiency: screening, comms and recovery reuse the case, procedure and audit services, so no workflow
+has two code paths. The test suite grew to 346 and runs in about 2.5 minutes. The next speed-up would be a
+session-scoped app for read-only tests.

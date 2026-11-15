@@ -77,7 +77,7 @@ def load(db: Session, fx: dict, scenario_id: str) -> dict:
             from . import emergency
 
             emg, _ = emergency.activate(db, EmergencyCreate(astronaut_id=ASTRO, responder_id="DEMO-002",
-                                                            trigger="crew_collapse"))
+                                                            trigger="crew_collapse"), fx)
             out["emergency_case_id"] = emg.case_id
     audit(db, "demo", "demo.scenario_loaded", "scenario", scenario_id, out["case_id"],
           simulated_clock_changes=out["simulated_clock_changes"])

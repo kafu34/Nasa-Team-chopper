@@ -3,6 +3,44 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contracts 2.9.0 and 2.10.0 (Milestones 6–7 software part, plan steps 35–40), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` (same environment variables as 2.6.0) | **346 passed, 0 failed, 0 skipped** (adds 13 in `test_y_screening_access.py` and 14 in `test_z_comms_env_recovery.py`) |
+| `scripts/export_openapi.py` | regenerated (49 paths, version 2.10.0) |
+| `scripts/http_smoke.py` | **45/45** (adds assessments, access roles, a comms message, environment context with 4 RadLab readings, and recovery) |
+| Live server restart | contract 2.10.0; the sync added SA-PO-001 and SA-TEMP-001 to the existing database; new tables created; environment context shows 4 RadLab readings; 5 datasets still `IMPORTED` |
+
+The tests cover:
+- **Screening:** due, upcoming and overdue states; symptoms still link only BP; deduplicated durable reminders;
+  acknowledging without completing; an upcoming assessment becoming due; starting a screening without a symptom
+  and completing it with a measurement (recurrence, reminders closed, second start refused); a pending-request
+  conflict; a BP symptom reading completing the BP screening; an old database receiving the schedule.
+- **Roles:**
+  - the published matrix;
+  - the flight surgeon closing a concern, and ground support refused for both close and continue;
+  - viewer-checked reads (own record, medical officer, flight surgeon, ground support refused, unknown 404),
+    audited;
+  - acknowledgement and recompute roles;
+  - ground personnel refused at hatches.
+- **Communications:**
+  - delay, then delivery, then receiver-only acknowledgement (idempotent);
+  - sending roles;
+  - an idempotent resend;
+  - an outage queueing messages, with urgent first after restore and one transmission at a time;
+  - a sent message continuing through an outage;
+  - an emergency queueing one urgent escalation (deduplicated);
+  - a ground reply acknowledged by the crew.
+- **Environment:** attribution and caution flags; the real RadLab snapshot imported and shown with source file
+  and row.
+- **Recovery:**
+  - the recovery list;
+  - a restart in the middle of a session, an outage and a concern;
+  - a restart in the middle of a transmission, delivered on time;
+  - safe resend of an observation and a message;
+  - reset clearing comms and restoring the link.
+
 ## Contract 2.8.0 (pulse oximeter and thermometer procedures, plan step 34), run 2026-11-15
 
 | Suite | Result |

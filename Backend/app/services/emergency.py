@@ -34,7 +34,7 @@ NEXT_ACTION = ("URGENT: crew response in progress. Follow approved mission emerg
                "Medical Officer. Flight-surgeon escalation is queued.")
 
 
-def _out(case: m.MedicalCase, ev: m.EmergencyEvent, duplicate: bool) -> EmergencyOut:
+def _out(case: m.MedicalCase, ev: m.EmergencyEvent, duplicate: bool, message_id: str | None = None) -> EmergencyOut:
     return EmergencyOut(
         emergency_id=ev.emergency_id, case_id=case.case_id, case_state=case.state, priority="urgent",
         attention=case_svc.attention_for(case), astronaut_id=ev.astronaut_id, responder_id=ev.responder_id,
@@ -42,7 +42,7 @@ def _out(case: m.MedicalCase, ev: m.EmergencyEvent, duplicate: bool) -> Emergenc
         crew_alert=CrewAlert(status="simulated_alert_raised",
                              message=f"Simulated crew alert: medical emergency for {ev.astronaut_id}."),
         flight_surgeon_escalation=FlightSurgeonEscalation(
-            status="queued_for_transmission",
+            status="queued_for_transmission", message_id=message_id,
             note="Earth communication may be delayed or unavailable. Onboard crew response does not wait for it."),
         emergency_information=EmergencyInformation(reviewed_procedure_available=False, limitation=LIMITATION,
                                                    crew_actions=CREW_ACTIONS),
@@ -52,7 +52,20 @@ def _out(case: m.MedicalCase, ev: m.EmergencyEvent, duplicate: bool) -> Emergenc
         next_action=case.next_action)
 
 
-def activate(db: Session, body: EmergencyCreate) -> tuple[EmergencyOut, bool]:
+def _escalate(db: Session, fx: dict | None, case: m.MedicalCase, ev: m.EmergencyEvent) -> str | None:
+    if fx is None or "comms" not in fx:
+        return None
+    from . import comms
+
+    msg, _ = comms.send(db, fx, ev.responder_id, "to_ground", "urgent",
+                        f"Medical emergency: {ev.astronaut_id}",
+                        f"Emergency activated ({ev.trigger}) at {ev.activated_at.isoformat()}. Case {case.case_id}. "
+                        "Onboard crew response is in progress. Fictional demonstration message.",
+                        case_id=case.case_id, client_message_id=f"ESC-{ev.emergency_id}", check_role=False)
+    return msg.message_id
+
+
+def activate(db: Session, body: EmergencyCreate, fx: dict | None = None) -> tuple[EmergencyOut, bool]:
     for pid in (body.astronaut_id, body.responder_id):
         if db.get(m.Astronaut, pid) is None:
             raise not_found("Astronaut", pid)
@@ -64,7 +77,7 @@ def activate(db: Session, body: EmergencyCreate) -> tuple[EmergencyOut, bool]:
         audit(db, body.responder_id, "emergency.duplicate_activation", "emergency_event", ev.emergency_id,
               case.case_id, trigger=body.trigger)
         db.commit()
-        return _out(case, ev, True), False
+        return _out(case, ev, True, _escalate(db, fx, case, ev)), False
 
     case = m.MedicalCase(case_id=m.new_id("CASE"), astronaut_id=body.astronaut_id, kind="emergency", state="detected",
                          priority="urgent", evidence=[], next_action=NEXT_ACTION, follow_up_status="none",
@@ -82,4 +95,4 @@ def activate(db: Session, body: EmergencyCreate) -> tuple[EmergencyOut, bool]:
     case_svc.transition(db, case, "escalated", "emergency-engine",
                         "Emergency activation: crew alert raised, flight-surgeon escalation queued")
     db.commit()
-    return _out(case, ev, False), True
+    return _out(case, ev, False, _escalate(db, fx, case, ev)), True

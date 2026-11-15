@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.8.0)
+# SENTINEL AI Backend API (v2.10.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -51,6 +51,19 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   `detection`, the DET-1.0 result (data-quality gate, outcome, baseline comparison and disclaimer).
 - `POST /api/v1/observations/batch` *(2.6.0)* — `{observations[]}` (1–200), processed in `observed_at` order →
   `{results[], stored, duplicates, concern_ids_opened[]}`. One invalid item rejects the whole batch (`details.index`).
+
+### Screening and access *(2.9.0)*
+- `GET /api/v1/astronauts/{id}/assessments` → scheduled assessments with `due_state`.
+- `GET /api/v1/astronauts/{id}/reminders`; `POST /api/v1/reminders/{id}/acknowledge` — `{actor_id}`.
+- `POST /api/v1/assessments/{id}/start` — `{actor_id, mode, equipment_id?}` → case + session (no symptom needed).
+- `GET /api/v1/access/roles` → role codes, permission matrix, fictional personnel. Optional `viewer_id` on case,
+  observation-history and monitoring reads. 403 `ROLE_NOT_PERMITTED`.
+
+### Communications, environment, recovery *(2.10.0)*
+- `POST /api/v1/comms/messages`, `GET /api/v1/comms/messages`, `GET /api/v1/comms/messages/{id}`,
+  `POST /api/v1/comms/messages/{id}/acknowledge` (409 `NOT_DELIVERED`), `GET|POST /api/v1/comms/link`.
+- `GET /api/v1/environment/context` → attributed RadLab readings; `health_relationship: none_inferred`.
+- `GET /api/v1/system/recovery` → items to restore after reconnecting, plus the loss-of-server behaviour.
 
 ### Procedures *(2.8.0 additions)*
 - `GET /api/v1/procedures` → summaries of PROC-BP-01, PROC-PO-01 and PROC-TEMP-01.
