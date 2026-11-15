@@ -137,6 +137,38 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 ### Milestone 5 (backend part) — proactive health intelligence
 29. Baseline model (versioned, per astronaut and observation type, quality rules, frozen while a concern is open so deterioration never becomes the new normal).
 30. Detection rules `DET-1.0` (window, sustained-change count, data-quality gate) creating `monitoring_concern` findings and investigations.
+    Detailed sub-steps (planned 2026-11-15; contract 2.6.0; every value is fictional demonstration configuration):
+    - 29.1 Fixture `baseline_method` (`BASELINE-1.0`): per type `min_samples`, `window_days`, allowed qualities
+      (`good`, `fair`), centre = median, spread = 1.4826 × MAD with a per-type floor. Fixture `baseline_history`:
+      fictional daily resting readings for DEMO-001 (heart rate, SpO2, body temperature), seeded as simulated
+      observations. Sleep and blood pressure get no history, so they show `insufficient_data`.
+    - 29.2 Table `health_baselines` (baseline_id, astronaut, type, version, status `active|superseded`, method,
+      centre, spread, sample count, window, source observation IDs, created by, reason). Seed creates version 1.
+    - 29.3 Baselines never update automatically. `POST /astronauts/{id}/baselines/{type}/recompute
+      {actor_id, reason}` makes a new version and supersedes the old one. While a concern for that type is not
+      closed: 409 `BASELINE_FROZEN`. Readings observed while a concern was open are always excluded from later
+      baselines, so deterioration never becomes the new normal. Too few samples: 422
+      `INSUFFICIENT_BASELINE_DATA`. `GET /astronauts/{id}/baselines` lists every version.
+    - 30.1 Fixture `detection_ruleset` (`DET-1.0`): one rule per baselined type with direction, `k` spread
+      multiples, absolute minimum change, window minutes, required consecutive deviating readings, configured
+      assessment (heart rate -> PROC-BP-01, whose monitor reports pulse; SpO2 and temperature -> none until step 34),
+      reassessment delay, recovery count and alert-suppression minutes.
+    - 30.2 Data-quality gate, applied to every ingested reading before any rule: `poor` quality ->
+      `excluded_poor_quality`; older than the type's stale limit at ingestion -> `excluded_stale`; no active
+      baseline -> `no_baseline`. Excluded readings never count towards, or reset, a sustained change.
+    - 30.3 `services/detection.py` runs on `POST /observations` and new `POST /observations/batch` (wearable
+      sync, processed in time order). Outcomes: `within_baseline`, `deviation_not_sustained` (n of N),
+      `concern_opened`, `concern_updated`, `within_baseline_concern_open`, `reassessment_completed`. The result is
+      stored on the observation and returned as `detection`, with rule, baseline version, explanation and the
+      fixed disclaimer that a deviation from a synthetic baseline is not a diagnosis.
+    - 30.4 `concern_opened` creates table `monitoring_concerns` (annotation kind `monitoring_concern`) and joins
+      the astronaut's open routine case, or opens one (`detected -> investigating`), through the case service. The
+      configured assessment is requested (`awaiting_assessment`) when the case has none pending; a
+      `monitoring_reassessment` follow-up is scheduled.
+    - 30.5 `GET /astronauts/{id}/monitoring`: per type freshness, active baseline, latest reading and its
+      difference from the baseline, descriptive trend (slope per hour, no rule on it), open concern, and
+      data-quality items (`missing`, `stale`, `recent_poor_quality`, `baseline_insufficient`) that never open a case.
+      `GET /monitoring-concerns/{id}`.
 
 **Review 3 (after step 30).** Check: can a stale or poor-quality reading ever create a health finding (it must not)? Is every detection labelled a configured demonstration rule, never a diagnosis? Is the urgent priority protected from downgrade?
 *Reflection:* the risk is tangling detection with the symptom rules. Mitigation: a separate `services/detection.py` that writes through the existing case service, so audit and state machine stay single-sourced.
@@ -144,6 +176,25 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 31. Deduplication and alert suppression for repeated equivalent triggers.
 32. Urgent-event priority protection during routine procedures and follow-ups.
 33. Tests for scenarios A–E (v3.1 §7).
+    Detailed sub-steps:
+    - 31.1 While a concern for the same astronaut and type is not closed, an equivalent deviating reading updates
+      that concern (evidence, trigger count) and never opens a second concern or case. Case evidence and an alert
+      are added at most once per suppression window; the rest count as `suppressed_count`, audited.
+    - 31.2 Concern statuses `open`, `awaiting_review`, `closed`. Return within baseline never closes a concern:
+      it needs the reassessment follow-up completed by a good-quality reading observed after its due time, then
+      `recovery_count` consecutive in-baseline readings, which moves it to `awaiting_review`. A new deviation sends
+      it back to `open` and schedules a new reassessment. Only `POST /monitoring-concerns/{id}/review {actor_id,
+      decision: continue_monitoring|close, note}` closes it (409 `CONCERN_NOT_READY_FOR_REVIEW` otherwise); closing
+      never resolves the case. Role check is PARTIAL until step 36.
+    - 32.1 `case_svc.raise_priority` is the only priority writer: it can only raise, records `urgent_since` and
+      the reason (new columns), sets `interrupt` on open follow-ups, and is audited. CaseOut gains
+      `priority_protection` (`automatic_downgrade_allowed: false`).
+    - 32.2 Fix: recording the routine reading and a follow-up becoming due overwrote `next_action` and dropped the
+      urgent instruction. Both now keep it while the case is urgent.
+    - 32.3 SessionOut gains `case_priority`, `attention` and `urgent_events` (other open urgent cases for the same
+      astronaut, e.g. an emergency activated during the routine procedure), so the coach can interrupt.
+    - 33.1 Tests `test_u_health_intelligence.py` (A, B, C, baselines) and `test_v_priority_followup.py` (D, E);
+      contract export, smoke checks, docs, commit.
 
 ### Milestones 6–7 (backend part) — expanded and operational capability
 34. PROC-PO-01 (finger pulse oximeter) and PROC-TEMP-01 (non-contact infrared thermometer) definitions with their own visual contract, measurement validation and tests.
@@ -165,7 +216,8 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 | 2.3.0 add-on | done 2026-11-15: `sentinel-human-male-v1` registered from Codex's GLB; 217 passed, 1 skipped |
 | 23–24 | done 2026-11-15: contract 2.4.0 procedure session state; 238 passed, 1 skipped; smoke 26/26 |
 | 25–28 | done 2026-11-15: contract 2.5.0 habitat operations and movement simulator; 257 passed; smoke 29/29 |
-| 29–40 | not started |
+| 29–33 | done 2026-11-15: contract 2.6.0 proactive health intelligence (scenarios A–E); 288 passed; smoke 33/33 |
+| 34–40 | not started |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only
@@ -177,3 +229,27 @@ labelled navigation references). Map, routes and location share `HAB-01-map-1.1`
 counts are equal before and after reset, and the live database kept every imported dataset after the upgrade.
 Deviations from the plan: none. Efficiency note for step 25: hatch state already lives in
 `ZoneConnection.accessible`, and `test_closing_a_hatch_changes_the_route` already proves routing reacts.
+
+**Review 3 outcome (2026-11-15).**
+- Stale or poor readings: the gate runs before any rule. The sustained-change window counts only readings stored
+  with `gate: passed`. Scenario B tests show that three poor and three stale deviating readings open no concern
+  and no case, and that an excluded reading neither counts towards a run nor breaks it. Missing data only creates
+  `data_quality` items.
+- Wording: every detection result, concern and case-evidence line carries the DET-1.0 disclaimer ("not a
+  diagnosis"). A search of the detection, baseline and monitoring code and the fixture finds no clinical
+  condition names.
+- Urgent priority: `cases.raise_priority` is now the only code that sets `urgent`. No code path sets `routine` on
+  an existing case. `cases.set_next_action` is the only writer of `next_action` and keeps the urgent instruction
+  first. Measurement completion, a follow-up becoming due, and a new routine symptom joining an urgent case
+  used to overwrite that instruction; they now go through it (planned step 32.2). The Scenario D tests come in
+  step 33.
+- Deviation from the plan: readings recorded by a procedure measurement (blood pressure and pulse) are stored as
+  assessment evidence and are not run through DET-1.0, because the assessment itself answers the concern. This
+  is documented in the handoff.
+
+*Reflection:* the plan's risk (detection tangled with the symptom rules) did not happen. `detection.py` writes
+only through `cases.transition`, `add_evidence`, `set_next_action` and `raise_priority`, so audit and the state
+machine have one source each. The remaining risk is time-based behaviour (the reassessment due time and the
+suppression window). Tests move the stored timestamps instead of sleeping, as `test_follow_up_becomes_due`
+already does. Efficiency: steps 31.1 and 32.1 were built with step 30 because they share the same functions.
+Step 31 therefore only adds the closing and review rules (31.2), and step 33 adds the D and E tests.

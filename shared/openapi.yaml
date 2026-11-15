@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.5.0
+  version: 2.6.0
 paths:
   /healthz:
     get:
@@ -157,9 +157,10 @@ paths:
       tags:
       - cases
       - observations
-      summary: Submit a simulated health observation (optional endpoint)
-      description: Technical validation only (catalogue type, unit, plausible input range, time). Passing validation is not
-        a clinical judgement. 200 with duplicate=true for an identical resubmission.
+      summary: Submit a simulated health observation; it is checked by the DET-1.0 detection rules
+      description: Technical validation (catalogue type, unit, plausible input range, time), then the data-quality gate and
+        the configured detection rules (2.6.0). Passing validation is not a clinical judgement and a detection is not a diagnosis.
+        200 with duplicate=true for an identical resubmission, which is not evaluated again.
       operationId: create_observation_api_v1_observations_post
       requestBody:
         content:
@@ -176,6 +177,257 @@ paths:
                 $ref: '#/components/schemas/ObservationCreated'
         '404':
           description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/observations/batch:
+    post:
+      tags:
+      - cases
+      - observations
+      summary: Automatic ingestion of a simulated wearable sync (2.6.0)
+      description: Every item is validated first; if any fails, nothing is stored and the error names the item index. Items
+        are then stored and evaluated in observed_at order.
+      operationId: create_observation_batch_api_v1_observations_batch_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObservationBatch'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObservationBatchOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/monitoring/ruleset:
+    get:
+      tags:
+      - monitoring
+      summary: The configured DET-1.0 demonstration detection rules
+      operationId: get_ruleset_api_v1_monitoring_ruleset_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectionRulesetOut'
+  /api/v1/astronauts/{astronaut_id}/monitoring:
+    get:
+      tags:
+      - monitoring
+      summary: Per-measurement freshness, baseline, latest reading, trend, concerns and data-quality items
+      description: Data-quality items (missing, stale, poor quality, insufficient baseline) never open a case. Trends are
+        descriptive only.
+      operationId: get_monitoring_api_v1_astronauts__astronaut_id__monitoring_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitoringOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/astronauts/{astronaut_id}/baselines:
+    get:
+      tags:
+      - monitoring
+      summary: Every individual baseline version (active and superseded)
+      operationId: get_baselines_api_v1_astronauts__astronaut_id__baselines_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      - name: type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineList'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/astronauts/{astronaut_id}/baselines/{type}/recompute:
+    post:
+      tags:
+      - monitoring
+      summary: Create a new baseline version (explicit and audited; never automatic)
+      description: 409 BASELINE_FROZEN while a monitoring concern for this type is not closed. 422 INSUFFICIENT_BASELINE_DATA
+        when too few valid readings remain. Readings observed while a concern was open are always excluded.
+      operationId: recompute_baseline_api_v1_astronauts__astronaut_id__baselines__type__recompute_post
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaselineRecompute'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/monitoring-concerns/{concern_id}:
+    get:
+      tags:
+      - monitoring
+      summary: A monitoring concern with its evidence, reassessment and review state
+      operationId: get_concern_api_v1_monitoring_concerns__concern_id__get
+      parameters:
+      - name: concern_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Concern Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConcernOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/monitoring-concerns/{concern_id}/review:
+    post:
+      tags:
+      - monitoring
+      summary: 'Human review: continue monitoring, or close a concern that is awaiting review'
+      description: Closing needs status awaiting_review (409 CONCERN_NOT_READY_FOR_REVIEW otherwise). Closing a concern unfreezes
+        its baseline and never resolves the case. Any registered crew member may review until role-based access is built (PARTIAL).
+      operationId: review_concern_api_v1_monitoring_concerns__concern_id__review_post
+      parameters:
+      - name: concern_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Concern Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConcernReview'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConcernOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
           content:
             application/json:
               schema:
@@ -1448,6 +1700,154 @@ components:
       - entity_id
       - details
       title: AuditOut
+    BaselineList:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        method_id:
+          type: string
+          title: Method Id
+        method_description:
+          type: string
+          title: Method Description
+        baselines:
+          items:
+            $ref: '#/components/schemas/BaselineOut'
+          type: array
+          title: Baselines
+      type: object
+      required:
+      - astronaut_id
+      - method_id
+      - method_description
+      - baselines
+      title: BaselineList
+    BaselineOut:
+      properties:
+        baseline_id:
+          type: string
+          title: Baseline Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        type:
+          type: string
+          title: Type
+        unit:
+          type: string
+          title: Unit
+        version:
+          type: integer
+          title: Version
+        status:
+          type: string
+          enum:
+          - active
+          - superseded
+          title: Status
+        method_id:
+          type: string
+          title: Method Id
+        centre:
+          type: number
+          title: Centre
+        spread:
+          type: number
+          title: Spread
+        sample_count:
+          type: integer
+          title: Sample Count
+        excluded_count:
+          type: integer
+          title: Excluded Count
+          description: Readings left out because they were observed while a monitoring concern was open.
+        window_start:
+          type: string
+          format: date-time
+          title: Window Start
+        window_end:
+          type: string
+          format: date-time
+          title: Window End
+        source_observation_ids:
+          items:
+            type: string
+          type: array
+          title: Source Observation Ids
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        created_by:
+          type: string
+          title: Created By
+        reason:
+          type: string
+          title: Reason
+        superseded_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Superseded At
+        frozen:
+          type: boolean
+          title: Frozen
+          description: True while a monitoring concern for this type is not closed; recompute is refused.
+        frozen_by_concern_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Frozen By Concern Id
+        data_category:
+          type: string
+          const: SIMULATED_ASTRONAUT
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+      type: object
+      required:
+      - baseline_id
+      - astronaut_id
+      - type
+      - unit
+      - version
+      - status
+      - method_id
+      - centre
+      - spread
+      - sample_count
+      - excluded_count
+      - window_start
+      - window_end
+      - source_observation_ids
+      - created_at
+      - created_by
+      - reason
+      - superseded_at
+      - frozen
+      - frozen_by_concern_id
+      title: BaselineOut
+    BaselineRecompute:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-002
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+          examples:
+          - Two weeks of new routine readings
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      - reason
+      title: BaselineRecompute
     BleObservation:
       properties:
         anchor_id:
@@ -1611,6 +2011,11 @@ components:
             $ref: '#/components/schemas/DatasetSummary'
           type: array
           title: Research Datasets
+        detection_ruleset:
+          anyOf:
+          - $ref: '#/components/schemas/DetectionRulesetOut'
+          - type: 'null'
+          description: DET-1.0 configured demonstration rules (2.6.0).
       type: object
       required:
       - contract_version
@@ -1778,6 +2183,17 @@ components:
             $ref: '#/components/schemas/AuditOut'
           type: array
           title: Audit
+        monitoring_concern_ids:
+          items:
+            type: string
+          type: array
+          title: Monitoring Concern Ids
+          description: Concerns opened by detection rules that joined this case (2.6.0).
+        priority_protection:
+          anyOf:
+          - $ref: '#/components/schemas/PriorityProtection'
+          - type: 'null'
+          description: 'Present while urgent: the priority is never lowered automatically (2.6.0).'
         data_category:
           type: string
           enum:
@@ -2060,6 +2476,179 @@ components:
       - completion_source
       - confirmed_at
       title: CompletedStep
+    ConcernOut:
+      properties:
+        concern_id:
+          type: string
+          title: Concern Id
+        annotation_kind:
+          type: string
+          const: monitoring_concern
+          title: Annotation Kind
+          default: monitoring_concern
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        type:
+          type: string
+          title: Type
+        unit:
+          type: string
+          title: Unit
+        rule_id:
+          type: string
+          title: Rule Id
+        rule_title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Title
+        ruleset_version:
+          type: string
+          title: Ruleset Version
+        baseline_id:
+          type: string
+          title: Baseline Id
+        baseline_version:
+          type: integer
+          title: Baseline Version
+        baseline_frozen:
+          type: boolean
+          title: Baseline Frozen
+        direction:
+          type: string
+          enum:
+          - above
+          - below
+          title: Direction
+        status:
+          type: string
+          enum:
+          - open
+          - awaiting_review
+          - closed
+          title: Status
+        case_id:
+          type: string
+          title: Case Id
+        opened_at:
+          type: string
+          format: date-time
+          title: Opened At
+        first_evidence_at:
+          type: string
+          format: date-time
+          title: First Evidence At
+        last_triggered_at:
+          type: string
+          format: date-time
+          title: Last Triggered At
+        trigger_count:
+          type: integer
+          title: Trigger Count
+        suppressed_count:
+          type: integer
+          title: Suppressed Count
+          description: Equivalent triggers that did not raise a new alert.
+        evidence_observation_ids:
+          items:
+            type: string
+          type: array
+          title: Evidence Observation Ids
+        consecutive_within_baseline:
+          type: integer
+          title: Consecutive Within Baseline
+        recovery_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Recovery Count
+        reassessment_passed:
+          type: boolean
+          title: Reassessment Passed
+        reassessment:
+          anyOf:
+          - $ref: '#/components/schemas/ReassessmentOut'
+          - type: 'null'
+        closed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Closed At
+        closed_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Closed By
+        review_note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Review Note
+        automatic_resolution:
+          type: boolean
+          const: false
+          title: Automatic Resolution
+          default: false
+        disclaimer:
+          type: string
+          title: Disclaimer
+          default: Configured demonstration rule. A deviation from a synthetic individual baseline is not a diagnosis.
+      type: object
+      required:
+      - concern_id
+      - astronaut_id
+      - type
+      - unit
+      - rule_id
+      - rule_title
+      - ruleset_version
+      - baseline_id
+      - baseline_version
+      - baseline_frozen
+      - direction
+      - status
+      - case_id
+      - opened_at
+      - first_evidence_at
+      - last_triggered_at
+      - trigger_count
+      - suppressed_count
+      - evidence_observation_ids
+      - consecutive_within_baseline
+      - recovery_count
+      - reassessment_passed
+      - reassessment
+      - closed_at
+      - closed_by
+      - review_note
+      title: ConcernOut
+    ConcernReview:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-002
+        decision:
+          type: string
+          enum:
+          - continue_monitoring
+          - close
+          title: Decision
+        note:
+          type: string
+          maxLength: 1000
+          minLength: 3
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      - decision
+      - note
+      title: ConcernReview
     ConnectionOut:
       properties:
         from_zone_id:
@@ -2131,6 +2720,29 @@ components:
       - status
       - message
       title: CrewAlert
+    DataQualityItem:
+      properties:
+        type:
+          type: string
+          title: Type
+        issue:
+          type: string
+          enum:
+          - missing
+          - stale
+          - recent_poor_quality
+          - baseline_insufficient
+          - baseline_not_created
+          title: Issue
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - type
+      - issue
+      - note
+      title: DataQualityItem
     DatasetDetail:
       properties:
         dataset_id:
@@ -2556,6 +3168,219 @@ components:
       - expected_recommendation
       title: DemoInputs
       description: Canonical demo inputs from shared/fixtures/demo_scenario.json, for the frontend to submit.
+    DetectionResult:
+      properties:
+        ruleset_version:
+          type: string
+          title: Ruleset Version
+        rule_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Id
+        gate:
+          type: string
+          enum:
+          - passed
+          - excluded_poor_quality
+          - excluded_stale
+          title: Gate
+          description: Data-quality gate. Only `passed` readings are compared with a baseline.
+        outcome:
+          type: string
+          enum:
+          - excluded_poor_quality
+          - excluded_stale
+          - not_monitored
+          - no_baseline
+          - within_baseline
+          - deviation_not_sustained
+          - concern_opened
+          - concern_updated
+          - within_baseline_concern_open
+          - reassessment_completed
+          - concern_ready_for_review
+          title: Outcome
+        baseline_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Baseline Id
+        baseline_version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Baseline Version
+        baseline_centre:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Baseline Centre
+        baseline_spread:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Baseline Spread
+        threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Threshold
+          description: Absolute difference from the centre that counts as a deviation.
+        difference:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Difference
+          description: Reading minus baseline centre, in the reading's unit.
+        deviation_direction:
+          anyOf:
+          - type: string
+            enum:
+            - above
+            - below
+          - type: 'null'
+          title: Deviation Direction
+        deviating_count:
+          type: integer
+          title: Deviating Count
+        required_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Required Count
+        concern_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Concern Id
+        case_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Case Id
+        alert_raised:
+          type: boolean
+          title: Alert Raised
+        alert_suppressed:
+          type: boolean
+          title: Alert Suppressed
+        explanation:
+          type: string
+          title: Explanation
+        disclaimer:
+          type: string
+          title: Disclaimer
+        evaluated_at:
+          type: string
+          format: date-time
+          title: Evaluated At
+      type: object
+      required:
+      - ruleset_version
+      - rule_id
+      - gate
+      - outcome
+      - baseline_id
+      - baseline_version
+      - baseline_centre
+      - baseline_spread
+      - threshold
+      - difference
+      - deviation_direction
+      - deviating_count
+      - required_count
+      - concern_id
+      - case_id
+      - alert_raised
+      - alert_suppressed
+      - explanation
+      - disclaimer
+      - evaluated_at
+      title: DetectionResult
+      description: What DET-1.0 did with one reading, stored with the observation at ingestion.
+    DetectionRuleOut:
+      properties:
+        rule_id:
+          type: string
+          title: Rule Id
+        type:
+          type: string
+          title: Type
+        title:
+          type: string
+          title: Title
+        direction:
+          type: string
+          enum:
+          - above
+          - below
+          - either
+          title: Direction
+        k_spread:
+          type: number
+          title: K Spread
+        min_abs_change:
+          type: number
+          title: Min Abs Change
+        window_minutes:
+          type: integer
+          title: Window Minutes
+        required_consecutive:
+          type: integer
+          title: Required Consecutive
+        assessment_procedure_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assessment Procedure Id
+        reassessment_minutes:
+          type: integer
+          title: Reassessment Minutes
+        recovery_count:
+          type: integer
+          title: Recovery Count
+        suppression_minutes:
+          type: integer
+          title: Suppression Minutes
+      type: object
+      required:
+      - rule_id
+      - type
+      - title
+      - direction
+      - k_spread
+      - min_abs_change
+      - window_minutes
+      - required_consecutive
+      - assessment_procedure_id
+      - reassessment_minutes
+      - recovery_count
+      - suppression_minutes
+      title: DetectionRuleOut
+    DetectionRulesetOut:
+      properties:
+        ruleset_version:
+          type: string
+          title: Ruleset Version
+        baseline_method_id:
+          type: string
+          title: Baseline Method Id
+        disclaimer:
+          type: string
+          title: Disclaimer
+        rules:
+          items:
+            $ref: '#/components/schemas/DetectionRuleOut'
+          type: array
+          title: Rules
+      type: object
+      required:
+      - ruleset_version
+      - baseline_method_id
+      - disclaimer
+      - rules
+      title: DetectionRulesetOut
     EmergencyCreate:
       properties:
         astronaut_id:
@@ -3069,6 +3894,7 @@ components:
           - measurement
           - scheduled_assessment
           - emergency
+          - monitoring_concern
           title: Type
         id:
           type: string
@@ -3162,6 +3988,24 @@ components:
           type: string
           format: date-time
           title: Created At
+        concern_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Concern Id
+          description: Set for a monitoring reassessment (2.6.0).
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        completion_evidence_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Completion Evidence Id
+          description: Observation that completed it.
       type: object
       required:
       - follow_up_id
@@ -4148,6 +4992,51 @@ components:
       - habitat_id
       - mission_day
       title: Mission
+    MonitoringOut:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        ruleset_version:
+          type: string
+          title: Ruleset Version
+        baseline_method_id:
+          type: string
+          title: Baseline Method Id
+        generated_at:
+          type: string
+          format: date-time
+          title: Generated At
+        types:
+          items:
+            $ref: '#/components/schemas/TypeMonitoring'
+          type: array
+          title: Types
+        concerns:
+          items:
+            $ref: '#/components/schemas/ConcernOut'
+          type: array
+          title: Concerns
+        data_quality:
+          items:
+            $ref: '#/components/schemas/DataQualityItem'
+          type: array
+          title: Data Quality
+          description: Data problems. They never open a case or a concern.
+        disclaimer:
+          type: string
+          title: Disclaimer
+          default: Configured demonstration rule. A deviation from a synthetic individual baseline is not a diagnosis.
+      type: object
+      required:
+      - astronaut_id
+      - ruleset_version
+      - baseline_method_id
+      - generated_at
+      - types
+      - concerns
+      - data_quality
+      title: MonitoringOut
     MovementRunOut:
       properties:
         scenario_id:
@@ -4229,6 +5118,47 @@ components:
       - generated_observations
       - estimate
       title: MovementTick
+    ObservationBatch:
+      properties:
+        observations:
+          items:
+            $ref: '#/components/schemas/ObservationCreate'
+          type: array
+          maxItems: 200
+          minItems: 1
+          title: Observations
+          description: Processed in observed_at order.
+      additionalProperties: false
+      type: object
+      required:
+      - observations
+      title: ObservationBatch
+    ObservationBatchOut:
+      properties:
+        results:
+          items:
+            $ref: '#/components/schemas/ObservationCreated'
+          type: array
+          title: Results
+          description: In processing (observed_at) order.
+        stored:
+          type: integer
+          title: Stored
+        duplicates:
+          type: integer
+          title: Duplicates
+        concern_ids_opened:
+          items:
+            type: string
+          type: array
+          title: Concern Ids Opened
+      type: object
+      required:
+      - results
+      - stored
+      - duplicates
+      - concern_ids_opened
+      title: ObservationBatchOut
     ObservationCreate:
       properties:
         astronaut_id:
@@ -4325,6 +5255,11 @@ components:
         duplicate:
           type: boolean
           title: Duplicate
+        detection:
+          anyOf:
+          - $ref: '#/components/schemas/DetectionResult'
+          - type: 'null'
+          description: DET-1.0 result stored at ingestion (2.6.0). A duplicate returns the stored result.
       type: object
       required:
       - observation_id
@@ -4487,6 +5422,39 @@ components:
       - hatch_state
       - note
       title: PassageOut
+    PriorityProtection:
+      properties:
+        urgent_since:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Urgent Since
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        urgent_instruction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Urgent Instruction
+        automatic_downgrade_allowed:
+          type: boolean
+          const: false
+          title: Automatic Downgrade Allowed
+          default: false
+        note:
+          type: string
+          title: Note
+          default: Urgent priority is never lowered automatically, including when a routine assessment or follow-up finishes.
+      type: object
+      required:
+      - urgent_since
+      - reason
+      - urgent_instruction
+      title: PriorityProtection
     ProcedureOut:
       properties:
         procedure_id:
@@ -4727,6 +5695,37 @@ components:
       - imported_at
       - transformation
       title: Provenance
+    ReassessmentOut:
+      properties:
+        follow_up_id:
+          type: string
+          title: Follow Up Id
+        status:
+          type: string
+          title: Status
+        due_at:
+          type: string
+          format: date-time
+          title: Due At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        completion_evidence_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Completion Evidence Id
+      type: object
+      required:
+      - follow_up_id
+      - status
+      - due_at
+      - completed_at
+      - completion_evidence_id
+      title: ReassessmentOut
     RegionOut:
       properties:
         region_id:
@@ -5440,6 +6439,27 @@ components:
           title: Stages
           description: Separate records of display, viewing, acknowledgement, reading, validation, assessment and follow-up
             (2.4.0).
+        case_priority:
+          anyOf:
+          - type: string
+            enum:
+            - routine
+            - urgent
+          - type: 'null'
+          title: Case Priority
+          description: Priority of this session's case (2.6.0).
+        attention:
+          anyOf:
+          - $ref: '#/components/schemas/Attention'
+          - type: 'null'
+          description: Interrupt the coach when urgent (2.6.0).
+        urgent_events:
+          items:
+            $ref: '#/components/schemas/UrgentEvent'
+          type: array
+          title: Urgent Events
+          description: Other open urgent cases for the same astronaut, e.g. an emergency activated during this routine procedure
+            (2.6.0). The routine session is not cancelled.
         confirmation_note:
           type: string
           title: Confirmation Note
@@ -6548,6 +7568,166 @@ components:
       - value
       - unit
       title: TimeseriesPoint
+    TrendOut:
+      properties:
+        readings:
+          type: integer
+          title: Readings
+        window_minutes:
+          type: integer
+          title: Window Minutes
+        slope_per_hour:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Slope Per Hour
+        description:
+          type: string
+          enum:
+          - insufficient_readings
+          - stable
+          - rising
+          - falling
+          title: Description
+        note:
+          type: string
+          title: Note
+          default: Descriptive only. No rule acts on the trend.
+      type: object
+      required:
+      - readings
+      - window_minutes
+      - slope_per_hour
+      - description
+      title: TrendOut
+    TypeMonitoring:
+      properties:
+        type:
+          type: string
+          title: Type
+        unit:
+          type: string
+          title: Unit
+        freshness:
+          type: string
+          enum:
+          - current
+          - stale
+          - missing
+          title: Freshness
+        rule_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rule Id
+        baseline:
+          anyOf:
+          - $ref: '#/components/schemas/BaselineOut'
+          - type: 'null'
+        latest_value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latest Value
+        latest_observed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Latest Observed At
+        latest_quality:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Latest Quality
+        difference_from_baseline:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Difference From Baseline
+        latest_detection:
+          anyOf:
+          - $ref: '#/components/schemas/DetectionResult'
+          - type: 'null'
+        trend:
+          $ref: '#/components/schemas/TrendOut'
+        open_concern_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Open Concern Id
+      type: object
+      required:
+      - type
+      - unit
+      - freshness
+      - rule_id
+      - baseline
+      - latest_value
+      - latest_observed_at
+      - latest_quality
+      - difference_from_baseline
+      - latest_detection
+      - trend
+      - open_concern_id
+      title: TypeMonitoring
+    UrgentEvent:
+      properties:
+        case_id:
+          type: string
+          title: Case Id
+        kind:
+          type: string
+          enum:
+          - routine
+          - emergency
+          title: Kind
+        state:
+          type: string
+          enum:
+          - detected
+          - investigating
+          - awaiting_assessment
+          - awaiting_results
+          - action_required
+          - monitoring
+          - follow_up_due
+          - escalated
+          - resolved
+          title: State
+        priority:
+          type: string
+          enum:
+          - routine
+          - urgent
+          title: Priority
+        attention:
+          $ref: '#/components/schemas/Attention'
+        urgent_since:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Urgent Since
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        next_action:
+          type: string
+          title: Next Action
+      type: object
+      required:
+      - case_id
+      - kind
+      - state
+      - priority
+      - attention
+      - urgent_since
+      - reason
+      - next_action
+      title: UrgentEvent
     ValidationError:
       properties:
         loc:

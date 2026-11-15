@@ -28,9 +28,10 @@ DESCRIPTION = (
 
 
 def _routers():
-    from .routers import cases, demo, emergency, procedures, research, spatial
+    from .routers import cases, demo, emergency, monitoring, procedures, research, spatial
 
-    return [demo.router, cases.router, spatial.router, procedures.router, research.router, emergency.router]
+    return [demo.router, cases.router, monitoring.router, spatial.router, procedures.router, research.router,
+            emergency.router]
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:
@@ -73,6 +74,10 @@ def startup(app: FastAPI) -> None:
             log.info("Seeded demo fixture %s", app.state.fixture["fixture_version"])
         for change in sync_configuration(db, app.state.fixture):
             log.info("Configuration sync: %s", change)
+        from .services.baselines import ensure_initial
+
+        for made in ensure_initial(db, app.state.fixture):
+            log.info("Health baselines: %s", made)
         if settings.auto_import_nasa:
             from .importers.osd575 import import_if_available
 

@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..db import get_db, utcnow
 from ..errors import not_found
-from ..schemas.cases import (CaseAcknowledge, CaseOut, ObservationCreate, ObservationCreated, SymptomCreate,
-                             SymptomCreated)
+from ..errors import ApiError
+from ..schemas.cases import (CaseAcknowledge, CaseOut, ObservationBatch, ObservationBatchOut, ObservationCreate,
+                             ObservationCreated, SymptomCreate, SymptomCreated)
+from ..services import detection
 from ..schemas.common import error_responses
 from ..services import cases as case_svc
 from ..services import observations as obs_svc
@@ -55,30 +57,47 @@ def acknowledge_case(case_id: str, body: CaseAcknowledge, db: Session = Depends(
 
 @router.post("/observations", response_model=ObservationCreated, status_code=201,
              responses=error_responses(404, 422), tags=["observations"],
-             summary="Submit a simulated health observation (optional endpoint)",
-             description="Technical validation only (catalogue type, unit, plausible input range, time). "
-                         "Passing validation is not a clinical judgement. 200 with duplicate=true for an "
-                         "identical resubmission.")
+             summary="Submit a simulated health observation; it is checked by the DET-1.0 detection rules",
+             description="Technical validation (catalogue type, unit, plausible input range, time), then the "
+                         "data-quality gate and the configured detection rules (2.6.0). Passing validation is not a "
+                         "clinical judgement and a detection is not a diagnosis. 200 with duplicate=true for an "
+                         "identical resubmission, which is not evaluated again.")
 def create_observation(body: ObservationCreate, request: Request, response: Response,
                        db: Session = Depends(get_db)) -> ObservationCreated:
-    if db.get(m.Astronaut, body.astronaut_id) is None:
-        raise not_found("Astronaut", body.astronaut_id)
-    obs_svc.validate(request.app.state.fixture, body)
-    existing = db.scalars(select(m.HealthObservation).where(
-        m.HealthObservation.astronaut_id == body.astronaut_id, m.HealthObservation.type == body.type,
-        m.HealthObservation.observed_at == body.observed_at, m.HealthObservation.value == body.value,
-        m.HealthObservation.source == body.source)).first()
-    if existing is not None:
+    obs, duplicate = detection.ingest(db, request.app.state.fixture, body)
+    if duplicate:
         response.status_code = 200
-        return ObservationCreated(duplicate=True, **_obs_dict(existing))
-    obs = m.HealthObservation(observation_id=m.new_id("OBS"), astronaut_id=body.astronaut_id, type=body.type,
-                              value=body.value, unit=body.unit, observed_at=body.observed_at, recorded_at=utcnow(),
-                              source=body.source, quality=body.quality, simulated=True)
-    db.add(obs)
-    audit(db, body.astronaut_id, "observation.recorded", "health_observation", obs.observation_id,
-          type=body.type, source=body.source)
-    db.commit()
-    return ObservationCreated(duplicate=False, **_obs_dict(obs))
+    return _created(obs, duplicate)
+
+
+@router.post("/observations/batch", response_model=ObservationBatchOut, responses=error_responses(404, 422),
+             tags=["observations"], summary="Automatic ingestion of a simulated wearable sync (2.6.0)",
+             description="Every item is validated first; if any fails, nothing is stored and the error names the "
+                         "item index. Items are then stored and evaluated in observed_at order.")
+def create_observation_batch(body: ObservationBatch, request: Request,
+                             db: Session = Depends(get_db)) -> ObservationBatchOut:
+    fx = request.app.state.fixture
+    for i, item in enumerate(body.observations):
+        try:
+            if db.get(m.Astronaut, item.astronaut_id) is None:
+                raise not_found("Astronaut", item.astronaut_id)
+            obs_svc.validate(fx, item)
+        except ApiError as e:
+            raise ApiError(e.status_code, e.code, f"Item {i}: {e.message}", {**(e.details if isinstance(e.details, dict) else {"details": e.details}), "index": i})
+    results, opened = [], []
+    for item in sorted(body.observations, key=lambda o: o.observed_at):
+        obs, duplicate = detection.ingest(db, fx, item)
+        out = _created(obs, duplicate)
+        if not duplicate and out.detection and out.detection.outcome == "concern_opened":
+            opened.append(out.detection.concern_id)
+        results.append(out)
+    return ObservationBatchOut(results=results, stored=sum(not r.duplicate for r in results),
+                               duplicates=sum(r.duplicate for r in results), concern_ids_opened=opened)
+
+
+def _created(obs: m.HealthObservation, duplicate: bool) -> ObservationCreated:
+    return ObservationCreated(duplicate=duplicate, detection=obs.detection if obs.detection else None,
+                              **_obs_dict(obs))
 
 
 def _obs_dict(obs: m.HealthObservation) -> dict:

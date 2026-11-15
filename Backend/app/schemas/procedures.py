@@ -6,7 +6,8 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, StrictInt
 
 from .cases import FollowUpOut, MeasurementOut
-from .common import CaseState, TzModel
+from .common import Attention, CaseState, Priority, TzModel
+from .monitoring import UrgentEvent
 
 CONFIRMATION_NOTE = "A confirmed step records an acknowledgement only. It does not prove correct clinical execution."
 
@@ -210,6 +211,11 @@ class SessionOut(BaseModel):
                                          "state, for restoring the coach after reopening (2.4.0).")
     stages: list[SessionStage] = Field(default_factory=list, description="Separate records of display, viewing, "
                                        "acknowledgement, reading, validation, assessment and follow-up (2.4.0).")
+    case_priority: Optional[Priority] = Field(default=None, description="Priority of this session's case (2.6.0).")
+    attention: Optional[Attention] = Field(default=None, description="Interrupt the coach when urgent (2.6.0).")
+    urgent_events: list[UrgentEvent] = Field(default_factory=list, description="Other open urgent cases for the "
+                                             "same astronaut, e.g. an emergency activated during this routine "
+                                             "procedure (2.6.0). The routine session is not cancelled.")
     confirmation_note: str = CONFIRMATION_NOTE
     visual_note: str = VISUAL_NOTE
 

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from .cases import CaseSummary, ObservationOut, ObservationStatus
 from .common import DataCategory, Laterality, Out
+from .monitoring import DetectionRulesetOut
 from .research import DatasetSummary
 
 
@@ -204,6 +205,8 @@ class BootstrapOut(BaseModel):
     anatomical_annotation_kinds: list[AnnotationKindOut]
     demo_inputs: DemoInputs
     research_datasets: list[DatasetSummary]
+    detection_ruleset: Optional[DetectionRulesetOut] = Field(default=None, description="DET-1.0 configured "
+                                                             "demonstration rules (2.6.0).")
 
 
 class ResetOut(BaseModel):

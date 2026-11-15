@@ -3,6 +3,51 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.6.0 (proactive health intelligence, Milestone 5 backend), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` with `SENTINEL_FRONTEND_SITES`, `SENTINEL_FRONTEND_HUMAN_GLB` and `SENTINEL_FRONTEND_VISUAL_REGISTRY` set (the registry is Codex's **uncommitted** draft `Frontend/src/visual-registry.ts`) | **288 passed, 0 failed, 0 skipped** (adds 31: 20 in `test_u_health_intelligence.py`, 11 in `test_v_priority_followup.py`) |
+| `scripts/export_openapi.py` | regenerated (35 paths, version 2.6.0) |
+| `scripts/http_smoke.py` | **33/33** (adds a batch that opens a DET-1.0 concern, the monitoring view, a concern read and the frozen-baseline 409) |
+| Live server restart | contract 2.6.0; new tables and columns added; version-1 baselines created (heart rate 66, SpO2 98, body temperature 36.7); 5 datasets still `IMPORTED` |
+
+The tests cover the v3.1 §7 scenarios:
+- **A, sustained change:** 3 consecutive valid readings open a concern and an investigation with no symptom.
+  The configured PROC-BP-01 is requested; SpO2 opens a below-only concern with no configured assessment. A
+  reading back in range breaks the run. A concern joins an existing symptom case. Batch ingestion works in time
+  order and is all-or-nothing.
+- **B, bad or missing data:** poor and stale deviating readings open no concern and no case. An excluded reading
+  does not reset a run. A missing baseline gives no comparison. Missing, stale and poor data appear only as
+  data-quality items.
+- **C, duplicates:** equivalent readings update one concern; 3 suppressed alerts are counted and audited; there
+  is one case, one evidence line and one reassessment. An identical resubmission is not counted. One new alert
+  is raised after the suppression window.
+- **D, urgent event:** an urgent symptom during a routine procedure:
+  - interrupts the session;
+  - stays urgent after the reading and after the follow-up becomes due;
+  - keeps the urgent instruction first;
+  - makes earlier follow-ups interrupt.
+
+  An emergency during the procedure appears in `urgent_events` and the session is not cancelled. A second urgent
+  event is audited without a second raise. Detection on an urgent case keeps it urgent.
+- **E, follow-up:**
+  - readings back in range do not close a concern, and closing early is refused;
+  - a fair-quality reading cannot complete the reassessment;
+  - a good reading after the due time completes it, and the concern then waits for review;
+  - closing does not resolve the case, and the recompute that follows excludes all 10 readings from the concern
+    period;
+  - a persisting change schedules a new reassessment, and a new deviation reopens the concern;
+  - `continue_monitoring` works;
+  - state survives a restart, and an old database is upgraded.
+
+Also tested: baseline versioning, the freeze, no automatic update, recompute validation, the published ruleset,
+and reset.
+
+Defect found and fixed: `scripts/http_smoke.py` sent the server log to a pipe it never read. Once the log passed
+about 4 KB (4,118 bytes after the new checks), uvicorn blocked writing to it and `POST /demo/reset` timed out. The
+script now writes the log to `var/http-smoke/server.log`.
+
 ## Contract 2.5.0 (habitat operations, Milestone 4 backend), run 2026-11-15
 
 | Suite | Result |

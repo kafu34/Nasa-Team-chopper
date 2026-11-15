@@ -76,7 +76,14 @@ def get_db(request: Request) -> Iterator[Session]:
 ADDED_COLUMNS = [("symptom_reports", "surface_point", "JSON"), ("zone_connections", "hatch_id", "VARCHAR"),
                  ("procedure_sessions", "equipment_id", "VARCHAR"),
                  ("procedure_sessions", "equipment_snapshot", "JSON"),
-                 ("habitats", "state_version", "INTEGER NOT NULL DEFAULT 1")]
+                 ("habitats", "state_version", "INTEGER NOT NULL DEFAULT 1"),
+                 ("health_observations", "detection", "JSON"),
+                 ("medical_cases", "urgent_since", "DATETIME"),
+                 ("medical_cases", "priority_reason", "TEXT"),
+                 ("medical_cases", "urgent_instruction", "TEXT"),
+                 ("follow_up_tasks", "concern_id", "VARCHAR"),
+                 ("follow_up_tasks", "completed_at", "DATETIME"),
+                 ("follow_up_tasks", "completion_evidence_id", "VARCHAR")]
 
 
 def add_missing_columns(engine: Engine) -> list[str]:

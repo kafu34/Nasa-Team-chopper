@@ -63,6 +63,8 @@ def session_out(db: Session, s: m.ProcedureSession) -> SessionOut:
                       completed_count=len(s.completed_steps), measurement_id=s.measurement_id,
                       created_at=s.created_at, updated_at=s.updated_at, completed_at=s.completed_at,
                       case_state=case.state, equipment=s.equipment_snapshot,
+                      case_priority=case.priority, attention=case_svc.attention_for(case),
+                      urgent_events=case_svc.urgent_events(db, case.astronaut_id, exclude_case_id=case.case_id),
                       **_visual_state(db, s, case, _steps(p)))
 
 
@@ -251,7 +253,7 @@ def create_session(db: Session, body: SessionCreate) -> tuple[m.ProcedureSession
     if case.state == "awaiting_assessment":
         case_svc.transition(db, case, "awaiting_results", "procedure-engine",
                             f"Assessment session {s.session_id} started")
-        case.next_action = f"Follow the {p.procedure_id} steps, then submit the reading."
+        case_svc.set_next_action(case, f"Follow the {p.procedure_id} steps, then submit the reading.")
     db.commit()
     return s, True
 
@@ -365,7 +367,7 @@ def record_measurement(db: Session, body: MeasurementCreate) -> MeasurementResul
     if case.state == "awaiting_results":
         case_svc.transition(db, case, "monitoring", "procedure-engine",
                             "Simulated measurement recorded; follow-up scheduled")
-        case.next_action = NEXT_ACTION_AFTER_READING
+        case_svc.set_next_action(case, NEXT_ACTION_AFTER_READING)
 
     fu_cfg = get_procedure(db, s.procedure_id).definition.get("follow_up")
     follow_up, created = None, False
@@ -405,5 +407,6 @@ def refresh_follow_ups(db: Session, case: m.MedicalCase) -> None:
         case.follow_up_status = "due"
         if case.state == "monitoring":
             case_svc.transition(db, case, "follow_up_due", "follow-up-manager", "Scheduled follow-up is due")
-            case.next_action = "A scheduled follow-up assessment is due. Repeat the blood-pressure reading when convenient."
+            case_svc.set_next_action(case, "A scheduled follow-up assessment is due. Repeat the reading when "
+                                           "convenient.")
         db.commit()

@@ -29,8 +29,9 @@ def main() -> int:
     work.mkdir(parents=True)
     env = {**os.environ, "SENTINEL_DB_URL": f"sqlite:///{(work / 'smoke.db').as_posix()}",
            "SENTINEL_VAR_DIR": str(work)}
+    server_log = open(work / "server.log", "wb")  # a file, so a full pipe can never block the server
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],
-                            cwd=BACKEND, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                            cwd=BACKEND, env=env, stdout=server_log, stderr=subprocess.STDOUT)
     base = f"http://127.0.0.1:{port}"
     results: list[tuple[str, bool, str]] = []
 
@@ -44,7 +45,7 @@ def main() -> int:
                     break
             except httpx.HTTPError:
                 time.sleep(0.25)
-        c = httpx.Client(base_url=base, timeout=10)
+        c = httpx.Client(base_url=base, timeout=30)
         check("GET /healthz", c.get("/healthz").json()["status"] == "ok")
         boot = c.get("/api/v1/demo/bootstrap").json()
         check("GET /api/v1/demo/bootstrap", boot["astronaut"]["astronaut_id"] == "DEMO-001")
@@ -116,6 +117,18 @@ def main() -> int:
               and len(rad.json()["points"]) == 5, f"total={rad.json().get('total')}")
         emg = c.post("/api/v1/emergencies", json=boot["demo_inputs"]["emergency"])
         check("POST /api/v1/emergencies", emg.status_code == 201 and emg.json()["priority"] == "urgent")
+        batch = c.post("/api/v1/observations/batch", json={"observations": [
+            {"astronaut_id": "DEMO-001", "type": "heart_rate", "value": v, "unit": "bpm",
+             "source": "SIMULATED_WEARABLE", "observed_at": ts(sec)} for v, sec in ((84, 1800), (86, 1200), (88, 600))]})
+        opened = batch.json().get("concern_ids_opened", []) if batch.status_code == 200 else []
+        check("POST /api/v1/observations/batch (DET-1.0 concern)", len(opened) == 1, ",".join(opened))
+        mon = c.get("/api/v1/astronauts/DEMO-001/monitoring").json()
+        check("GET /api/v1/astronauts/{id}/monitoring", len(mon["concerns"]) == 1 and mon["ruleset_version"] == "DET-1.0")
+        con = c.get(f"/api/v1/monitoring-concerns/{opened[0]}").json() if opened else {}
+        check("GET /api/v1/monitoring-concerns/{id}", con.get("status") == "open", con.get("rule_id", ""))
+        frozen = c.post("/api/v1/astronauts/DEMO-001/baselines/heart_rate/recompute",
+                        json={"actor_id": "DEMO-002", "reason": "smoke test"})
+        check("POST baselines/{type}/recompute (409 frozen expected)", frozen.status_code == 409)
         cors = c.options("/api/v1/demo/bootstrap", headers={"Origin": "http://127.0.0.1:5173",
                                                             "Access-Control-Request-Method": "GET"})
         check("CORS preflight from 127.0.0.1:5173", cors.headers.get("access-control-allow-origin") == "http://127.0.0.1:5173")
@@ -124,6 +137,7 @@ def main() -> int:
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+        server_log.close()
     for name, ok, info in results:
         print(f"{'PASS' if ok else 'FAIL'}  {name}  {info}")
     passed = sum(ok for _, ok, _ in results)

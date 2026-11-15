@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .common import Attention, CaseState, DataCategory, Laterality, Out, Priority, Strict, TzModel
+from .monitoring import DetectionResult, PriorityProtection
 
 _COORD = dict(ge=-5.0, le=5.0, description="Model units (not centimetres); finite, within +/-5.")
 
@@ -115,7 +116,8 @@ class SymptomCreated(BaseModel):
 
 
 class EvidenceRef(BaseModel):
-    type: Literal["symptom", "observation", "measurement", "scheduled_assessment", "emergency"]
+    type: Literal["symptom", "observation", "measurement", "scheduled_assessment", "emergency",
+                  "monitoring_concern"]
     id: str
     summary: str
     recorded_at: datetime
@@ -137,6 +139,9 @@ class FollowUpOut(Out):
     status: str
     interrupt: bool
     created_at: datetime
+    concern_id: Optional[str] = Field(default=None, description="Set for a monitoring reassessment (2.6.0).")
+    completed_at: Optional[datetime] = None
+    completion_evidence_id: Optional[str] = Field(default=None, description="Observation that completed it.")
 
 
 class SymptomOut(Out):
@@ -207,6 +212,10 @@ class CaseOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     audit: list[AuditOut]
+    monitoring_concern_ids: list[str] = Field(default_factory=list, description="Concerns opened by detection "
+                                              "rules that joined this case (2.6.0).")
+    priority_protection: Optional[PriorityProtection] = Field(default=None, description="Present while urgent: "
+                                                              "the priority is never lowered automatically (2.6.0).")
     data_category: DataCategory = "SIMULATED_ASTRONAUT"
     disclaimer: str = "Fictional demonstration case. Not a diagnosis."
 
@@ -241,6 +250,20 @@ class ObservationOut(Out):
 
 class ObservationCreated(ObservationOut):
     duplicate: bool
+    detection: Optional[DetectionResult] = Field(default=None, description="DET-1.0 result stored at ingestion "
+                                                 "(2.6.0). A duplicate returns the stored result.")
+
+
+class ObservationBatch(Strict):
+    observations: list[ObservationCreate] = Field(min_length=1, max_length=200,
+                                                  description="Processed in observed_at order.")
+
+
+class ObservationBatchOut(BaseModel):
+    results: list[ObservationCreated] = Field(description="In processing (observed_at) order.")
+    stored: int
+    duplicates: int
+    concern_ids_opened: list[str]
 
 
 class ObservationStatus(BaseModel):
