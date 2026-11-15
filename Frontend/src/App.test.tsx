@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 
+const roles = { role_codes: ['crew_member', 'crew_medical_officer', 'flight_surgeon', 'ground_support'], permissions: [{ action: 'case.read_sensitive', allowed_roles: ['crew_medical_officer', 'flight_surgeon'], own_record_allowed: true, description: 'Read case' }, { action: 'observations.read_history', allowed_roles: ['crew_medical_officer', 'flight_surgeon'], own_record_allowed: true, description: 'Read observations' }], personnel: [{ person_id: 'DEMO-001', display_name: 'Demo Astronaut One', role_code: 'crew_member', location: 'habitat', kind: 'crew' }, { person_id: 'GND-SUP-01', display_name: 'Ground Support', role_code: 'ground_support', location: 'ground', kind: 'ground' }], limitation: 'No authentication.' }
+
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 describe('offline-safe screens', () => {
   it('opens emergency assistance even when mission bootstrap fails', async () => {
@@ -40,7 +42,7 @@ describe('offline-safe screens', () => {
   it('places vitals beside the alerting body and expands the selected region for a report', async () => {
     const bootstrap = { astronaut: { astronaut_id: 'DEMO-001', display_name: 'Demo Astronaut One' }, habitat: { habitat_id: 'HAB-01', zones: [] }, observations: [{ type: 'heart_rate', value: 72, unit: 'bpm', observed_at: '2026-11-14T10:00:00Z', source: 'SIMULATED_WEARABLE' }], scheduled_assessments: [], open_cases: [{ case_id: 'CASE-1', state: 'awaiting_assessment', next_action: 'Check symptoms', updated_at: '2026-11-14T10:00:00Z' }], demo_inputs: { ble_observations: [] }, equipment: [] }
     const caseData = { case_id: 'CASE-1', state: 'awaiting_assessment', next_action: 'Check symptoms', follow_ups: [], symptoms: [{ region_id: 'chest', laterality: 'left', severity: 8 }], measurements: [] }
-    vi.stubGlobal('fetch', vi.fn((path: string) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(path.includes('/cases/CASE-1') ? caseData : path.includes('/research/datasets/') ? { dataset_id: 'OSD-195', status: 'NOT_DOWNLOADED' } : bootstrap) })))
+    vi.stubGlobal('fetch', vi.fn((path: string) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(path.includes('/access/roles') ? roles : path.includes('/cases/CASE-1') ? caseData : path.includes('/research/datasets/') ? { dataset_id: 'OSD-195', status: 'NOT_DOWNLOADED' } : bootstrap) })))
     render(<MemoryRouter initialEntries={['/']}><App /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('Reported 8/10')).toBeInTheDocument())
     expect(screen.getByRole('heading', { name: 'Vitals at a glance' })).toBeInTheDocument()

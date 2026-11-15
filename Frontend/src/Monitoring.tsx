@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { api, DEMO, type BaselineList, type BootstrapOut, type DemoScenario, type DetectionRuleset, type MonitoringOut, type MonitoringType } from './api'
 import { MonitoringActions } from './MonitoringActions'
 import { ObservationHistory } from './ObservationHistory'
+import { useDemoAccess } from './DemoAccess'
 import './monitoring.css'
 import './observation-history.css'
 
@@ -18,6 +19,7 @@ export function detectionTone(item: MonitoringType) {
 }
 
 export function Monitoring({ bootstrap, onCaseOpened, onCaseDetected, onScenarioLoaded }: { bootstrap?: BootstrapOut | null; onCaseOpened: (caseId: string) => void; onCaseDetected: (caseId: string) => void; onScenarioLoaded?: (result: DemoScenario) => Promise<void> }) {
+  const { viewerId } = useDemoAccess()
   const [summary, setSummary] = useState<MonitoringOut | null>(null)
   const [history, setHistory] = useState<BaselineList | null>(null)
   const [ruleset, setRuleset] = useState<DetectionRuleset | null>(null)
@@ -25,14 +27,14 @@ export function Monitoring({ bootstrap, onCaseOpened, onCaseDetected, onScenario
   const [busy, setBusy] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const load = useCallback(async () => {
-    setBusy(true)
+    setBusy(true); setSummary(null); setError(null)
     try {
-      const [monitoring, baselines, rules] = await Promise.all([api.monitoring(DEMO.astronautId), api.baselines(DEMO.astronautId), api.detectionRuleset()])
+      const [monitoring, baselines, rules] = await Promise.all([api.monitoring(DEMO.astronautId, viewerId), api.baselines(DEMO.astronautId), api.detectionRuleset()])
       if (!Array.isArray(monitoring.types) || !Array.isArray(monitoring.concerns) || !Array.isArray(monitoring.data_quality)) throw new Error('Backend returned an invalid monitoring summary.')
       setSummary(monitoring); setHistory(baselines); setRuleset(rules); setError(null); setRefreshKey(value => value + 1)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Monitoring unavailable.') }
+    } catch (cause) { setSummary(null); setHistory(null); setRuleset(null); setError(cause instanceof Error ? cause.message : 'Monitoring unavailable.') }
     finally { setBusy(false) }
-  }, [])
+  }, [viewerId])
   useEffect(() => { void load() }, [load])
   return <div className="monitoring-page">
     <header className="page-title"><p className="eyebrow">Health intelligence / 04</p><h1>Health monitoring</h1><p className="intro">Individual baselines, incoming fictional readings, data quality and investigations from the local backend.</p></header>

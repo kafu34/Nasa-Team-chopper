@@ -16,7 +16,7 @@ describe('proactive monitoring presentation', () => {
       types: [{ type: 'heart_rate', unit: 'bpm', freshness: 'stale', rule_id: 'DET-HR-01', baseline: null, latest_value: null, latest_observed_at: null, latest_quality: null, difference_from_baseline: null, latest_detection: { gate: 'excluded_poor_quality', outcome: 'excluded_poor_quality', explanation: 'Poor source quality; not used for detection.', disclaimer, rule_id: 'DET-HR-01', deviating_count: 0, required_count: 3, alert_raised: false, alert_suppressed: false }, trend: { readings: 0, window_minutes: 180, description: 'insufficient_readings' }, open_concern_id: null }],
       concerns: [], data_quality: [{ type: 'heart_rate', issue: 'recent_poor_quality', note: 'Take a new reading.' }],
     }
-    const fetchMock = vi.fn((path: string) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(path.endsWith('/monitoring') ? monitoring : path.endsWith('/baselines') ? { baselines: [] } : { rules: [] }) }))
+    const fetchMock = vi.fn((path: string) => Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(path.includes('/monitoring?') ? monitoring : path.endsWith('/baselines') ? { baselines: [] } : { rules: [] }) }))
     vi.stubGlobal('fetch', fetchMock)
     render(<MemoryRouter><Monitoring onCaseOpened={() => {}} onCaseDetected={() => {}} /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('Take a new reading.')).toBeInTheDocument())

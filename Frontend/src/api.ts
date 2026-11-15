@@ -7,6 +7,7 @@ export type StudyType = 'HUMAN_SPACEFLIGHT' | 'HUMAN_GROUND_ANALOGUE' | 'HUMAN_D
 export type ApiObject = Record<string, unknown>
 export type CaseState = 'detected' | 'investigating' | 'awaiting_assessment' | 'awaiting_results' | 'action_required' | 'monitoring' | 'follow_up_due' | 'escalated' | 'resolved'
 export type CrewRole = 'crew_member' | 'crew_medical_officer' | 'flight_surgeon' | 'ground_support'
+export type AccessMatrix = { role_codes: CrewRole[]; permissions: { action: string; allowed_roles: CrewRole[]; own_record_allowed: boolean; description: string }[]; personnel: { person_id: string; display_name: string; role_code: CrewRole; location: string; kind: 'crew' | 'ground' }[]; limitation: string }
 export type CaseSummary = { case_id: string; state: CaseState; priority?: 'routine' | 'urgent'; next_action: string; updated_at: string }
 export type SurfacePoint = { model_id: string; model_version?: string; site_id: string; x: number; y: number; z: number; mesh_id?: string; mesh_local_point?: { x: number; y: number; z: number }; attachment?: { triangle_index: number; barycentric: [number, number, number] } }
 export type SurfacePointOut = Omit<SurfacePoint, 'mesh_id' | 'mesh_local_point' | 'attachment'> & { model_version: string; site_label: string; mesh_validation: 'not_supplied' | 'not_declared_by_model' | 'validated'; mesh_id?: string | null; mesh_local_point?: { x: number; y: number; z: number } | null; attachment?: { triangle_index: number; barycentric: [number, number, number] } | null; marker_status: 'current' | 'model_version_changed' | 'model_version_incompatible' | 'model_retired' | 'model_unknown'; render_hint: 'exact_point' | 'site_only' | 'not_renderable' }
@@ -98,6 +99,7 @@ const post = <T>(path: string, data?: ApiObject) => request<T>(path, { method: '
 export const api = {
   health: () => request<ApiObject>('/healthz'),
   bootstrap: () => request<BootstrapOut>('/api/v1/demo/bootstrap'),
+  accessRoles: () => request<AccessMatrix>('/api/v1/access/roles'),
   assessments: (astronautId: string) => request<AssessmentList>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/assessments`),
   reminders: (astronautId: string) => request<ReminderList>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/reminders`),
   acknowledgeReminder: (reminderId: string, actorId: string = DEMO.astronautId) => post<ReminderOut>(`/api/v1/reminders/${encodeURIComponent(reminderId)}/acknowledge`, { actor_id: actorId }),
@@ -116,13 +118,13 @@ export const api = {
   resolveCase: (id: string, actorId: string, note: string, closeOutstandingFollowUps: boolean) => post<CaseResolveOut>(`/api/v1/cases/${encodeURIComponent(id)}/resolve`, { actor_id: actorId, note, close_outstanding_follow_ups: closeOutstandingFollowUps }),
   reset: () => post<ApiObject>('/api/v1/demo/reset'),
   symptom: (data: { astronaut_id: string; region_id: string; laterality: string; severity: number; onset: string; note?: string; surface_point?: SurfacePoint }) => post<SymptomCreated>('/api/v1/symptoms', data),
-  case: (id: string) => request<CaseOut>(`/api/v1/cases/${encodeURIComponent(id)}`),
+  case: (id: string, viewerId?: string) => request<CaseOut>(`/api/v1/cases/${encodeURIComponent(id)}${viewerId ? `?${new URLSearchParams({ viewer_id: viewerId })}` : ''}`),
   location: (observations: { anchor_id: string; rssi_dbm: number; observed_at: string }[]) => post<LocationEstimate>('/api/v1/location/estimate', { astronaut_id: DEMO.astronautId, observations }),
   confirmLocation: (zoneId: string, astronautId: string = DEMO.astronautId) => post<LocationEstimate>('/api/v1/location/confirm', { astronaut_id: astronautId, zone_id: zoneId, confirmed_by: astronautId }),
   latestLocation: (astronautId: string) => request<LocationLatest>(`/api/v1/location/${encodeURIComponent(astronautId)}/latest`),
   habitatMap: (habitatId: string) => request<HabitatMap>(`/api/v1/habitats/${encodeURIComponent(habitatId)}/map`),
-  monitoring: (astronautId: string) => request<MonitoringOut>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/monitoring`),
-  observationHistory: (astronautId: string, type: string, limit = 50, offset = 0) => request<ObservationHistory>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/observations?${new URLSearchParams({ ...(type ? { type } : {}), limit: String(limit), offset: String(offset) })}`),
+  monitoring: (astronautId: string, viewerId?: string) => request<MonitoringOut>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/monitoring${viewerId ? `?${new URLSearchParams({ viewer_id: viewerId })}` : ''}`),
+  observationHistory: (astronautId: string, type: string, limit = 50, offset = 0, viewerId?: string) => request<ObservationHistory>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/observations?${new URLSearchParams({ ...(type ? { type } : {}), limit: String(limit), offset: String(offset), ...(viewerId ? { viewer_id: viewerId } : {}) })}`),
   baselines: (astronautId: string) => request<BaselineList>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/baselines`),
   detectionRuleset: () => request<DetectionRuleset>('/api/v1/monitoring/ruleset'),
   observationsBatch: (observations: ObservationInput[]) => post<ObservationBatch>('/api/v1/observations/batch', { observations }),
@@ -130,7 +132,7 @@ export const api = {
   reviewConcern: (id: string, decision: 'continue_monitoring' | 'close', note: string, actorId: string) => post<MonitoringConcern>(`/api/v1/monitoring-concerns/${encodeURIComponent(id)}/review`, { actor_id: actorId, decision, note }),
   recomputeBaseline: (astronautId: string, type: string, reason: string, actorId: string) => post<Baseline>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/baselines/${encodeURIComponent(type)}/recompute`, { actor_id: actorId, reason }),
   demoScenario: (id: string) => post<DemoScenario>(`/api/v1/demo/scenarios/${encodeURIComponent(id)}`),
-  changeHatch: (habitatId: string, hatchId: string, state: 'open' | 'closed', reason: string) => post<HatchChange>(`/api/v1/habitats/${encodeURIComponent(habitatId)}/hatches/${encodeURIComponent(hatchId)}`, { state, reason, actor_id: DEMO.astronautId }),
+  changeHatch: (habitatId: string, hatchId: string, state: 'open' | 'closed', reason: string, actorId: string = DEMO.astronautId) => post<HatchChange>(`/api/v1/habitats/${encodeURIComponent(habitatId)}/hatches/${encodeURIComponent(hatchId)}`, { state, reason, actor_id: actorId }),
   equipment: (caseId: string, zoneId: string) => post<EquipmentRecommendation>('/api/v1/equipment/recommend', { case_id: caseId, zone_id: zoneId, capability: 'blood_pressure' }),
   equipmentForCrew: (caseId: string, astronautId: string, startRole: 'patient' | 'responder', capability: 'blood_pressure' | 'pulse_oximetry' | 'body_temperature' = 'blood_pressure') => post<EquipmentRecommendation>('/api/v1/equipment/recommend', { case_id: caseId, astronaut_id: astronautId, start_role: startRole, capability }),
   recommendation: (id: string) => request<EquipmentRecommendation>(`/api/v1/equipment/recommendations/${encodeURIComponent(id)}`),

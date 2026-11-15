@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, DEMO, type HabitatMap, type HatchChange, type MovementRun } from './api'
+import { useDemoAccess } from './DemoAccess'
 
 const SCENARIOS = [
   ['SIM-WALK-CQ-MED', 'Walk from Crew Quarters to Medical Bay'],
@@ -9,6 +10,7 @@ const SCENARIOS = [
 ] as const
 
 export function HabitatOperations({ map, onHatchChanged, onMovementRun }: { map: HabitatMap; onHatchChanged: (result: HatchChange) => Promise<void>; onMovementRun: () => Promise<void> }) {
+  const { viewerId, can } = useDemoAccess()
   const [hatchId, setHatchId] = useState(map.passages[0]?.hatch_id ?? '')
   const [reason, setReason] = useState('Fictional crew access update')
   const [hatchBusy, setHatchBusy] = useState(false)
@@ -23,7 +25,7 @@ export function HabitatOperations({ map, onHatchChanged, onMovementRun }: { map:
     if (!hatch || reason.trim().length < 3) return
     setHatchBusy(true); setHatchError(null)
     try {
-      const result = await api.changeHatch(map.habitat_id, hatch.hatch_id, hatch.accessible ? 'closed' : 'open', reason.trim())
+      const result = await api.changeHatch(map.habitat_id, hatch.hatch_id, hatch.accessible ? 'closed' : 'open', reason.trim(), viewerId)
       setHatchResult(result)
       await onHatchChanged(result)
     } catch (error) { setHatchError(error instanceof Error ? error.message : 'Hatch change failed.') }
@@ -39,7 +41,7 @@ export function HabitatOperations({ map, onHatchChanged, onMovementRun }: { map:
     <section className="card"><h2>Hatch access</h2><p className="muted small">Crew controlled fictional hatch state. A change updates route access and may invalidate a saved route.</p>
       <label className="form-label">Hatch<select value={hatchId} onChange={event => setHatchId(event.target.value)}>{map.passages.map(item => <option key={item.hatch_id} value={item.hatch_id}>{item.hatch_id} · {item.from_zone_id} ↔ {item.to_zone_id} · {item.hatch_state}</option>)}</select></label>
       <label className="form-label">Reason<input value={reason} maxLength={300} onChange={event => setReason(event.target.value)} /></label>
-      <button className="button secondary" disabled={!hatch || reason.trim().length < 3 || hatchBusy} onClick={() => void changeHatch()}>{hatchBusy ? 'Updating hatch…' : `${hatch?.accessible ? 'Close' : 'Open'} ${hatchId}`}</button>
+      {can('hatch.change') ? <button className="button secondary" disabled={!hatch || reason.trim().length < 3 || hatchBusy} onClick={() => void changeHatch()}>{hatchBusy ? 'Updating hatch…' : `${hatch?.accessible ? 'Close' : 'Open'} ${hatchId}`}</button> : <p className="muted small">Only habitat crew may change a hatch.</p>}
       {hatchError && <p className="status error">{hatchError}</p>}{hatchResult && <p className="status info">{hatchResult.hatch_id} is {hatchResult.state}. Habitat state {hatchResult.state_version}. {hatchResult.invalidated_recommendation_ids.length} saved route(s) invalidated.</p>}
     </section>
     <section className="card"><h2>Fictional movement test</h2><p className="muted small">Runs a repeatable radio simulation through the backend estimator. The map uses the resulting zone estimate; test ground truth is never displayed as crew location.</p>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, DEMO, type MonitoringOut, type ObservationHistory as HistoryPage, type ObservationHistoryItem } from './api'
+import { useDemoAccess } from './DemoAccess'
 
 const label = (value: string) => value.replaceAll('_', ' ')
 const formatTime = (value: string) => new Date(value).toLocaleString()
@@ -16,6 +17,7 @@ export function historyPlot(items: ObservationHistoryItem[], centre: number | nu
 }
 
 export function ObservationHistory({ summary, refreshKey }: { summary: MonitoringOut; refreshKey: number }) {
+  const { viewerId } = useDemoAccess()
   const [type, setType] = useState(() => summary.types[0]?.type ?? '')
   const [page, setPage] = useState<HistoryPage | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -23,12 +25,12 @@ export function ObservationHistory({ summary, refreshKey }: { summary: Monitorin
   const load = useCallback(async (offset = 0) => {
     setBusy(true)
     try {
-      const result = await api.observationHistory(DEMO.astronautId, type, 50, offset)
+      const result = await api.observationHistory(DEMO.astronautId, type, 50, offset, viewerId)
       setPage(previous => offset && previous ? { ...result, items: [...previous.items, ...result.items] } : result)
       setError(null)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'History unavailable.') }
+    } catch (cause) { setPage(null); setError(cause instanceof Error ? cause.message : 'History unavailable.') }
     finally { setBusy(false) }
-  }, [type])
+  }, [type, viewerId])
   useEffect(() => { void load() }, [load, refreshKey])
   const baseline = summary.types.find(item => item.type === type)?.baseline
   const chartItems = page?.items.slice(0, 50) ?? []

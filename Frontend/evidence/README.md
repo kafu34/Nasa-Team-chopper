@@ -85,3 +85,9 @@ After a demo reset, a separate fictional emergency opened `CASE-6778E1C1BE`. A c
 | All backend case-resolution blockers | [case-resolution-blockers-2.11.png](case-resolution-blockers-2.11.png) |
 | Resolved case and unacknowledged urgent message warning | [case-resolution-success-2.11.png](case-resolution-success-2.11.png) |
 | Narrow-screen resolved case | [case-resolution-mobile-2.11.png](case-resolution-mobile-2.11.png) |
+
+## Contract 2.11.0 completion checks — roles and delayed communications
+
+The browser ran against an isolated local backend at `127.0.0.1:8001` and Vite at `127.0.0.1:5178`. The `/access` screen displayed the backend's four fictional personnel and permission matrix with an explicit no-authentication notice. Desktop and 390 px narrow-screen captures were inspected during the browser session; the table scrolled within its card and the emergency link remained visible. `GND-SUP-01` received backend 403 for `GET /astronauts/DEMO-001/monitoring?viewer_id=GND-SUP-01`, while `DEMO-001` read their own monitoring view. Ground support had no inventory-update or hatch-change button.
+
+Message `MSG-C258849B75` was queued by `DEMO-001` at 19:21:46 Singapore time, had backend expected arrival 19:26:51, became `delivered` after that delay, and was acknowledged in the browser by receiving-side `GND-SUP-01` at 19:27:07. The queue showed the acknowledged state, actor and timestamp. This is a fictional delayed-link simulation. Interactive follow-up cancellation remains unverified because the request to create a disposable follow-up fixture was rejected. The focused frontend test checks the explicit cancellation choice and returned IDs; backend contract tests cover the resolver.
