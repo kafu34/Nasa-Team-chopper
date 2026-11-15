@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, Response
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,7 @@ from ..errors import not_found
 from ..errors import ApiError
 from ..schemas.cases import (CaseAcknowledge, CaseOut, ObservationBatch, ObservationBatchOut, ObservationCreate,
                              ObservationCreated, SymptomCreate, SymptomCreated)
-from ..services import detection
+from ..services import access, detection
 from ..schemas.common import error_responses
 from ..services import cases as case_svc
 from ..services import observations as obs_svc
@@ -34,22 +36,30 @@ def create_symptom(body: SymptomCreate, request: Request, response: Response,
                           next_action=case.next_action, duplicate=duplicate, surface_point=sym.surface_point)
 
 
-@router.get("/cases/{case_id}", response_model=CaseOut, responses=error_responses(404),
-            summary="Get a case with evidence, follow-ups, measurements and audit history")
-def get_case(case_id: str, db: Session = Depends(get_db)) -> CaseOut:
+@router.get("/cases/{case_id}", response_model=CaseOut, responses=error_responses(403, 404),
+            summary="Get a case with evidence, follow-ups, measurements and audit history",
+            description="Optional viewer_id (2.9.0): when sent, the viewer's role is checked (crew medical officer, "
+                        "flight surgeon, or the crew member whose case it is) and the read is audited. Without it "
+                        "the demonstration behaviour is unchanged.")
+def get_case(case_id: str, request: Request, viewer_id: Optional[str] = Query(default=None),
+             db: Session = Depends(get_db)) -> CaseOut:
     from ..services.procedures import refresh_follow_ups
 
     case = case_svc.get_case(db, case_id)
+    access.check_viewer(db, request.app.state.fixture, viewer_id, "case.read_sensitive", "medical_case",
+                        case.case_id, case.astronaut_id)
     refresh_follow_ups(db, case)
     return case_svc.case_out(db, case)
 
 
-@router.post("/cases/{case_id}/acknowledge", response_model=CaseOut, responses=error_responses(404),
-             summary="Acknowledge a case alert (optional). Never changes state and never resolves the case.")
-def acknowledge_case(case_id: str, body: CaseAcknowledge, db: Session = Depends(get_db)) -> CaseOut:
+@router.post("/cases/{case_id}/acknowledge", response_model=CaseOut, responses=error_responses(403, 404),
+             summary="Acknowledge a case alert (optional). Never changes state and never resolves the case.",
+             description="Crew members and the flight surgeon may acknowledge; ground support gets 403 (2.9.0).")
+def acknowledge_case(case_id: str, body: CaseAcknowledge, request: Request,
+                     db: Session = Depends(get_db)) -> CaseOut:
     case = case_svc.get_case(db, case_id)
-    if db.get(m.Astronaut, body.actor_id) is None:
-        raise not_found("Astronaut", body.actor_id)
+    access.require(db, request.app.state.fixture, body.actor_id, "case.acknowledge", "medical_case", case.case_id,
+                   case.case_id)
     case_svc.acknowledge(db, case, body.actor_id)
     db.commit()
     return case_svc.case_out(db, case)

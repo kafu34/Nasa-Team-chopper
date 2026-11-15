@@ -16,7 +16,7 @@ from ..services import cases as case_svc
 from ..services import datasets as ds
 from ..services import observations as obs_svc
 from ..services import access, surface_sites
-from ..services import demo_scenarios
+from ..services import demo_scenarios, screening
 from ..schemas.monitoring import ScenarioLoaded
 from ..services.monitoring import detection_ruleset_out
 
@@ -55,7 +55,7 @@ def bootstrap(request: Request, db: Session = Depends(get_db)) -> BootstrapOut:
                        .order_by(m.ZoneConnection.id)).all()
     assessments = db.scalars(select(m.ScheduledAssessment)
                              .where(m.ScheduledAssessment.astronaut_id == astro.astronaut_id)
-                             .order_by(m.ScheduledAssessment.due_at)).all()
+                             .order_by(m.ScheduledAssessment.assessment_id)).all()
     observations = db.scalars(select(m.HealthObservation)
                               .where(m.HealthObservation.astronaut_id == astro.astronaut_id)
                               .order_by(m.HealthObservation.observed_at.desc())).all()
@@ -77,13 +77,7 @@ def bootstrap(request: Request, db: Session = Depends(get_db)) -> BootstrapOut:
         equipment=[EquipmentOut.model_validate(e) for e in db.scalars(select(m.Equipment)
                                                                       .order_by(m.Equipment.equipment_id))],
         procedures=[ProcedureSummary.model_validate(p) for p in db.scalars(select(m.ProcedureDefinition))],
-        scheduled_assessments=[
-            ScheduledAssessmentOut(assessment_id=a.assessment_id, astronaut_id=a.astronaut_id, title=a.title,
-                                   capability=a.capability, procedure_id=a.procedure_id, due_at=a.due_at,
-                                   status=a.status, is_due=a.status == "scheduled" and a.due_at <= now,
-                                   reason=a.reason, case_id=a.case_id, completed_at=a.completed_at)
-            for a in assessments
-        ],
+        scheduled_assessments=[screening.assessment_out(a, now) for a in assessments],
         observations=[ObservationOut.model_validate(o) for o in observations],
         observation_status=obs_svc.statuses(db, fx, astro.astronaut_id),
         open_cases=[case_svc.summary(c) for c in open_cases],

@@ -387,13 +387,17 @@ def record_measurement(db: Session, body: MeasurementCreate) -> MeasurementResul
         case.requested_assessment = {**req, "status": "completed"}
         sa = db.get(m.ScheduledAssessment, req.get("assessment_id")) if req.get("assessment_id") else None
         if sa is not None and sa.status == "scheduled":
-            sa.status = "completed"
-            sa.completed_at = now
+            from . import screening
+
+            screening.complete(db, sa, meas.measurement_id, case.case_id, now)
     if case.state == "awaiting_results":
         case_svc.transition(db, case, "monitoring", "procedure-engine",
                             "Simulated measurement recorded; follow-up scheduled")
         case_svc.set_next_action(case, NEXT_ACTION_AFTER_READING)
 
+    from . import screening
+
+    screening.complete_matching(db, body.astronaut_id, s.procedure_id, meas.measurement_id, case.case_id, now)
     fu_cfg = get_procedure(db, s.procedure_id).definition.get("follow_up")
     follow_up, created = None, False
     if fu_cfg:

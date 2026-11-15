@@ -353,10 +353,8 @@ def ingest(db: Session, fx: dict, body: ObservationCreate) -> tuple[m.HealthObse
 
 def review(db: Session, fx: dict, concern_id: str, actor_id: str, decision: str, note: str) -> m.MonitoringConcern:
     c = get_concern(db, concern_id)
-    if db.get(m.Astronaut, actor_id) is None:
-        raise not_found("Astronaut", actor_id)
-    if decision == "close":
-        access.require(db, fx, actor_id, "monitoring_concern.close", "monitoring_concern", c.concern_id, c.case_id)
+    action = "monitoring_concern.close" if decision == "close" else "monitoring_concern.continue"
+    access.require(db, fx, actor_id, action, "monitoring_concern", c.concern_id, c.case_id)
     if c.status == "closed":
         raise ApiError(409, "CONCERN_CLOSED", "This monitoring concern is already closed.", {"concern_id": concern_id})
     rule = rule_for(fx, c.type)

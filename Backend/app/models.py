@@ -116,6 +116,27 @@ class ScheduledAssessment(Base):
     reason: Mapped[str] = mapped_column(Text)
     case_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    interval_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 2.9.0 screening
+    grace_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    series_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    sequence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    symptom_linked: Mapped[bool] = mapped_column(Boolean, default=True)
+    completed_by_measurement_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class AssessmentReminder(Base):
+    """Durable reminder, one per scheduled assessment and kind (due, overdue). 2.9.0."""
+    __tablename__ = "assessment_reminders"
+    reminder_id: Mapped[str] = mapped_column(String, primary_key=True)
+    assessment_id: Mapped[str] = mapped_column(String, index=True)
+    astronaut_id: Mapped[str] = mapped_column(ForeignKey("astronauts.astronaut_id"), index=True)
+    kind: Mapped[str] = mapped_column(String)  # due | overdue
+    status: Mapped[str] = mapped_column(String, default="open")  # open | acknowledged | closed_by_completion
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    acknowledged_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    closed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    __table_args__ = (UniqueConstraint("assessment_id", "kind", name="uq_reminder_kind"),)
 
 
 class MedicalCase(Base):
@@ -330,6 +351,7 @@ SYNTHETIC_TABLES = [
     EmergencyEvent,
     MonitoringConcern,
     HealthBaseline,
+    AssessmentReminder,
     LocationEstimate,
     HealthObservation,
     AssessmentMeasurement,

@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.8.0
+  version: 2.9.0
 paths:
   /healthz:
     get:
@@ -121,6 +121,8 @@ paths:
       tags:
       - cases
       summary: Get a case with evidence, follow-ups, measurements and audit history
+      description: 'Optional viewer_id (2.9.0): when sent, the viewer''s role is checked (crew medical officer, flight surgeon,
+        or the crew member whose case it is) and the read is audited. Without it the demonstration behaviour is unchanged.'
       operationId: get_case_api_v1_cases__case_id__get
       parameters:
       - name: case_id
@@ -129,6 +131,14 @@ paths:
         schema:
           type: string
           title: Case Id
+      - name: viewer_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Viewer Id
       responses:
         '200':
           description: Successful Response
@@ -136,6 +146,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CaseOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -153,6 +169,7 @@ paths:
       tags:
       - cases
       summary: Acknowledge a case alert (optional). Never changes state and never resolves the case.
+      description: Crew members and the flight surgeon may acknowledge; ground support gets 403 (2.9.0).
       operationId: acknowledge_case_api_v1_cases__case_id__acknowledge_post
       parameters:
       - name: case_id
@@ -174,6 +191,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CaseOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -283,6 +306,14 @@ paths:
         schema:
           type: string
           title: Astronaut Id
+      - name: viewer_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Viewer Id
       responses:
         '200':
           description: Successful Response
@@ -290,6 +321,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonitoringOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -360,6 +397,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: viewer_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Viewer Id
       responses:
         '200':
           description: Successful Response
@@ -367,6 +412,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ObservationHistory'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -545,6 +596,167 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/access/roles:
+    get:
+      tags:
+      - access
+      summary: Role codes, permission matrix and fictional personnel (2.9.0)
+      operationId: get_roles_api_v1_access_roles_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessMatrixOut'
+  /api/v1/astronauts/{astronaut_id}/assessments:
+    get:
+      tags:
+      - screening
+      summary: Scheduled screening assessments with due/overdue state (2.9.0)
+      operationId: list_assessments_api_v1_astronauts__astronaut_id__assessments_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentList'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/astronauts/{astronaut_id}/reminders:
+    get:
+      tags:
+      - screening
+      summary: Durable due and overdue reminders (2.9.0)
+      operationId: list_reminders_api_v1_astronauts__astronaut_id__reminders_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderList'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/reminders/{reminder_id}/acknowledge:
+    post:
+      tags:
+      - screening
+      summary: Acknowledge a reminder (never completes the assessment)
+      operationId: acknowledge_reminder_api_v1_reminders__reminder_id__acknowledge_post
+      parameters:
+      - name: reminder_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Reminder Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderAck'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/assessments/{assessment_id}/start:
+    post:
+      tags:
+      - screening
+      summary: 'Start a scheduled screening: opens or joins a routine case and its procedure session'
+      description: No symptom is needed. 409 ASSESSMENT_COMPLETED, 409 CASE_HAS_PENDING_ASSESSMENT. The measurement from the
+        session completes the assessment and schedules the next one.
+      operationId: start_assessment_api_v1_assessments__assessment_id__start_post
+      parameters:
+      - name: assessment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Assessment Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentStart'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentStartOut'
         '404':
           description: Resource not found
           content:
@@ -1546,6 +1758,38 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    AccessMatrixOut:
+      properties:
+        role_codes:
+          items:
+            type: string
+            enum:
+            - crew_member
+            - crew_medical_officer
+            - flight_surgeon
+            - ground_support
+          type: array
+          title: Role Codes
+        permissions:
+          items:
+            $ref: '#/components/schemas/PermissionOut'
+          type: array
+          title: Permissions
+        personnel:
+          items:
+            $ref: '#/components/schemas/PersonOut'
+          type: array
+          title: Personnel
+        limitation:
+          type: string
+          title: Limitation
+      type: object
+      required:
+      - role_codes
+      - permissions
+      - personnel
+      - limitation
+      title: AccessMatrixOut
     AnchorOut:
       properties:
         anchor_id:
@@ -1758,6 +2002,74 @@ components:
       - source_column
       title: AssayRecord
       description: One value from a wide bio-assay table (BIO_ASSAY_TABLE), e.g. OSD-656 urine inflammation panel.
+    AssessmentList:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        assessments:
+          items:
+            $ref: '#/components/schemas/ScheduledAssessmentOut'
+          type: array
+          title: Assessments
+        note:
+          type: string
+          title: Note
+          default: Fictional demonstration schedule. Not a clinical recommendation.
+      type: object
+      required:
+      - astronaut_id
+      - assessments
+      title: AssessmentList
+    AssessmentStart:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-001
+        mode:
+          type: string
+          enum:
+          - self
+          - responder
+          title: Mode
+          default: self
+        equipment_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Equipment Id
+          examples:
+          - EQ-PO-01
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      title: AssessmentStart
+    AssessmentStartOut:
+      properties:
+        assessment:
+          $ref: '#/components/schemas/ScheduledAssessmentOut'
+        case_id:
+          type: string
+          title: Case Id
+        case_state:
+          type: string
+          title: Case State
+        session:
+          $ref: '#/components/schemas/SessionOut'
+        session_created:
+          type: boolean
+          title: Session Created
+      type: object
+      required:
+      - assessment
+      - case_id
+      - case_state
+      - session
+      - session_created
+      title: AssessmentStartOut
     AstronautOut:
       properties:
         astronaut_id:
@@ -5706,6 +6018,68 @@ components:
       - hatch_state
       - note
       title: PassageOut
+    PermissionOut:
+      properties:
+        action:
+          type: string
+          title: Action
+        allowed_roles:
+          items:
+            type: string
+            enum:
+            - crew_member
+            - crew_medical_officer
+            - flight_surgeon
+            - ground_support
+          type: array
+          title: Allowed Roles
+        own_record_allowed:
+          type: boolean
+          title: Own Record Allowed
+          description: A crew_member may perform it on their own record.
+        description:
+          type: string
+          title: Description
+      type: object
+      required:
+      - action
+      - allowed_roles
+      - own_record_allowed
+      - description
+      title: PermissionOut
+    PersonOut:
+      properties:
+        person_id:
+          type: string
+          title: Person Id
+        display_name:
+          type: string
+          title: Display Name
+        role_code:
+          type: string
+          enum:
+          - crew_member
+          - crew_medical_officer
+          - flight_surgeon
+          - ground_support
+          title: Role Code
+        location:
+          type: string
+          title: Location
+        kind:
+          type: string
+          enum:
+          - crew
+          - ground
+          title: Kind
+      type: object
+      required:
+      - person_id
+      - display_name
+      - role_code
+      - location
+      - kind
+      title: PersonOut
     PriorityProtection:
       properties:
         urgent_since:
@@ -6129,6 +6503,94 @@ components:
       - anchor_id
       - reason
       title: RejectedObservation
+    ReminderAck:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-001
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      title: ReminderAck
+    ReminderList:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        reminders:
+          items:
+            $ref: '#/components/schemas/ReminderOut'
+          type: array
+          title: Reminders
+      type: object
+      required:
+      - astronaut_id
+      - reminders
+      title: ReminderList
+    ReminderOut:
+      properties:
+        reminder_id:
+          type: string
+          title: Reminder Id
+        assessment_id:
+          type: string
+          title: Assessment Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        kind:
+          type: string
+          enum:
+          - due
+          - overdue
+          title: Kind
+        status:
+          type: string
+          enum:
+          - open
+          - acknowledged
+          - closed_by_completion
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        acknowledged_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Acknowledged At
+        acknowledged_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Acknowledged By
+        closed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Closed At
+        note:
+          type: string
+          title: Note
+          default: Acknowledging a reminder does not complete the assessment.
+      type: object
+      required:
+      - reminder_id
+      - assessment_id
+      - astronaut_id
+      - kind
+      - status
+      - created_at
+      - acknowledged_at
+      - acknowledged_by
+      - closed_at
+      title: ReminderOut
     RequestedAssessment:
       properties:
         assessment_id:
@@ -6614,6 +7076,51 @@ components:
             format: date-time
           - type: 'null'
           title: Completed At
+        due_state:
+          type: string
+          enum:
+          - upcoming
+          - due
+          - overdue
+          - completed
+          title: Due State
+          description: 2.9.0. overdue = past due_at + grace_hours.
+          default: upcoming
+        overdue_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Overdue At
+        interval_hours:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Interval Hours
+        grace_hours:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Grace Hours
+        series_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Series Id
+        sequence:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sequence
+        symptom_linked:
+          type: boolean
+          title: Symptom Linked
+          default: true
+        completed_by_measurement_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Completed By Measurement Id
       type: object
       required:
       - assessment_id
