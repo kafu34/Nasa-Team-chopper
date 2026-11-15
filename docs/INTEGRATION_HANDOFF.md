@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.7.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.7.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.8.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.8.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,8 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **299 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **38/38** real-HTTP checks against
+See `docs/TEST_REPORT.md`. Latest: **319 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **40/40** real-HTTP checks against
 uvicorn.
 
 ## 10. Known contract deviations and coordination notes
@@ -222,6 +222,41 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.8.0 — pulse oximeter and thermometer procedures (plan step 34)
+
+Additive except for one rule change (item 4). PROC-BP-01 is unchanged.
+
+1. **Two new educational procedures.** Both have validation level `EDUCATIONAL_DEMONSTRATION`, 5 steps each and
+   the full 2.2.0 visual contract.
+   - `PROC-PO-01`, fingertip pulse oximeter, fictional device "Demo Fingertip Pulse Oximeter P1" (EQ-PO-01, in
+     medical). It uses the left index finger (site `left_hand`). Visual actions `VA-PO-01-PREPARE-DEVICE`,
+     `VA-PO-02-PREPARE-FINGER`, `VA-PO-03-PLACE-PROBE`, `VA-PO-04-HOLD-STILL`, `VA-PO-05-RECORD-RESULT`.
+     Assets `ASSET-PULSE-OXIMETER-P1` and `ASSET-CREW-RESTRAINT`.
+   - `PROC-TEMP-01`, non-contact infrared forehead thermometer, fictional device "Demo Infrared Thermometer T1"
+     (EQ-THERM-01, in crew quarters). It uses the forehead (site `head`). Visual actions
+     `VA-TEMP-01-PREPARE-DEVICE`, `VA-TEMP-02-PREPARE-FOREHEAD`, `VA-TEMP-03-AIM`, `VA-TEMP-04-MEASURE`,
+     `VA-TEMP-05-RECORD-RESULT`. Assets `ASSET-IR-THERMOMETER-T1` and `ASSET-CREW-RESTRAINT`.
+   - The instructions paraphrase general consumer guidance. Every source is marked not reviewed by a flight
+     surgeon. The safety limitations include accuracy caveats and the microgravity caveat.
+   - **Codex:** the visual registry needs these 10 action IDs. The backend registry test still checks only
+     PROC-BP-01.
+2. **Procedure list.** New `GET /procedures`. `EQ-PO-01` and `EQ-THERM-01` now link to their procedures, so
+   `/equipment/recommend` returns `procedure_id` for them. Existing databases receive the procedures and the
+   device links on startup.
+3. **Measurements.** `POST /measurements` accepts three types:
+   - `type: pulse_oximetry`, `value {spo2, pulse?}` (integers), `unit: "%"`;
+   - `type: body_temperature`, `value {temperature}`, `unit: "degC"`;
+   - `blood_pressure` as before.
+
+   The type must match the session's procedure (422 `MEASUREMENT_TYPE_MISMATCH`). A value shape or unit that does
+   not fit the type gives 422 `VALIDATION_ERROR`. Technical ranges are SpO2 50–100, pulse 20–250 and temperature
+   30–43 (422 `MEASUREMENT_IMPLAUSIBLE`). These are input checks only; no clinical interpretation is made. The
+   stored observations are `spo2` plus `heart_rate`, or `body_temperature`.
+4. **Ruleset DET-1.1 (changed behaviour).** An SpO2 concern now requests PROC-PO-01 and a temperature concern
+   requests PROC-TEMP-01, so the case moves to `awaiting_assessment` instead of `monitoring`. No threshold, window
+   or count changed. Detection results report `ruleset_version: DET-1.1`. Recording the assessment does not close
+   the concern.
 
 ### Contract 2.7.0 — follow-up to Codex's 2.6.0 review
 

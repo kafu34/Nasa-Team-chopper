@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.7.0)
+# SENTINEL AI Backend API (v2.8.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -51,6 +51,11 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   `detection`, the DET-1.0 result (data-quality gate, outcome, baseline comparison and disclaimer).
 - `POST /api/v1/observations/batch` *(2.6.0)* — `{observations[]}` (1–200), processed in `observed_at` order →
   `{results[], stored, duplicates, concern_ids_opened[]}`. One invalid item rejects the whole batch (`details.index`).
+
+### Procedures *(2.8.0 additions)*
+- `GET /api/v1/procedures` → summaries of PROC-BP-01, PROC-PO-01 and PROC-TEMP-01.
+- `POST /api/v1/measurements` also accepts `pulse_oximetry` (`{spo2, pulse?}`, `%`) and `body_temperature`
+  (`{temperature}`, `degC`). The type must match the procedure (422 `MEASUREMENT_TYPE_MISMATCH`).
 
 ### Proactive health intelligence *(2.6.0)*
 - `GET /api/v1/monitoring/ruleset` → the DET-1.0 configured demonstration rules.

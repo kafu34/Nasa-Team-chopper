@@ -5,11 +5,23 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..schemas.common import error_responses
+from ..schemas.demo import ProcedureSummary
 from ..schemas.procedures import (MeasurementCreate, MeasurementResult, ProcedureOut, SessionCreate, SessionOut,
                                   StepConfirm, StepEventCreate, StepEventOut)
 from ..services import procedures as svc
 
 router = APIRouter(prefix="/api/v1")
+
+
+@router.get("/procedures", response_model=list[ProcedureSummary], tags=["procedures"],
+            summary="List every educational procedure (2.8.0)")
+def list_procedures(db: Session = Depends(get_db)) -> list[ProcedureSummary]:
+    from sqlalchemy import select
+
+    from .. import models as m
+
+    return [ProcedureSummary.model_validate(p)
+            for p in db.scalars(select(m.ProcedureDefinition).order_by(m.ProcedureDefinition.procedure_id))]
 
 
 @router.get("/procedures/{procedure_id}", response_model=ProcedureOut, responses=error_responses(404),
