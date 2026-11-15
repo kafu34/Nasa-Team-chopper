@@ -27,5 +27,7 @@ describe('habitat geometry and route safety', () => {
     expect(routeMatchesMap(map, { ...route, coordinate_frame_id: 'OTHER' })).toBe(false)
     expect(routeMatchesMap({ ...map, passages: map.passages.map(p => ({ ...p, accessible: false })) }, route)).toBe(false)
     expect(routeMatchesMap(map, { ...route, route_geometry: { ...route.route_geometry!, end_equipment_point: [7, 2] } })).toBe(false)
+    expect(routeMatchesMap({ ...map, state_version: 3 }, { ...route, status: 'active', habitat_state_version: 2 })).toBe(false)
+    expect(routeMatchesMap(map, { ...route, status: 'invalidated' })).toBe(false)
   })
 })

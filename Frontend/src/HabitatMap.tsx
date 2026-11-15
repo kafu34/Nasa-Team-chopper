@@ -2,11 +2,12 @@ import { useRef, useState, type PointerEvent } from 'react'
 import type { EquipmentRecommendation, HabitatMap as HabitatMapData, LocationLatest, MapPoint } from './api'
 import './habitat-map.css'
 
-type Props = { map: HabitatMapData; latest: LocationLatest | null; route: EquipmentRecommendation | null; selectedZone: string; onSelectZone: (zoneId: string) => void }
+type Props = { map: HabitatMapData; latest: LocationLatest | null; responderLatest: LocationLatest | null; route: EquipmentRecommendation | null; selectedZone: string; onSelectZone: (zoneId: string) => void }
 type View = { zoom: number; panX: number; panY: number }
 
 export function routeMatchesMap(map: HabitatMapData, route: EquipmentRecommendation | null): boolean {
   if (!route?.route_geometry || !route.start_reference || !route.route_hatch_ids) return false
+  if (route.status === 'invalidated' || (route.habitat_state_version != null && map.state_version != null && route.habitat_state_version !== map.state_version)) return false
   if (route.map_version !== map.map_version || route.route_geometry.map_version !== map.map_version) return false
   if (route.coordinate_frame_id !== map.coordinate_frame.frame_id || route.route_geometry.frame_id !== map.coordinate_frame.frame_id) return false
   if (!route.route_geometry.points.length || route.start_reference.kind !== 'zone_navigation_reference') return false
@@ -29,7 +30,7 @@ export function mapProjection(map: HabitatMapData, deckId: string) {
   return { point, polygon, scale, bounds }
 }
 
-export function HabitatMap({ map, latest, route, selectedZone, onSelectZone }: Props) {
+export function HabitatMap({ map, latest, responderLatest, route, selectedZone, onSelectZone }: Props) {
   const [deckId, setDeckId] = useState(map.decks[0]?.deck_id ?? '')
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 })
   const [selectedEquipment, setSelectedEquipment] = useState<string | null>(null)
@@ -38,11 +39,14 @@ export function HabitatMap({ map, latest, route, selectedZone, onSelectZone }: P
   const { point, polygon, bounds } = mapProjection(map, deckId)
   const [[minX, minY], [maxX, maxY]] = bounds
   const [left, top] = point([minX, maxY]), [right, bottom] = point([maxX, minY])
-  const validRoute = routeMatchesMap(map, route) && latest?.display_mode === 'zone_only' && latest.estimate?.zone_id === route?.start_reference?.zone_id
+  const routeLatest = route?.start_role === 'responder' ? responderLatest : latest
+  const validRoute = routeMatchesMap(map, route) && routeLatest?.display_mode === 'zone_only' && routeLatest.estimate?.zone_id === route?.start_reference?.zone_id
   const routePoints = validRoute ? route!.route_geometry!.points.map(p => point(p).join(',')).join(' ') : ''
   const locatedZone = latest?.estimate?.zone_id
   const locationCurrent = latest?.display_mode === 'zone_only' && latest.estimate?.map_version === map.map_version
   const locationStale = latest?.display_mode === 'stale' && latest.estimate?.map_version === map.map_version
+  const responderZone = responderLatest?.estimate?.map_version === map.map_version ? responderLatest.estimate.zone_id : null
+  const responderCurrent = responderLatest?.display_mode === 'zone_only'
   const showPoint = latest?.display_mode === 'estimated_xy' && latest.estimate?.position && latest.estimate.map_version === map.map_version
   const zone = map.compartments.find(item => item.zone_id === selectedZone)
   const equipment = map.equipment.find(item => item.equipment_id === selectedEquipment)
@@ -69,7 +73,7 @@ export function HabitatMap({ map, latest, route, selectedZone, onSelectZone }: P
       <rect x={left - 12} y={top - 12} width={right - left + 24} height={bottom - top + 24} rx="20" fill="#142e42" stroke="#668ba1" strokeWidth="3" />
       {map.passages.filter(item => item.deck_id === deckId).map(item => <g key={item.passage_id}><path d={polygon(item.polygon)} fill={item.accessible ? '#315f65' : '#64414b'} stroke={item.accessible ? '#85d9c0' : '#ef8e80'} strokeWidth="3" /><circle cx={point(item.hatch_point)[0]} cy={point(item.hatch_point)[1]} r="12" fill={item.accessible ? '#76dcb9' : '#ee8b79'} /><text x={point(item.hatch_point)[0]} y={point(item.hatch_point)[1] + 5} textAnchor="middle" fill="#102639" fontSize="16" fontWeight="900">{item.accessible ? '✓' : '×'}</text></g>)}
       {map.compartments.filter(item => item.deck_id === deckId).map(item => <g key={item.zone_id} role="button" tabIndex={0} aria-label={`Select ${item.name}`} onClick={() => { if (!drag.current?.moved) onSelectZone(item.zone_id) }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectZone(item.zone_id) } }} className="habitat-room">
-        <path d={polygon(item.polygon)} fill={item.zone_id === locatedZone && locationCurrent ? '#315d70' : item.zone_id === locatedZone && locationStale ? '#454d60' : item.zone_id === selectedZone ? '#254f62' : '#1f4054'} stroke={item.zone_id === selectedZone ? '#f2c477' : '#6b9caf'} strokeWidth={item.zone_id === selectedZone ? 5 : 3} />
+        <path d={polygon(item.polygon)} fill={item.zone_id === locatedZone && locationCurrent ? '#315d70' : item.zone_id === locatedZone && locationStale ? '#454d60' : item.zone_id === selectedZone ? '#254f62' : item.zone_id === responderZone && responderCurrent ? '#344d5f' : '#1f4054'} stroke={item.zone_id === selectedZone ? '#f2c477' : item.zone_id === responderZone && responderCurrent ? '#b5a3f0' : '#6b9caf'} strokeWidth={item.zone_id === selectedZone ? 5 : 3} />
         <text x={point(item.navigation_reference)[0]} y={point(item.navigation_reference)[1] - 8} textAnchor="middle" fill="#ecf6f6" fontSize="21" fontWeight="800" pointerEvents="none">{item.name}</text>
         {(item.zone_id === locatedZone && (locationCurrent || locationStale)) && <text x={point(item.navigation_reference)[0]} y={point(item.navigation_reference)[1] + (route?.start_reference?.zone_id === item.zone_id && validRoute ? 70 : 23)} textAnchor="middle" fill={locationCurrent ? '#75d9df' : '#ffc27b'} fontSize="15" fontWeight="800" pointerEvents="none">{locationCurrent ? 'CREW ZONE · NO EXACT POINT' : 'LAST-KNOWN ZONE'}</text>}
       </g>)}
@@ -80,7 +84,8 @@ export function HabitatMap({ map, latest, route, selectedZone, onSelectZone }: P
       <text x="755" y="655" fill="#a8c8d3" fontSize="16">N ↑</text>
     </svg>
     <div className="habitat-map-legend"><span><i className="legend-open" />Open passage</span><span><i className="legend-closed" />Closed hatch</span><span><i className="legend-equipment" />Equipment</span><span><i className="legend-anchor" />Wireless anchor</span><span><i className="legend-route" />Backend route</span></div>
-    <p className="muted small">Drag or use arrow buttons to pan; scroll or use +/− to zoom. Room highlights indicate a zone, never a precise crew position. Responder location is unavailable.</p>
+    <p className="muted small">Drag or use arrow buttons to pan; scroll or use +/− to zoom. Room highlights indicate zones, never precise crew positions. Responder status is shown below when available.</p>
+    {responderLatest?.display_mode === 'zone_only' && <p className="status info">Responder zone: {responderLatest.estimate?.zone_id}. No exact position is available.</p>}
     {zone && <p className="status info">Selected compartment: {zone.name}. This selection can be confirmed as the astronaut's zone.</p>}
     {equipment && <p className="status info">{equipment.equipment_id} · {equipment.device_model} · {equipment.readiness} · {equipment.position_status.replaceAll('_', ' ')}</p>}
     {route && !validRoute && <p className="status error">The saved route does not match the current location, map frame, version, open hatches or registered equipment position. Request a new route.</p>}

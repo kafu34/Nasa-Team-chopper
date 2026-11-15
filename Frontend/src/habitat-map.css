@@ -15,3 +15,4 @@
 .legend-open{background:#76dcb9}.legend-closed{background:#ee8b79}.legend-equipment{background:#72d9c5;border-radius:50%!important}.legend-anchor{background:#9da4f2;transform:rotate(45deg)}.legend-route{background:#f5c875}
 .habitat-map-card .status{margin-top:11px}
 @media(max-width:720px){.habitat-map-head{display:block}.habitat-map-head .form-label{max-width:230px;margin:13px 0}.habitat-map-controls{gap:6px}.habitat-map-controls button{min-width:38px;padding:6px 8px}.habitat-floor{min-height:290px}}
+.habitat-ops .card{margin-bottom:0}.habitat-ops .button{margin:0 0 12px}.movement-ticks{padding-left:20px;color:#d8e7ed;font-size:.8rem;line-height:1.7}

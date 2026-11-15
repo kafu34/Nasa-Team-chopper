@@ -2,9 +2,9 @@
 
 ## Contract audit
 
-Contract 2.3.0 supplies a versioned single-deck map via `GET /habitats/HAB-01/map`, zone-only or stale crew location via `GET /location/DEMO-001/latest`, and a versioned equipment route polyline from `POST /equipment/recommend`. The map has room and passage polygons, live hatch access, anchor and equipment points, and a route network. The existing frontend has separate room buttons and a text route. It must not turn a zone estimate or navigation reference into a precise person dot.
+The initial contract 2.3.0 supplies a versioned single-deck map via `GET /habitats/HAB-01/map`, zone-only or stale crew location via `GET /location/DEMO-001/latest`, and a versioned equipment route polyline from `POST /equipment/recommend`. The map has room and passage polygons, live hatch access, anchor and equipment points, and a route network. The existing frontend had separate room buttons and a text route. It must not turn a zone estimate or navigation reference into a precise person dot. Contract 2.5.0 arrived during this task and is covered in steps 21–30.
 
-The backend does not yet expose a movement simulator, hatch controls, responder location or multi-crew routes. This frontend pass will render the available geometry and preserve those limitations in the acceptance record.
+At the initial audit the merged backend did not expose a movement simulator, hatch controls, responder location or multi-crew routes. The subsequent backend branch adds these endpoints; its role-based hatch authorisation remains pending.
 
 ## Build sequence
 
@@ -47,3 +47,9 @@ At this review point the first map slice was **PARTIAL**. A subsequent fetch rev
 28. Inspect the updated desktop and phone layouts.
 29. Run build/tests and confirm only frontend-authored edits plus the backend merge are staged.
 30. **Review and reflect:** confirm the final contract alignment and document any backend gap before push/merge.
+
+## Step 30 review and reflection
+
+Contract 2.5.0 was merged into this worktree. The frontend now offers a reasoned hatch state action, reads the new map state, suppresses invalidated route geometry, can route from a patient or responder latest estimate, and runs named fictional movement scenarios through the estimator. A live browser check closed `H-CQ-EX`, observed stored-route invalidation and no drawn polyline, reopened it, and requested a fresh route. A responder route started from the confirmed Exercise Bay zone. `SIM-WALK-CQ-MED` returned nine zone estimates; the page displayed those estimates and the latest location, never the evaluation ground truth. Desktop and phone layouts were inspected.
+
+The remaining backend limit is role-based hatch authorisation: contract 2.5.0 permits any registered habitat crew member to change a hatch. The frontend labels this as a fictional crew action. It does not infer precise crew coordinates. The current fixture still has one deck; deck selection follows the API and needs another live acceptance pass when a multi-deck fixture exists.
