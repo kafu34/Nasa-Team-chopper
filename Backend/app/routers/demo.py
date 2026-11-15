@@ -15,6 +15,7 @@ from ..services import cases as case_svc
 from ..services import datasets as ds
 from ..services import observations as obs_svc
 from ..services import surface_sites
+from ..services.monitoring import detection_ruleset_out
 
 router = APIRouter()
 
@@ -87,6 +88,7 @@ def bootstrap(request: Request, db: Session = Depends(get_db)) -> BootstrapOut:
         surface_model=surface_sites.catalogue(),
         surface_models=surface_sites.models_catalogue(),
         anatomical_annotation_kinds=surface_sites.ANNOTATION_KINDS,
+        detection_ruleset=detection_ruleset_out(fx),
         demo_inputs=DemoInputs(
             ble_observations=fx["ble_observations"]["observations"],
             expected_zone_id=fx["ble_observations"]["expected_zone_id"],

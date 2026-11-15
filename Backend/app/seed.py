@@ -183,5 +183,8 @@ def reset_demo(db: Session, fx: dict) -> dict:
         db.execute(delete(table))
     db.commit()
     seed_demo(db, fx)
+    from .services.baselines import ensure_initial
+
+    ensure_initial(db, fx)
     research_after = research_count()
     return {"research_records_before": research_before, "research_records_after": research_after}

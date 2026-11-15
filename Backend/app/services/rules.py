@@ -10,6 +10,7 @@ R-SYM-03  If a configured scheduled assessment exists, link it and move the case
           This is a fictional demonstration configuration. It does NOT claim the symptom is a clinical
           indication for blood-pressure testing.
 R-SYM-04  Severity >= 8 raises the case priority to 'urgent' and advises notifying the crew medical officer.
+          The priority is never lowered automatically (cases.raise_priority, 2.6.0).
 """
 from __future__ import annotations
 
@@ -115,17 +116,15 @@ def report_symptom(db: Session, fx: dict, body: SymptomCreate) -> tuple[m.Sympto
             case_svc.add_evidence(case, "scheduled_assessment", sa.assessment_id, sa.title)
             case_svc.transition(db, case, "awaiting_assessment", "rules-engine",
                                 "R-SYM-03: configured scheduled assessment linked (demonstration configuration)")
-            case.next_action = NEXT_ACTION_ASSESSMENT
+            case_svc.set_next_action(case, NEXT_ACTION_ASSESSMENT)
         else:
-            case.next_action = NEXT_ACTION_MONITOR
+            case_svc.set_next_action(case, NEXT_ACTION_MONITOR)
 
     # R-SYM-04 high severity
     if body.severity >= HIGH_SEVERITY:
-        case.priority = "urgent"
-        if not case.next_action.startswith(HIGH_SEVERITY_PREFIX):
-            case.next_action = HIGH_SEVERITY_PREFIX + case.next_action
-        audit(db, "rules-engine", "case.priority_raised", "medical_case", case.case_id, case.case_id,
-              rule="R-SYM-04", severity=body.severity)
+        case_svc.raise_priority(db, case, "rules-engine", "R-SYM-04",
+                                f"Self-reported severity {body.severity}/10 (R-SYM-04)",
+                                HIGH_SEVERITY_PREFIX.strip(), severity=body.severity, symptom_id=sym.symptom_id)
     case.updated_at = now
     db.commit()
     return sym, case, False

@@ -68,7 +68,9 @@ def activate(db: Session, body: EmergencyCreate) -> tuple[EmergencyOut, bool]:
 
     case = m.MedicalCase(case_id=m.new_id("CASE"), astronaut_id=body.astronaut_id, kind="emergency", state="detected",
                          priority="urgent", evidence=[], next_action=NEXT_ACTION, follow_up_status="none",
-                         ruleset_version=RULESET_VERSION, created_at=now, updated_at=now)
+                         ruleset_version=RULESET_VERSION, created_at=now, updated_at=now, urgent_since=now,
+                         priority_reason=f"Emergency activated: {body.trigger}",
+                         urgent_instruction="URGENT: crew response in progress.")
     db.add(case)
     db.flush()
     ev = m.EmergencyEvent(emergency_id=m.new_id("EMG"), case_id=case.case_id, astronaut_id=body.astronaut_id,

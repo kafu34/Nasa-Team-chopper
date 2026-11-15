@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.5.0)
+# SENTINEL AI Backend API (v2.6.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -47,7 +47,22 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
 - `POST /api/v1/cases/{case_id}/acknowledge` *(optional)* — `{actor_id}`; records acknowledgement, never changes state.
 - `POST /api/v1/observations` *(optional)* — `{astronaut_id, type, value, unit, source, observed_at, quality?}`;
   catalogue types: `heart_rate` bpm, `spo2` %, `body_temperature` degC, `sleep_duration` h,
-  `blood_pressure_systolic` mmHg, `blood_pressure_diastolic` mmHg.
+  `blood_pressure_systolic` mmHg, `blood_pressure_diastolic` mmHg. *(2.6.0)* The response includes
+  `detection`, the DET-1.0 result (data-quality gate, outcome, baseline comparison and disclaimer).
+- `POST /api/v1/observations/batch` *(2.6.0)* — `{observations[]}` (1–200), processed in `observed_at` order →
+  `{results[], stored, duplicates, concern_ids_opened[]}`. One invalid item rejects the whole batch (`details.index`).
+
+### Proactive health intelligence *(2.6.0)*
+- `GET /api/v1/monitoring/ruleset` → the DET-1.0 configured demonstration rules.
+- `GET /api/v1/astronauts/{id}/monitoring` → for each type: freshness, baseline, latest value, difference,
+  descriptive trend and open concern; plus `concerns[]` and `data_quality[]`.
+- `GET /api/v1/astronauts/{id}/baselines[?type=]` → every baseline version.
+- `POST /api/v1/astronauts/{id}/baselines/{type}/recompute` — `{actor_id, reason}` → 201 new version. Errors:
+  409 `BASELINE_FROZEN`, 422 `INSUFFICIENT_BASELINE_DATA`.
+- `GET /api/v1/monitoring-concerns/{id}` → concern status (`open` | `awaiting_review` | `closed`), evidence and
+  reassessment.
+- `POST /api/v1/monitoring-concerns/{id}/review` — `{actor_id, decision: continue_monitoring|close, note}`.
+  Errors: 409 `CONCERN_NOT_READY_FOR_REVIEW` and 409 `CONCERN_CLOSED`. Closing never resolves the case.
 
 ### Spatial intelligence and equipment
 - `POST /api/v1/location/estimate` — `{astronaut_id, observations: [{anchor_id, rssi_dbm (-120..0), observed_at}]}` →

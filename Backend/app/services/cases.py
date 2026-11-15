@@ -11,6 +11,7 @@ from ..errors import ApiError, not_found
 from ..schemas.cases import (AuditOut, CaseOut, CaseSummary, EvidenceRef, FollowUpOut, MeasurementOut,
                              RequestedAssessment, SymptomOut)
 from ..schemas.common import Attention
+from ..schemas.monitoring import PriorityProtection, UrgentEvent
 from .audit import audit
 
 OPEN_STATES = {"detected", "investigating", "awaiting_assessment", "awaiting_results", "action_required",
@@ -49,6 +50,40 @@ def transition(db: Session, case: m.MedicalCase, dst: str, actor: str, reason: s
 def add_evidence(case: m.MedicalCase, ref_type: str, ref_id: str, summary_text: str) -> None:
     case.evidence = [*case.evidence, {"type": ref_type, "id": ref_id, "summary": summary_text,
                                       "recorded_at": utcnow().isoformat()}]
+
+
+def set_next_action(case: m.MedicalCase, text: str) -> None:
+    """The only writer of next_action. While the case is urgent its urgent instruction always stays first, so a
+    routine step finishing (reading recorded, follow-up due) can never hide it (2.6.0)."""
+    lead = case.urgent_instruction if case.priority == "urgent" else None
+    if lead and not text.startswith(lead):
+        text = f"{lead} {text}"
+    case.next_action = text
+
+
+def raise_priority(db: Session, case: m.MedicalCase, actor: str, rule: str, reason: str, instruction: str,
+                   **details) -> bool:
+    """The only priority writer. It can only raise: there is no automatic path back to routine (2.6.0).
+
+    Returns True when the priority changed. Open follow-ups start interrupting.
+    """
+    if case.priority == "urgent":
+        audit(db, actor, "case.urgent_event_recorded", "medical_case", case.case_id, case.case_id, rule=rule,
+              reason=reason, note="Case already urgent; priority kept.", **details)
+        return False
+    now = utcnow()
+    case.priority = "urgent"
+    case.urgent_since = now
+    case.priority_reason = reason
+    case.urgent_instruction = instruction
+    for fu in db.scalars(select(m.FollowUpTask).where(m.FollowUpTask.case_id == case.case_id,
+                                                      m.FollowUpTask.status.in_(["scheduled", "due"]))):
+        fu.interrupt = True
+    set_next_action(case, case.next_action)
+    case.updated_at = now
+    audit(db, actor, "case.priority_raised", "medical_case", case.case_id, case.case_id, rule=rule, reason=reason,
+          **details)
+    return True
 
 
 def get_case(db: Session, case_id: str) -> m.MedicalCase:
@@ -112,7 +147,29 @@ def case_out(db: Session, case: m.MedicalCase) -> CaseOut:
         created_at=case.created_at,
         updated_at=case.updated_at,
         audit=[AuditOut.model_validate(e) for e in events],
+        monitoring_concern_ids=list(db.scalars(select(m.MonitoringConcern.concern_id)
+                                               .where(m.MonitoringConcern.case_id == cid)
+                                               .order_by(m.MonitoringConcern.opened_at))),
+        priority_protection=priority_protection(case),
     )
+
+
+def priority_protection(case: m.MedicalCase) -> PriorityProtection | None:
+    if case.priority != "urgent":
+        return None
+    return PriorityProtection(urgent_since=case.urgent_since or case.created_at, reason=case.priority_reason,
+                              urgent_instruction=case.urgent_instruction)
+
+
+def urgent_events(db: Session, astronaut_id: str, exclude_case_id: str | None = None) -> list[UrgentEvent]:
+    rows = db.scalars(select(m.MedicalCase).where(m.MedicalCase.astronaut_id == astronaut_id,
+                                                  m.MedicalCase.priority == "urgent",
+                                                  m.MedicalCase.state.in_(OPEN_STATES))
+                      .order_by(m.MedicalCase.created_at)).all()
+    return [UrgentEvent(case_id=c.case_id, kind=c.kind, state=c.state, priority=c.priority,
+                        attention=attention_for(c), urgent_since=c.urgent_since or c.created_at,
+                        reason=c.priority_reason, next_action=c.next_action)
+            for c in rows if c.case_id != exclude_case_id]
 
 
 def acknowledge(db: Session, case: m.MedicalCase, actor_id: str) -> None:

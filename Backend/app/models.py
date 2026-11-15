@@ -101,6 +101,7 @@ class HealthObservation(Base):
     quality: Mapped[str] = mapped_column(String)
     simulated: Mapped[bool] = mapped_column(Boolean, default=True)
     measurement_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    detection: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # DET result at ingestion (2.6.0)
 
 
 class ScheduledAssessment(Base):
@@ -131,6 +132,9 @@ class MedicalCase(Base):
     ruleset_version: Mapped[str] = mapped_column(String)
     acknowledged_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
     acknowledged_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    urgent_since: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    priority_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    urgent_instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
@@ -159,6 +163,9 @@ class FollowUpTask(Base):
     status: Mapped[str] = mapped_column(String, default="scheduled")
     interrupt: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    concern_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    completion_evidence_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
 class ProcedureSession(Base):
@@ -178,6 +185,59 @@ class ProcedureSession(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
     equipment_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     equipment_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class HealthBaseline(Base):
+    """Versioned individual baseline (BASELINE-1.0). Never updated automatically (2.6.0)."""
+    __tablename__ = "health_baselines"
+    baseline_id: Mapped[str] = mapped_column(String, primary_key=True)
+    astronaut_id: Mapped[str] = mapped_column(ForeignKey("astronauts.astronaut_id"), index=True)
+    type: Mapped[str] = mapped_column(String, index=True)
+    unit: Mapped[str] = mapped_column(String)
+    version: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String)  # active | superseded
+    method_id: Mapped[str] = mapped_column(String)
+    centre: Mapped[float] = mapped_column(Float)
+    spread: Mapped[float] = mapped_column(Float)
+    sample_count: Mapped[int] = mapped_column(Integer)
+    excluded_count: Mapped[int] = mapped_column(Integer, default=0)
+    window_start: Mapped[datetime] = mapped_column(UTCDateTime)
+    window_end: Mapped[datetime] = mapped_column(UTCDateTime)
+    source_observation_ids: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    created_by: Mapped[str] = mapped_column(String)
+    reason: Mapped[str] = mapped_column(Text)
+    superseded_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    __table_args__ = (UniqueConstraint("astronaut_id", "type", "version", name="uq_baseline_version"),)
+
+
+class MonitoringConcern(Base):
+    """A `monitoring_concern` created by a configured detection rule. Never a diagnosis (2.6.0)."""
+    __tablename__ = "monitoring_concerns"
+    concern_id: Mapped[str] = mapped_column(String, primary_key=True)
+    astronaut_id: Mapped[str] = mapped_column(ForeignKey("astronauts.astronaut_id"), index=True)
+    type: Mapped[str] = mapped_column(String, index=True)
+    unit: Mapped[str] = mapped_column(String)
+    rule_id: Mapped[str] = mapped_column(String)
+    ruleset_version: Mapped[str] = mapped_column(String)
+    baseline_id: Mapped[str] = mapped_column(String)
+    baseline_version: Mapped[int] = mapped_column(Integer)
+    direction: Mapped[str] = mapped_column(String)  # above | below
+    status: Mapped[str] = mapped_column(String, index=True)  # open | awaiting_review | closed
+    case_id: Mapped[str] = mapped_column(ForeignKey("medical_cases.case_id"), index=True)
+    opened_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    first_evidence_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    last_triggered_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    trigger_count: Mapped[int] = mapped_column(Integer, default=1)
+    suppressed_count: Mapped[int] = mapped_column(Integer, default=0)
+    evidence_observation_ids: Mapped[list] = mapped_column(JSON, default=list)
+    consecutive_within: Mapped[int] = mapped_column(Integer, default=0)
+    reassessment_passed: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_case_update_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    closed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    closed_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    review_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
 class EquipmentRecommendationRecord(Base):
@@ -268,6 +328,8 @@ SYNTHETIC_TABLES = [
     # Deleted in this order on demo reset (children first). Research tables are never listed here.
     AuditEvent,
     EmergencyEvent,
+    MonitoringConcern,
+    HealthBaseline,
     LocationEstimate,
     HealthObservation,
     AssessmentMeasurement,

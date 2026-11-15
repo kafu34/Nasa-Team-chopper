@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.5.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.5.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.6.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.6.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,8 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **257 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **29/29** real-HTTP checks against
+See `docs/TEST_REPORT.md`. Latest: **288 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **33/33** real-HTTP checks against
 uvicorn.
 
 ## 10. Known contract deviations and coordination notes
@@ -222,6 +222,87 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.6.0 — proactive health intelligence (v3.1 §7, Milestone 5 backend)
+
+Additive. All rules and values are **fictional demonstration configuration** (`DET-1.0`, `BASELINE-1.0`). A
+detection is never a diagnosis; show the `disclaimer` field wherever a detection is shown.
+
+1. **Individual baselines.**
+   - `GET /astronauts/{id}/baselines[?type=]` lists every version: `centre`, `spread`, `sample_count`,
+     `excluded_count`, window, `status` (`active` or `superseded`), `frozen` and `frozen_by_concern_id`.
+   - The seed adds fictional history (observation IDs `OBS-HIST-*`) and creates version 1 for heart rate (66 bpm),
+     SpO2 (98 %) and body temperature (36.7 degC). Sleep and blood pressure have too few readings, so they have no
+     baseline.
+   - Baselines **never update automatically**. `POST /astronauts/{id}/baselines/{type}/recompute {actor_id,
+     reason}` creates a new version.
+   - Recompute errors: 409 `BASELINE_FROZEN` while a concern for that type is not closed; 422
+     `INSUFFICIENT_BASELINE_DATA`.
+   - Readings observed during a concern are always excluded from later baselines.
+2. **Detection on ingestion.**
+   - `POST /observations` now returns `detection` with these fields: `gate`, `outcome`, `rule_id`, baseline
+     version, centre, spread, threshold and difference, `deviation_direction`, `deviating_count` of
+     `required_count`, `concern_id`, `case_id`, `alert_raised`, `alert_suppressed`, `explanation` and
+     `disclaimer`.
+   - New `POST /observations/batch {observations[]}` (at most 200 items) is the wearable sync. It is processed in
+     `observed_at` order and returns `results`, `stored`, `duplicates` and `concern_ids_opened`. One invalid item
+     rejects the whole batch, and the error names its `index`.
+   - Outcomes:
+     - `excluded_poor_quality` and `excluded_stale`: the data-quality gate. These readings never count towards a
+       finding.
+     - `not_monitored` and `no_baseline`.
+     - `within_baseline` and `deviation_not_sustained` (n of 3).
+     - `concern_opened` and `concern_updated`.
+     - `within_baseline_concern_open`, `reassessment_completed` and `concern_ready_for_review`.
+   - Readings recorded by a procedure measurement are assessment evidence and are not run through `DET-1.0`.
+3. **Monitoring concerns.**
+   - Three consecutive valid deviating readings inside the window open a concern (annotation kind
+     `monitoring_concern`). The concern joins the astronaut's open routine case, or opens one **without any
+     symptom report**.
+   - The heart-rate rule requests the configured PROC-BP-01 (its monitor reports pulse), so the case moves to
+     `awaiting_assessment`. SpO2 and temperature have no configured assessment, so the case moves to `monitoring`.
+   - A `monitoring_reassessment` follow-up is scheduled 240 minutes later.
+   - `GET /monitoring-concerns/{id}` returns the status (`open`, `awaiting_review` or `closed`), trigger and
+     suppressed counts, evidence IDs, `reassessment` and `automatic_resolution: false`.
+4. **Duplicates.**
+   - Equivalent deviating readings while a concern is open update that concern; there is never a second concern
+     or case.
+   - Within 30 minutes of the last alert, `alert_suppressed: true` is returned and no new case evidence is
+     added. Show one alert, not one per reading.
+5. **Reassessment and review.**
+   - Readings back within the baseline never close a concern.
+   - The concern reaches `awaiting_review` only after two things: a good-quality reading observed after the
+     reassessment is due (this completes the follow-up, with `completion_evidence_id`), then 3 consecutive
+     in-baseline readings.
+   - `POST /monitoring-concerns/{id}/review {actor_id, decision: continue_monitoring|close, note}` records the
+     decision. Errors: 409 `CONCERN_NOT_READY_FOR_REVIEW` and 409 `CONCERN_CLOSED`.
+   - Closing unfreezes the baseline and **does not resolve the case**.
+   - Access limit: any crew member may review until role-based access is built (step 36).
+6. **Monitoring view.** `GET /astronauts/{id}/monitoring` returns, for each type:
+   - freshness;
+   - the active baseline;
+   - the latest value and its difference from the baseline;
+   - `latest_detection`;
+   - a descriptive `trend` (`stable`, `rising`, `falling` or `insufficient_readings`; no rule acts on it);
+   - `open_concern_id`.
+
+   It also returns `concerns[]` and `data_quality[]` (`missing`, `stale`, `recent_poor_quality`,
+   `baseline_insufficient`, `baseline_not_created`). Data-quality items never open a case.
+   `GET /monitoring/ruleset` and bootstrap `detection_ruleset` publish the rules.
+7. **Urgent-priority protection.**
+   - `CaseOut.priority_protection {urgent_since, reason, urgent_instruction, automatic_downgrade_allowed: false}`
+     is present while a case is urgent. Nothing lowers urgent priority automatically.
+   - The urgent instruction now stays first in `next_action` after the routine reading is recorded and after a
+     follow-up becomes due. Before 2.6.0 both overwrote it.
+   - Raising to urgent makes the case's open follow-ups `interrupt: true`.
+   - `SessionOut` gains `case_priority`, `attention` and `urgent_events[]` (other open urgent cases for the same
+     astronaut, e.g. an emergency activated during the routine procedure). The routine session is not cancelled;
+     show the interruption.
+   - `CaseOut.monitoring_concern_ids`, plus evidence type `monitoring_concern`. `FollowUpOut` gains
+     `concern_id`, `completed_at` and `completion_evidence_id`.
+8. **Changed wording.** The text of a due follow-up is now "A scheduled follow-up assessment is due. Repeat the
+   reading when convenient." It no longer names blood pressure, because a reassessment can be for another
+   measurement.
 
 ### Contract 2.5.0 — habitat operations (v3.1 §6, Milestone 4 backend)
 

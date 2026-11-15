@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.5.0",
-  "contract_version": "2.5.0",
+  "fixture_version": "2.6.0",
+  "contract_version": "2.6.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -1313,5 +1313,145 @@
     "passage_wall_loss_db": 4,
     "min_distance_m": 0.5,
     "note": "Simple log-distance simulation for demonstration. Not a calibrated radio model of any habitat."
+  },
+  "baseline_method": {
+    "method_id": "BASELINE-1.0",
+    "description": "Individual baseline = median of recent technically valid readings; spread = 1.4826 x median absolute deviation, never below a per-type floor. Fictional demonstration configuration, not a clinically reviewed method. Baselines never update automatically.",
+    "allowed_qualities": [
+      "good",
+      "fair"
+    ],
+    "mad_scale": 1.4826,
+    "types": {
+      "heart_rate": {
+        "min_samples": 5,
+        "window_days": 14,
+        "min_spread": 2.0
+      },
+      "spo2": {
+        "min_samples": 5,
+        "window_days": 14,
+        "min_spread": 0.5
+      },
+      "body_temperature": {
+        "min_samples": 5,
+        "window_days": 14,
+        "min_spread": 0.1
+      },
+      "sleep_duration": {
+        "min_samples": 5,
+        "window_days": 14,
+        "min_spread": 0.25
+      },
+      "blood_pressure_systolic": {
+        "min_samples": 5,
+        "window_days": 30,
+        "min_spread": 3.0
+      },
+      "blood_pressure_diastolic": {
+        "min_samples": 5,
+        "window_days": 30,
+        "min_spread": 2.0
+      }
+    }
+  },
+  "baseline_history": {
+    "astronaut_id": "DEMO-001",
+    "note": "FICTIONAL daily resting readings used to build the demonstration baseline. Not real astronaut data and not NASA research data.",
+    "source": "SIMULATED_WEARABLE",
+    "quality": "good",
+    "series": {
+      "heart_rate": {
+        "unit": "bpm",
+        "first_days_ago": 8,
+        "values": [
+          64,
+          66,
+          65,
+          67,
+          63,
+          66,
+          65
+        ]
+      },
+      "spo2": {
+        "unit": "%",
+        "first_days_ago": 8,
+        "values": [
+          98,
+          97,
+          98,
+          98,
+          97,
+          98,
+          98
+        ]
+      },
+      "body_temperature": {
+        "unit": "degC",
+        "first_days_ago": 8,
+        "values": [
+          36.6,
+          36.7,
+          36.6,
+          36.8,
+          36.7,
+          36.6,
+          36.7
+        ]
+      }
+    }
+  },
+  "detection_ruleset": {
+    "ruleset_version": "DET-1.0",
+    "disclaimer": "Configured demonstration rule. A deviation from a synthetic individual baseline is not a diagnosis, has not been clinically reviewed and does not say what causes the change.",
+    "rules": [
+      {
+        "rule_id": "DET-HR-01",
+        "type": "heart_rate",
+        "title": "Sustained heart-rate change from the individual baseline",
+        "direction": "either",
+        "k_spread": 3,
+        "min_abs_change": 15,
+        "window_minutes": 180,
+        "required_consecutive": 3,
+        "assessment": {
+          "capability": "blood_pressure",
+          "procedure_id": "PROC-BP-01",
+          "reason": "Configured demonstration assessment: the blood-pressure monitor also reports pulse. This is not a clinical indication."
+        },
+        "reassessment_minutes": 240,
+        "recovery_count": 3,
+        "suppression_minutes": 30
+      },
+      {
+        "rule_id": "DET-SPO2-01",
+        "type": "spo2",
+        "title": "Sustained SpO2 decrease from the individual baseline",
+        "direction": "below",
+        "k_spread": 3,
+        "min_abs_change": 3,
+        "window_minutes": 180,
+        "required_consecutive": 3,
+        "assessment": null,
+        "reassessment_minutes": 240,
+        "recovery_count": 3,
+        "suppression_minutes": 30
+      },
+      {
+        "rule_id": "DET-TEMP-01",
+        "type": "body_temperature",
+        "title": "Sustained body-temperature change from the individual baseline",
+        "direction": "either",
+        "k_spread": 3,
+        "min_abs_change": 0.6,
+        "window_minutes": 720,
+        "required_consecutive": 3,
+        "assessment": null,
+        "reassessment_minutes": 240,
+        "recovery_count": 3,
+        "suppression_minutes": 30
+      }
+    ]
   }
 }
