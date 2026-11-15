@@ -91,3 +91,46 @@ After a demo reset, a separate fictional emergency opened `CASE-6778E1C1BE`. A c
 The browser ran against an isolated local backend at `127.0.0.1:8001` and Vite at `127.0.0.1:5178`. The `/access` screen displayed the backend's four fictional personnel and permission matrix with an explicit no-authentication notice. Desktop and 390 px narrow-screen captures were inspected during the browser session; the table scrolled within its card and the emergency link remained visible. `GND-SUP-01` received backend 403 for `GET /astronauts/DEMO-001/monitoring?viewer_id=GND-SUP-01`, while `DEMO-001` read their own monitoring view. Ground support had no inventory-update or hatch-change button.
 
 Message `MSG-C258849B75` was queued by `DEMO-001` at 19:21:46 Singapore time, had backend expected arrival 19:26:51, became `delivered` after that delay, and was acknowledged in the browser by receiving-side `GND-SUP-01` at 19:27:07. The queue showed the acknowledged state, actor and timestamp. This is a fictional delayed-link simulation. Interactive follow-up cancellation remains unverified because the request to create a disposable follow-up fixture was rejected. The focused frontend test checks the explicit cancellation choice and returned IDs; backend contract tests cover the resolver.
+
+## Procedure step events and contract 2.11.1 — recorded by Claude while Codex was unavailable (2026-11-15)
+
+These checks were run by Claude, not Codex, at the owner's request. The isolated backend was at `127.0.0.1:8001`
+with a disposable SQLite database, and Vite was at `127.0.0.1:5178`.
+
+**Step events.** Both coaches now send the contract 2.4.0 visual records through
+`POST /procedure-sessions/{id}/events`. The shared hook is `src/step-events.ts`.
+- `instruction_displayed` is sent once per step per session, with the stable client ID
+  `<session>:<step>:instruction_displayed`.
+- A completed play is sent as `animation_viewed`; any later play of the same step is sent as `animation_replayed`.
+  Which one applies comes from the backend's own `view_count`.
+- A step with no implemented scene is sent as `visual_unavailable`.
+- "Viewed" labels now come from the backend's `step_states`, so they survive a reload and are shared across
+  devices. Browser storage remains the fallback.
+- A failed record never blocks the step; a quiet note appears instead.
+
+Browser run: the scenario `SCN-URGENT-DURING-PROCEDURE` was loaded, and the coach was opened through in-app
+navigation. The backend session then showed:
+- S3 (the current step) displayed;
+- after moving to S4, S4 displayed;
+- after one 3D play, `view_count 1`;
+- after a second play, `replay_count 1`.
+
+The stages moved from `pending` to `partial`. The 3D scene still has to be played by the viewer; nothing records a
+view without a completed play.
+
+Limit found: a session created by a demo scenario is held only in memory. After a full page reload, the coach
+still knows the case but not the session, so it sends nothing until the session is reopened. Sessions started from
+the coach itself are restored from browser storage as before.
+
+**Correction to the 2.11.0 note above.** That run showed `GND-SUP-01` (ground support) acknowledging a ground-bound
+message. Contract 2.11.1 now allows only the flight surgeon (`GND-FS-01`) to acknowledge a message to the ground.
+Because the frontend reads the rule from `/access/roles`, ground support no longer sees the button and no frontend
+change was needed. The earlier record is left as it was observed.
+
+**Backend fixes found by this run.** The screens issue requests at the same moment, which exposed check-then-insert
+races on unique keys: assessment reminders, the comms link row, message resend and step events. They returned
+500 errors. All are fixed and have regression tests (backend 360 passed). On a fresh database, 20 simultaneous
+first requests to `/system/recovery` and `/comms/link` all returned 200.
+
+**Checks.** Vitest 50/50 (4 new in `step-events.test.tsx`), `tsc` clean, `vite build` OK, and
+`tests/live-integration.mjs` passed against the isolated backend with no 500 in its log.
