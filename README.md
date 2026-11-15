@@ -160,7 +160,7 @@ More detail is in [docs/SUBMISSION.md](docs/SUBMISSION.md) (project write-up),
 This project was built with AI assistance, as allowed by the Space Apps rules:
 
 - **Claude (Anthropic)** designed, built and tested the backend, the NASA data importers and the API contract. It
-  also wrote this README and the project write-up, made the recorded demo video.
+  also wrote this README and the project write-up, and recorded demo video.
 - **Codex (OpenAI)** built the frontend, including the code that draws the procedure illustrations.
 
 The team wrote the specification, made the decisions and reviewed the work. The video carry a
