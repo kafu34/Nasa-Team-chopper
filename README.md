@@ -34,7 +34,7 @@ You need **Python 3.13** (tested) and **Node.js 20.19+ or 22.12+**. No internet 
 packages are installed, and all NASA data files are already in this repository.
 
 **1. Get the code**: `git clone https://github.com/kafu34/Nasa-Team-chopper.git`, or use **Code → Download ZIP**
-(about 32 MB).
+(about 16 MB).
 
 Run the commands from the folder that **contains** `Nasa-Team-chopper` (where you cloned or unzipped it).
 
