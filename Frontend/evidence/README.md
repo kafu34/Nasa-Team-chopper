@@ -17,3 +17,20 @@ Browser checks used the local Vite app against an isolated backend reporting con
 | 2.7.0 | Emergency interruption at BP procedure step 3 | [procedure-emergency-2.7.png](procedure-emergency-2.7.png) |
 
 Browser interactions confirmed the scenario reset disclosure, all three scenario IDs, reassessment completion after three good-quality fictional readings, backend transition to `awaiting_review`, crew Close exclusion, officer Close success, and persisted session step 3 on both interruption routes. The chart plotted 15 returned heart-rate records and the table showed the same backend rows. An isolated backend was necessary because every live scenario intentionally resets fictional demo state. Screenshots are browser viewport captures; the 2.7.0 screen is represented by several captures at different scroll positions.
+
+## Contract 2.8.0 / Milestone 6, part 1
+
+This run used Vite at `127.0.0.1:5177` against an isolated local backend at `127.0.0.1:8001` reporting contract `2.8.0`, ruleset `DET-1.1`, and a disposable SQLite demo database. The backend returned three procedure summaries. Its fictional SpO₂ decline scenario requested `PROC-PO-01`; its fictional temperature deviation scenario requested `PROC-TEMP-01`. In each case the frontend selected the requested procedure, started a separate backend session, acknowledged five steps in order, and submitted a technically accepted simulated reading. Reload restored the session. The map recommended `EQ-THERM-01` and returned a route to its crew-quarters zone. A mismatched preview remained visible but its session start was disabled. The existing six-step BP picture guide still rendered. Neither guide or result has been validated with real hardware or reviewed by a flight surgeon.
+
+| Screen / check | Screenshot |
+|---|---|
+| Pulse oximeter desktop picture guide | [pulse-oximeter-guide-2.8.png](pulse-oximeter-guide-2.8.png) |
+| Pulse oximeter 3D replay | [pulse-oximeter-3d-2.8.png](pulse-oximeter-3d-2.8.png) |
+| Pulse oximeter accepted simulated result | [pulse-oximeter-result-2.8.png](pulse-oximeter-result-2.8.png) |
+| Pulse oximeter narrow-screen picture guide | [pulse-oximeter-mobile-guide-2.8.png](pulse-oximeter-mobile-guide-2.8.png) |
+| Thermometer desktop picture guide | [thermometer-guide-2.8.png](thermometer-guide-2.8.png) |
+| Thermometer 3D replay | [thermometer-3d-2.8.png](thermometer-3d-2.8.png) |
+| Thermometer accepted simulated result | [thermometer-result-2.8.png](thermometer-result-2.8.png) |
+| Thermometer narrow-screen result | [thermometer-mobile-2.8.png](thermometer-mobile-2.8.png) |
+| Thermometer narrow-screen picture guide | [thermometer-mobile-guide-2.8.png](thermometer-mobile-guide-2.8.png) |
+| Thermometer equipment and backend route | [thermometer-route-2.8.png](thermometer-route-2.8.png) |

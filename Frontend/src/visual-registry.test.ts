@@ -15,4 +15,13 @@ describe('backend visual action contract', () => {
     expect(visualFor({ ...step, visual: { ...step.visual, action_id: 'VA-BP-UNKNOWN' } })).toBeNull()
     expect(visualFor({ ...step, visual: { ...step.visual, asset_id: 'ASSET-WRONG' } })).toBeNull()
   })
+
+  it('maps every 2.8.0 oximeter and thermometer action to its own visual scene', () => {
+    const additional = fixture.additional_procedures as unknown as { procedure_id: string; steps: ProcedureStep[] }[]
+    expect(additional.map(item => item.procedure_id)).toEqual(['PROC-PO-01', 'PROC-TEMP-01'])
+    expect(additional.flatMap(item => item.steps.map(visualFor))).toEqual([
+      'po-prepare', 'po-finger', 'po-place', 'po-hold', 'po-record',
+      'temp-prepare', 'temp-forehead', 'temp-aim', 'temp-measure', 'temp-record',
+    ])
+  })
 })

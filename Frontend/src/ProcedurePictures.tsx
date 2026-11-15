@@ -1,9 +1,10 @@
 import type { VisualScene } from './visual-registry'
+import { AdditionalProcedurePictures } from './AdditionalProcedurePictures'
 
-type Reading = { systolic: string; diastolic: string; pulse: string }
+type Reading = { systolic: string; diastolic: string; pulse: string; spo2?: string; temperature?: string }
 type Props = { scene: VisualScene; reading: Reading }
 
-const titles: Record<VisualScene, string> = {
+const titles: Partial<Record<VisualScene, string>> = {
   prepare: 'BP monitor and cuff ready; crew member rests quietly',
   expose: 'Bare left upper arm exposed for the cuff',
   wrap: 'Cuff wrapped on the left upper arm above the elbow',
@@ -122,6 +123,7 @@ function Picture({ scene, reading }: Props) {
 }
 
 export function ProcedurePictures({ scene, reading }: Props) {
+  if (scene.startsWith('po-') || scene.startsWith('temp-')) return <AdditionalProcedurePictures scene={scene as Parameters<typeof AdditionalProcedurePictures>[0]['scene']} reading={{ spo2: reading.spo2 ?? '', pulse: reading.pulse, temperature: reading.temperature ?? '' }} />
   return <div className="procedure-picture-frame">
     <svg viewBox="0 0 760 430" role="img" aria-label={titles[scene]} preserveAspectRatio="xMidYMid meet">
       <title>{titles[scene]}</title>

@@ -5,8 +5,9 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { ATTRIBUTION } from 'open-anatomy-3d'
 import type { ProcedureStep } from './api'
 import { visualFor, type VisualScene } from './visual-registry'
+import { buildAdditionalStage, type ProcedureReading } from './AdditionalProcedureStage'
 
-type Reading = { systolic: string; diastolic: string; pulse: string }
+type Reading = ProcedureReading
 type Props = { step: ProcedureStep; reading: Reading; onViewed: (stepId: string) => void; viewed: boolean }
 type Stage = { draw: (progress: number, reading: Reading) => void; dispose: () => void }
 
@@ -95,6 +96,7 @@ function makeSupportSchematic(): { group: THREE.Group; cuff: THREE.Group } {
 }
 
 async function buildStage(host: HTMLDivElement, kind: VisualScene): Promise<Stage> {
+  if (kind.startsWith('po-') || kind.startsWith('temp-')) return buildAdditionalStage(host, kind)
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.18
@@ -238,7 +240,8 @@ export function ProcedureVisual({ step, reading, onViewed, viewed }: Props) {
     <div className="procedure-playback"><button type="button" disabled={status !== 'ready'} onClick={toggle}>{playing ? 'Pause' : progress > 0 && progress < 1 ? 'Resume' : 'Play demonstration'}</button><button type="button" disabled={status !== 'ready'} onClick={replay}>Replay</button><label>Demonstration progress <progress value={progress} max={1} /></label></div>
     <p className="muted small">{step.visual.expected_visible_action}</p>
     {kind === 'support' && <p className="status info">Positioning schematic: the static reference body cannot depict an articulated arm. Earth-based positioning is not automatically valid in microgravity.</p>}
+    {(kind.startsWith('po-') || kind.startsWith('temp-')) && <p className="status info">The 3D device and body-part scene is a schematic educational animation. It is not a live sensor or a validated microgravity technique.</p>}
     <p className="muted small">Animation viewing is recorded only on this device. Step acknowledgement is sent separately to the backend; neither proves clinical execution.</p>
-    <p className="muted small human-body-credit">{ATTRIBUTION}</p>
+    {!kind.startsWith('po-') && !kind.startsWith('temp-') && <p className="muted small human-body-credit">{ATTRIBUTION}</p>}
   </section>
 }

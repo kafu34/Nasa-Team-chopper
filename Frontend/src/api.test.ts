@@ -12,7 +12,7 @@ describe('local API errors', () => {
     vi.stubGlobal('fetch', fetchMock)
     await api.symptom({ astronaut_id: 'DEMO-001', region_id: 'head', laterality: 'midline', severity: 3, onset: '2026-11-14T08:45:00Z' })
     await api.completeStep('SES-1', 'S1', 'self')
-    await api.measurement({ case_id: 'CASE-1', session_id: 'SES-1', value: { systolic: 118, diastolic: 76, pulse: 70 } })
+    await api.measurement({ case_id: 'CASE-1', session_id: 'SES-1', type: 'blood_pressure', unit: 'mmHg', value: { systolic: 118, diastolic: 76, pulse: 70 } })
     await api.emergency()
     const bodies = fetchMock.mock.calls.map(call => JSON.parse(call[1].body))
     expect(bodies[0].onset).toBe('2026-11-14T08:45:00Z')
