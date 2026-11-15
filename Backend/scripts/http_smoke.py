@@ -121,14 +121,18 @@ def main() -> int:
             {"astronaut_id": "DEMO-001", "type": "heart_rate", "value": v, "unit": "bpm",
              "source": "SIMULATED_WEARABLE", "observed_at": ts(sec)} for v, sec in ((84, 1800), (86, 1200), (88, 600))]})
         opened = batch.json().get("concern_ids_opened", []) if batch.status_code == 200 else []
-        check("POST /api/v1/observations/batch (DET-1.0 concern)", len(opened) == 1, ",".join(opened))
+        check("POST /api/v1/observations/batch (DET-1.1 concern)", len(opened) == 1, ",".join(opened))
         mon = c.get("/api/v1/astronauts/DEMO-001/monitoring").json()
-        check("GET /api/v1/astronauts/{id}/monitoring", len(mon["concerns"]) == 1 and mon["ruleset_version"] == "DET-1.0")
+        check("GET /api/v1/astronauts/{id}/monitoring", len(mon["concerns"]) == 1 and mon["ruleset_version"] == "DET-1.1")
         con = c.get(f"/api/v1/monitoring-concerns/{opened[0]}").json() if opened else {}
         check("GET /api/v1/monitoring-concerns/{id}", con.get("status") == "open", con.get("rule_id", ""))
         frozen = c.post("/api/v1/astronauts/DEMO-001/baselines/heart_rate/recompute",
                         json={"actor_id": "DEMO-002", "reason": "smoke test"})
         check("POST baselines/{type}/recompute (409 frozen expected)", frozen.status_code == 409)
+        procs = [p["procedure_id"] for p in c.get("/api/v1/procedures").json()]
+        check("GET /api/v1/procedures", procs == ["PROC-BP-01", "PROC-PO-01", "PROC-TEMP-01"], ",".join(procs))
+        po = c.get("/api/v1/procedures/PROC-PO-01").json()
+        check("GET /api/v1/procedures/PROC-PO-01", len(po.get("visual_requirements", [])) == 5)
         hist = c.get("/api/v1/astronauts/DEMO-001/observations", params={"type": "heart_rate", "limit": 5}).json()
         check("GET /api/v1/astronauts/{id}/observations", hist["total"] >= 12 and len(hist["items"]) == 5,
               f"total={hist['total']}")

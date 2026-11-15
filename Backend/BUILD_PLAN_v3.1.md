@@ -212,6 +212,29 @@ an earlier rule.
 
 ### Milestones 6–7 (backend part) — expanded and operational capability
 34. PROC-PO-01 (finger pulse oximeter) and PROC-TEMP-01 (non-contact infrared thermometer) definitions with their own visual contract, measurement validation and tests.
+    Detailed sub-steps (planned 2026-11-15; contract 2.8.0):
+    - 34.1 Fixture `additional_procedures`: PROC-PO-01 (fictional Demo Fingertip Pulse Oximeter P1, left index
+      finger, site `left_hand`) and PROC-TEMP-01 (fictional Demo Infrared Thermometer T1, forehead, site `head`).
+      Each has 5 steps with the full 2.2.0 visual contract, distinct `VA-PO-*` and `VA-TEMP-*` action IDs,
+      paraphrased general consumer guidance (sources marked not reviewed by a flight surgeon), safety
+      limitations, the microgravity caveat, validation level `EDUCATIONAL_DEMONSTRATION` and its own follow-up.
+      PROC-BP-01 stays byte-for-byte unchanged.
+    - 34.2 Seed and the startup configuration sync handle every procedure. The sync also brings equipment
+      `compatible_procedure_ids` up to date (EQ-PO-01 -> PROC-PO-01, EQ-THERM-01 -> PROC-TEMP-01), so an existing
+      database can start the new sessions.
+    - 34.3 `MeasurementCreate.type` adds `pulse_oximetry` (`{spo2, pulse?}`, unit `%`) and `body_temperature`
+      (`{temperature}`, unit `degC`). The type must match the procedure's capability (422
+      `MEASUREMENT_TYPE_MISMATCH`), and the value shape and unit must match the type. Technical ranges: SpO2
+      50–100, pulse 20–250, temperature 30–43. Derived observations: spo2 + heart_rate, or body_temperature.
+      These are still technical checks, not clinical interpretation.
+    - 34.4 `DET-1.1`: DET-SPO2-01 requests PROC-PO-01 and DET-TEMP-01 requests PROC-TEMP-01 (both configured
+      demonstration assessments, not clinical indications). The other rule values are unchanged. Detection
+      results record the new ruleset version.
+    - 34.5 `GET /procedures` lists every procedure summary (bootstrap `procedures` already does).
+    - 34.6 Tests `test_x_more_procedures.py`: the visual contract for every procedure, distinct action IDs across
+      all procedures, anatomy targets, equipment match, full PO and TEMP runs with derived observations, range
+      and type errors, an SpO2 concern leading to PROC-PO-01, BP unchanged, and an old database receiving the
+      procedures and device links.
 35. Multiple scheduled assessment types with due/overdue state.
 36. Role-based access (crew member, crew medical officer, flight surgeon, ground support) on sensitive endpoints, with audit.
 37. Medical communications queue with simulated delay, priority and acknowledgement.
@@ -232,7 +255,8 @@ an earlier rule.
 | 25–28 | done 2026-11-15: contract 2.5.0 habitat operations and movement simulator; 257 passed; smoke 29/29 |
 | 29–33 | done 2026-11-15: contract 2.6.0 proactive health intelligence (scenarios A–E); 288 passed; smoke 33/33 |
 | 2.7.0 add-on | done 2026-11-15: steps 33.2, 33.3, 36.1 (history, live scenarios, review role check); 299 passed; smoke 38/38 |
-| 34–40 | not started (36 partly done: 36.1) |
+| 34 | done 2026-11-15: contract 2.8.0 PROC-PO-01 and PROC-TEMP-01, DET-1.1; 319 passed; smoke 40/40 |
+| 35–40 | not started (36 partly done: 36.1) |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only

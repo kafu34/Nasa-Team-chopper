@@ -1,4 +1,4 @@
-"""Contract 2.6.0: individual baselines and DET-1.0 detection (v3.1 §7 scenarios A, B and C)."""
+"""Contract 2.6.0: individual baselines and DET-1.1 detection (v3.1 §7 scenarios A, B and C)."""
 from __future__ import annotations
 
 from datetime import timedelta
@@ -95,7 +95,7 @@ def test_scenario_a_sustained_change_opens_concern_and_investigation_without_sym
     assert first["detection"]["outcome"] == "deviation_not_sustained" and first["detection"]["deviating_count"] == 1
     assert second["detection"]["deviating_count"] == 2
     d = third["detection"]
-    assert d["rule_id"] == "DET-HR-01" and d["ruleset_version"] == "DET-1.0" and d["alert_raised"]
+    assert d["rule_id"] == "DET-HR-01" and d["ruleset_version"] == "DET-1.1" and d["alert_raised"]
     assert d["baseline_version"] == 1 and d["deviation_direction"] == "above" and d["threshold"] == 15
     assert "not a diagnosis" in d["disclaimer"]
     case = client.get(f"{API}/cases/{d['case_id']}").json()
@@ -131,7 +131,7 @@ def test_spo2_rule_is_one_directional(client):
     down = [obs(client, 94, 9 - 2 * i, "spo2", "%") for i in range(3)]
     assert down[-1]["detection"]["outcome"] == "concern_opened"
     case = client.get(f"{API}/cases/{down[-1]['detection']['case_id']}").json()
-    assert case["state"] == "monitoring" and case["requested_assessment"] is None  # no configured assessment
+    assert case["state"] == "awaiting_assessment" and case["requested_assessment"]["procedure_id"] == "PROC-PO-01"
 
 
 def test_concern_joins_an_existing_symptom_case(client, symptom_payload):
@@ -252,7 +252,7 @@ def test_update_after_the_suppression_window_raises_one_alert(client):
 
 def test_ruleset_is_published(client):
     rs = client.get(f"{API}/monitoring/ruleset").json()
-    assert rs["ruleset_version"] == "DET-1.0" and {r["rule_id"] for r in rs["rules"]} == {
+    assert rs["ruleset_version"] == "DET-1.1" and {r["rule_id"] for r in rs["rules"]} == {
         "DET-HR-01", "DET-SPO2-01", "DET-TEMP-01"}
     boot = client.get(f"{API}/demo/bootstrap").json()
     assert boot["detection_ruleset"] == rs

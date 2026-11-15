@@ -17,6 +17,24 @@ from . import cases as case_svc
 from .audit import audit
 
 BP_LIMITS = {"systolic": (50, 260), "diastolic": (30, 160), "pulse": (20, 250)}
+# Technical input ranges per measurement type (not clinical limits). 2.8.0 adds pulse oximetry and temperature.
+LIMITS = {"blood_pressure": BP_LIMITS, "pulse_oximetry": {"spo2": (50, 100), "pulse": (20, 250)},
+          "body_temperature": {"temperature": (30, 43)}}
+CAPABILITY_TYPE = {"blood_pressure": "blood_pressure", "pulse_oximetry": "pulse_oximetry",
+                   "body_temperature": "body_temperature"}
+# Observations stored from a recorded measurement: (observation type, value key, unit).
+DERIVED = {"blood_pressure": [("blood_pressure_systolic", "systolic", "mmHg"),
+                              ("blood_pressure_diastolic", "diastolic", "mmHg"), ("heart_rate", "pulse", "bpm")],
+           "pulse_oximetry": [("spo2", "spo2", "%"), ("heart_rate", "pulse", "bpm")],
+           "body_temperature": [("body_temperature", "temperature", "degC")]}
+
+
+def _summary(type_: str, v: dict) -> str:
+    if type_ == "pulse_oximetry":
+        return f"Simulated SpO2 {v['spo2']} %" + (f", pulse {v['pulse']} bpm" if v.get("pulse") is not None else "")
+    if type_ == "body_temperature":
+        return f"Simulated temperature {v['temperature']:g} degC"
+    return f"Simulated blood pressure {v['systolic']}/{v['diastolic']} mmHg"
 FUTURE_TOLERANCE = timedelta(minutes=5)
 
 NEXT_ACTION_AFTER_READING = (
@@ -288,7 +306,8 @@ def confirm_step(db: Session, session_id: str, step_id: str, completion_source: 
     return s
 
 
-def _validate_measurement(body: MeasurementCreate, s: m.ProcedureSession, case: m.MedicalCase) -> list[str]:
+def _validate_measurement(body: MeasurementCreate, s: m.ProcedureSession, case: m.MedicalCase,
+                          proc_capability: str) -> list[str]:
     checks = []
     if s.case_id != case.case_id:
         raise ApiError(409, "SESSION_CASE_MISMATCH", "Session does not belong to this case.",
@@ -309,14 +328,21 @@ def _validate_measurement(body: MeasurementCreate, s: m.ProcedureSession, case: 
                        {"session_equipment_id": s.equipment_id, "received_equipment_id": body.equipment_id})
     if s.equipment_id is not None:
         checks.append("device_matches_session")
+    capability = proc_capability
+    expected = CAPABILITY_TYPE.get(capability)
+    if body.type != expected:
+        raise ApiError(422, "MEASUREMENT_TYPE_MISMATCH",
+                       f"Procedure {s.procedure_id} records '{expected}' measurements, not '{body.type}'.",
+                       {"procedure_id": s.procedure_id, "expected_type": expected, "received_type": body.type})
+    checks.append("measurement_type_matches_procedure")
     v = body.value.model_dump()
-    bad = {k: {"received": v[k], "min": lo, "max": hi} for k, (lo, hi) in BP_LIMITS.items()
+    bad = {k: {"received": v[k], "min": lo, "max": hi} for k, (lo, hi) in LIMITS[body.type].items()
            if v.get(k) is not None and not (lo <= v[k] <= hi)}
     if bad:
         raise ApiError(422, "MEASUREMENT_IMPLAUSIBLE",
                        "Value outside the technically plausible input range (input check, not a clinical judgement).",
                        bad)
-    if v["systolic"] <= v["diastolic"]:
+    if body.type == "blood_pressure" and v["systolic"] <= v["diastolic"]:
         raise ApiError(422, "MEASUREMENT_IMPLAUSIBLE", "Systolic must be greater than diastolic.", v)
     checks.append("plausible_numeric_input")
     now = utcnow()
@@ -334,7 +360,7 @@ def _validate_measurement(body: MeasurementCreate, s: m.ProcedureSession, case: 
 def record_measurement(db: Session, body: MeasurementCreate) -> MeasurementResult:
     case = case_svc.get_case(db, body.case_id)
     s = get_session(db, body.session_id)
-    checks = _validate_measurement(body, s, case)
+    checks = _validate_measurement(body, s, case, get_procedure(db, s.procedure_id).required_capability)
     now = utcnow()
     meas = m.AssessmentMeasurement(measurement_id=m.new_id("MEAS"), case_id=case.case_id, session_id=s.session_id,
                                    astronaut_id=body.astronaut_id, type=body.type, value=body.value.model_dump(),
@@ -342,9 +368,9 @@ def record_measurement(db: Session, body: MeasurementCreate) -> MeasurementResul
                                    recorded_at=now)
     db.add(meas)
     db.flush()
-    v = body.value
-    for t, val, unit in (("blood_pressure_systolic", v.systolic, "mmHg"), ("blood_pressure_diastolic", v.diastolic, "mmHg"),
-                         ("heart_rate", v.pulse, "bpm")):
+    v = body.value.model_dump()
+    for t, key, unit in DERIVED[body.type]:
+        val = v.get(key)
         if val is not None:
             db.add(m.HealthObservation(observation_id=m.new_id("OBS"), astronaut_id=body.astronaut_id, type=t,
                                        value=val, unit=unit, observed_at=body.observed_at, recorded_at=now,
@@ -352,8 +378,7 @@ def record_measurement(db: Session, body: MeasurementCreate) -> MeasurementResul
                                        measurement_id=meas.measurement_id))
     s.measurement_id = meas.measurement_id
     s.updated_at = now
-    case_svc.add_evidence(case, "measurement", meas.measurement_id,
-                          f"Simulated blood pressure {v.systolic}/{v.diastolic} mmHg")
+    case_svc.add_evidence(case, "measurement", meas.measurement_id, _summary(body.type, v))
     audit(db, body.astronaut_id, "measurement.recorded", "assessment_measurement", meas.measurement_id,
           case.case_id, checks=checks, source=body.source)
 

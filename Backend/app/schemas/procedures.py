@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, StrictInt
+from typing import Union
+
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
 from .cases import FollowUpOut, MeasurementOut
 from .common import Attention, CaseState, Priority, TzModel
@@ -226,18 +228,48 @@ class BloodPressureValue(BaseModel):
     pulse: Optional[StrictInt] = Field(default=None, examples=[70])
 
 
+class PulseOximetryValue(BaseModel):
+    """2.8.0. SpO2 in %, pulse in beats per minute."""
+    model_config = ConfigDict(extra="forbid")
+    spo2: StrictInt = Field(examples=[98])
+    pulse: Optional[StrictInt] = Field(default=None, examples=[68])
+
+
+class TemperatureValue(BaseModel):
+    """2.8.0. Degrees Celsius."""
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    temperature: float = Field(examples=[36.7])
+
+
+MEASUREMENT_SHAPES = {"blood_pressure": (BloodPressureValue, "mmHg"), "pulse_oximetry": (PulseOximetryValue, "%"),
+                      "body_temperature": (TemperatureValue, "degC")}
+
+
 class MeasurementCreate(TzModel):
     case_id: str
     session_id: str
     astronaut_id: str = Field(examples=["DEMO-001"])
-    type: Literal["blood_pressure"]
-    value: BloodPressureValue
-    unit: Literal["mmHg"]
+    type: Literal["blood_pressure", "pulse_oximetry", "body_temperature"] = Field(
+        description="Must match the procedure: PROC-BP-01 blood_pressure, PROC-PO-01 pulse_oximetry, PROC-TEMP-01 "
+                    "body_temperature (2.8.0).")
+    value: Union[BloodPressureValue, PulseOximetryValue, TemperatureValue] = Field(
+        description="blood_pressure {systolic, diastolic, pulse?}; pulse_oximetry {spo2, pulse?}; body_temperature "
+                    "{temperature}.")
+    unit: Literal["mmHg", "%", "degC"]
     source: Literal["SIMULATED_DEVICE", "SIMULATED_MANUAL_ENTRY"] = Field(
         description="Only simulated sources are accepted in this prototype.")
     observed_at: datetime
     equipment_id: Optional[str] = Field(default=None, description="Optional (2.4.0). Must equal the session's "
                                         "device when the session has one.")
+
+    @model_validator(mode="after")
+    def _shape_matches_type(self):
+        model, unit = MEASUREMENT_SHAPES[self.type]
+        if not isinstance(self.value, model):
+            raise ValueError(f"value for type '{self.type}' must have the fields of {model.__name__}")
+        if self.unit != unit:
+            raise ValueError(f"unit for type '{self.type}' must be '{unit}'")
+        return self
 
 
 class MeasurementValidation(BaseModel):

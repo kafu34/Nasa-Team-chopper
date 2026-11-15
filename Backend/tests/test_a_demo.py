@@ -5,7 +5,7 @@ def test_healthz(client):
     r = client.get("/healthz")
     assert r.status_code == 200
     body = r.json()
-    assert body["status"] == "ok" and body["database"] == "ok" and body["contract_version"] == "2.7.0"
+    assert body["status"] == "ok" and body["database"] == "ok" and body["contract_version"] == "2.8.0"
 
 
 def test_bootstrap_shared_identifiers(client):

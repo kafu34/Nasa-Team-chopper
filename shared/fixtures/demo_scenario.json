@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.7.0",
-  "contract_version": "2.7.0",
+  "fixture_version": "2.8.0",
+  "contract_version": "2.8.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -548,7 +548,9 @@
       "required_supplies": [
         "battery_ok"
       ],
-      "compatible_procedure_ids": []
+      "compatible_procedure_ids": [
+        "PROC-PO-01"
+      ]
     },
     {
       "equipment_id": "EQ-THERM-01",
@@ -563,7 +565,9 @@
       "required_supplies": [
         "battery_ok"
       ],
-      "compatible_procedure_ids": []
+      "compatible_procedure_ids": [
+        "PROC-TEMP-01"
+      ]
     },
     {
       "equipment_id": "EQ-AED-01",
@@ -1405,7 +1409,7 @@
     }
   },
   "detection_ruleset": {
-    "ruleset_version": "DET-1.0",
+    "ruleset_version": "DET-1.1",
     "disclaimer": "Configured demonstration rule. A deviation from a synthetic individual baseline is not a diagnosis, has not been clinically reviewed and does not say what causes the change.",
     "rules": [
       {
@@ -1435,7 +1439,11 @@
         "min_abs_change": 3,
         "window_minutes": 180,
         "required_consecutive": 3,
-        "assessment": null,
+        "assessment": {
+          "capability": "pulse_oximetry",
+          "procedure_id": "PROC-PO-01",
+          "reason": "Configured demonstration assessment with the fingertip pulse oximeter. This is not a clinical indication."
+        },
         "reassessment_minutes": 240,
         "recovery_count": 3,
         "suppression_minutes": 30
@@ -1449,11 +1457,575 @@
         "min_abs_change": 0.6,
         "window_minutes": 720,
         "required_consecutive": 3,
-        "assessment": null,
+        "assessment": {
+          "capability": "body_temperature",
+          "procedure_id": "PROC-TEMP-01",
+          "reason": "Configured demonstration assessment with the infrared thermometer. This is not a clinical indication."
+        },
         "reassessment_minutes": 240,
         "recovery_count": 3,
         "suppression_minutes": 30
       }
+    ],
+    "changes": [
+      {
+        "version": "DET-1.1",
+        "change": "DET-SPO2-01 requests PROC-PO-01 and DET-TEMP-01 requests PROC-TEMP-01. No threshold, window or count changed."
+      }
     ]
-  }
+  },
+  "additional_procedures": [
+    {
+      "procedure_id": "PROC-PO-01",
+      "version": "1.0.0-demo",
+      "title": "Fingertip pulse-oximeter reading (educational demonstration)",
+      "purpose": "Demonstrates how a non-medical crew member could be guided to take a fingertip pulse-oximeter reading (SpO2 and pulse) for a configured, fictional assessment.",
+      "required_capability": "pulse_oximetry",
+      "compatible_device_models": [
+        "Demo Fingertip Pulse Oximeter P1"
+      ],
+      "anatomical_region_ids": [
+        "forearm_hand"
+      ],
+      "content_status": "EDUCATIONAL_DEMO_ONLY",
+      "source_basis": "Paraphrased from widely published general consumer guidance for fingertip pulse oximeters (for example U.S. FDA consumer information on pulse oximeters). Not reviewed by a flight surgeon and not a mission-approved procedure.",
+      "safety_limitations": [
+        "Educational demonstration only. Not a clinically validated or mission-approved procedure.",
+        "Do not use this procedure to diagnose or treat any condition.",
+        "If you feel chest pain, severe headache, faintness or shortness of breath, stop and activate the emergency workflow or call a crew member.",
+        "Confirming a step records an acknowledgement only. It does not prove the step was performed correctly.",
+        "Cold hands, movement, nail coatings and poor fit can make a reading inaccurate; the device can also read less accurately for some skin pigmentations. Report how the reading was taken.",
+        "A reading on the display is not a diagnosis. Contact the crew medical officer if you are concerned."
+      ],
+      "follow_up": {
+        "task_type": "repeat_assessment",
+        "title": "Repeat demonstration pulse-oximeter reading",
+        "due_in_hours": 24
+      },
+      "validation_level": "EDUCATIONAL_DEMONSTRATION",
+      "intended_patient": "The crew member being assessed (DEMO-001 in the demonstration), measuring on themselves (self mode) or helped by another crew member (responder mode).",
+      "instruction_sources": [
+        {
+          "source_id": "SRC-PO-CONSUMER-GENERAL",
+          "description": "Paraphrase of widely published general consumer guidance for fingertip pulse oximeters (for example U.S. FDA consumer information): warm hand, no nail coating, stay still, wait for a steady reading.",
+          "reviewed_by_flight_surgeon": false
+        },
+        {
+          "source_id": "SRC-DEMO-DEVICE-P1",
+          "description": "Fictional instructions for the fictional Demo Fingertip Pulse Oximeter P1 (clip, power button, display). No real device manual was reviewed.",
+          "reviewed_by_flight_surgeon": false
+        }
+      ],
+      "steps": [
+        {
+          "step_id": "S1",
+          "order": 1,
+          "title": "Prepare and rest",
+          "instruction": "Restrain yourself in a relaxed, supported position and rest quietly for 5 minutes. Check that the oximeter turns on and its battery indicator is not low.",
+          "anatomical_region_ids": [],
+          "requires_confirmation": true,
+          "responder_note": "Help the crew member into a supported, relaxed position and check the device turns on.",
+          "target_region_id": "whole_body",
+          "target_laterality": "not_applicable",
+          "target_site_id": null,
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "pulse_oximetry",
+            "compatible_device_models": [
+              "Demo Fingertip Pulse Oximeter P1"
+            ],
+            "components": [
+              "oximeter",
+              "restraint"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-PO-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-P1"
+          ],
+          "visual": {
+            "action_id": "VA-PO-01-PREPARE-DEVICE",
+            "asset_id": "ASSET-PULSE-OXIMETER-P1",
+            "additional_asset_ids": [
+              "ASSET-CREW-RESTRAINT"
+            ],
+            "camera": {
+              "view": "front",
+              "target_region_id": "whole_body",
+              "target_laterality": "not_applicable",
+              "framing": "patient_and_equipment"
+            },
+            "expected_visible_action": "The oximeter is shown switched on next to the crew member, who settles into a restrained, supported position.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "Resting is part of the demonstrated technique; the animation does not time the rest.",
+            "In microgravity, restrain the body and the device; the animation does not show a validated spacecraft technique."
+          ]
+        },
+        {
+          "step_id": "S2",
+          "order": 2,
+          "title": "Prepare the finger",
+          "instruction": "Use the left index finger. Warm the hand if it is cold and remove any nail polish or artificial nail from that finger.",
+          "anatomical_region_ids": [
+            "forearm_hand"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Check the chosen finger is warm and has no nail coating.",
+          "target_region_id": "forearm_hand",
+          "target_laterality": "left",
+          "target_site_id": "left_hand",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "pulse_oximetry",
+            "compatible_device_models": [
+              "Demo Fingertip Pulse Oximeter P1"
+            ],
+            "components": [
+              "oximeter"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-PO-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-P1"
+          ],
+          "visual": {
+            "action_id": "VA-PO-02-PREPARE-FINGER",
+            "asset_id": "ASSET-PULSE-OXIMETER-P1",
+            "additional_asset_ids": [],
+            "camera": {
+              "view": "front",
+              "target_region_id": "forearm_hand",
+              "target_laterality": "left",
+              "framing": "region_closeup"
+            },
+            "expected_visible_action": "Close view of the left hand: the hands are rubbed warm and the index fingernail is shown bare.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "Nail coatings and cold fingers can make the reading inaccurate."
+          ]
+        },
+        {
+          "step_id": "S3",
+          "order": 3,
+          "title": "Place the oximeter",
+          "instruction": "Open the clip and slide the left index finger in until the fingertip touches the end. Close the clip gently with the display facing up.",
+          "anatomical_region_ids": [
+            "forearm_hand"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Make sure the fingertip reaches the end of the clip and the display faces up.",
+          "target_region_id": "forearm_hand",
+          "target_laterality": "left",
+          "target_site_id": "left_hand",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "pulse_oximetry",
+            "compatible_device_models": [
+              "Demo Fingertip Pulse Oximeter P1"
+            ],
+            "components": [
+              "oximeter",
+              "clip"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-PO-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-P1"
+          ],
+          "visual": {
+            "action_id": "VA-PO-03-PLACE-PROBE",
+            "asset_id": "ASSET-PULSE-OXIMETER-P1",
+            "additional_asset_ids": [],
+            "camera": {
+              "view": "left_side",
+              "target_region_id": "forearm_hand",
+              "target_laterality": "left",
+              "framing": "region_closeup"
+            },
+            "expected_visible_action": "The clip opens, the left index finger slides fully in, and the clip closes with the display facing up.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "Do not press the clip hard onto the finger."
+          ]
+        },
+        {
+          "step_id": "S4",
+          "order": 4,
+          "title": "Keep still until the reading is steady",
+          "instruction": "Rest the hand at heart level and keep it still. Do not talk. Wait until the numbers stop changing for at least 10 seconds.",
+          "anatomical_region_ids": [
+            "forearm_hand"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Keep the crew member's hand still and supported while the reading settles.",
+          "target_region_id": "forearm_hand",
+          "target_laterality": "left",
+          "target_site_id": "left_hand",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "pulse_oximetry",
+            "compatible_device_models": [
+              "Demo Fingertip Pulse Oximeter P1"
+            ],
+            "components": [
+              "oximeter",
+              "display"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-PO-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-P1"
+          ],
+          "visual": {
+            "action_id": "VA-PO-04-HOLD-STILL",
+            "asset_id": "ASSET-PULSE-OXIMETER-P1",
+            "additional_asset_ids": [
+              "ASSET-CREW-RESTRAINT"
+            ],
+            "camera": {
+              "view": "front",
+              "target_region_id": "forearm_hand",
+              "target_laterality": "left",
+              "framing": "device_display"
+            },
+            "expected_visible_action": "The supported hand stays still while the display numbers settle and stop changing.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "Movement can produce a wrong reading. The animation does not time the wait.",
+            "In microgravity, restrain the body and the device; the animation does not show a validated spacecraft technique."
+          ]
+        },
+        {
+          "step_id": "S5",
+          "order": 5,
+          "title": "Read and record the result",
+          "instruction": "Read the SpO2 (%) and pulse (beats per minute) shown on the display and enter them. Then open the clip and remove the finger.",
+          "anatomical_region_ids": [
+            "forearm_hand"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Read the numbers aloud and enter them before removing the device.",
+          "target_region_id": "forearm_hand",
+          "target_laterality": "left",
+          "target_site_id": "left_hand",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "pulse_oximetry",
+            "compatible_device_models": [
+              "Demo Fingertip Pulse Oximeter P1"
+            ],
+            "components": [
+              "oximeter",
+              "display"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-PO-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-P1"
+          ],
+          "visual": {
+            "action_id": "VA-PO-05-RECORD-RESULT",
+            "asset_id": "ASSET-PULSE-OXIMETER-P1",
+            "additional_asset_ids": [],
+            "camera": {
+              "view": "equipment_closeup",
+              "target_region_id": "forearm_hand",
+              "target_laterality": "left",
+              "framing": "device_display"
+            },
+            "expected_visible_action": "Close view of the display showing two numbers labelled SpO2 and pulse, then the finger is removed.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "The values on screen in the animation are illustrative, not the crew member's reading."
+          ]
+        }
+      ]
+    },
+    {
+      "procedure_id": "PROC-TEMP-01",
+      "version": "1.0.0-demo",
+      "title": "Non-contact forehead temperature reading (educational demonstration)",
+      "purpose": "Demonstrates how a non-medical crew member could be guided to take a non-contact infrared forehead temperature reading for a configured, fictional assessment.",
+      "required_capability": "body_temperature",
+      "compatible_device_models": [
+        "Demo Infrared Thermometer T1"
+      ],
+      "anatomical_region_ids": [
+        "head"
+      ],
+      "content_status": "EDUCATIONAL_DEMO_ONLY",
+      "source_basis": "Paraphrased from widely published general consumer guidance for non-contact infrared thermometers (for example U.S. FDA consumer information on non-contact infrared thermometers). Not reviewed by a flight surgeon and not a mission-approved procedure.",
+      "safety_limitations": [
+        "Educational demonstration only. Not a clinically validated or mission-approved procedure.",
+        "Do not use this procedure to diagnose or treat any condition.",
+        "If you feel chest pain, severe headache, faintness or shortness of breath, stop and activate the emergency workflow or call a crew member.",
+        "Confirming a step records an acknowledgement only. It does not prove the step was performed correctly.",
+        "Sweat, a recent hot or cold environment, exercise, hair or a head covering can make the reading inaccurate.",
+        "Never point the thermometer at the eyes.",
+        "A reading on the display is not a diagnosis. Contact the crew medical officer if you are concerned."
+      ],
+      "follow_up": {
+        "task_type": "repeat_assessment",
+        "title": "Repeat demonstration temperature reading",
+        "due_in_hours": 24
+      },
+      "validation_level": "EDUCATIONAL_DEMONSTRATION",
+      "intended_patient": "The crew member being assessed (DEMO-001 in the demonstration). A second crew member usually holds the thermometer (responder mode); self mode is possible with care.",
+      "instruction_sources": [
+        {
+          "source_id": "SRC-IRT-CONSUMER-GENERAL",
+          "description": "Paraphrase of widely published general consumer guidance for non-contact infrared thermometers (for example U.S. FDA consumer information): acclimatise the device, clean dry forehead, correct distance, hold it perpendicular.",
+          "reviewed_by_flight_surgeon": false
+        },
+        {
+          "source_id": "SRC-DEMO-DEVICE-T1",
+          "description": "Fictional instructions for the fictional Demo Infrared Thermometer T1 (measure button, 3 cm distance, display). No real device manual was reviewed.",
+          "reviewed_by_flight_surgeon": false
+        }
+      ],
+      "steps": [
+        {
+          "step_id": "S1",
+          "order": 1,
+          "title": "Prepare the thermometer",
+          "instruction": "Keep the thermometer in the same module as the crew member for at least 15 minutes before use. Check it turns on and the lens is clean.",
+          "anatomical_region_ids": [],
+          "requires_confirmation": true,
+          "responder_note": "Check the thermometer has been in the module for 15 minutes and the lens is clean.",
+          "target_region_id": "whole_body",
+          "target_laterality": "not_applicable",
+          "target_site_id": null,
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "body_temperature",
+            "compatible_device_models": [
+              "Demo Infrared Thermometer T1"
+            ],
+            "components": [
+              "thermometer",
+              "lens"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-IRT-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-T1"
+          ],
+          "visual": {
+            "action_id": "VA-TEMP-01-PREPARE-DEVICE",
+            "asset_id": "ASSET-IR-THERMOMETER-T1",
+            "additional_asset_ids": [],
+            "camera": {
+              "view": "front",
+              "target_region_id": "whole_body",
+              "target_laterality": "not_applicable",
+              "framing": "patient_and_equipment"
+            },
+            "expected_visible_action": "The thermometer is shown next to the crew member, switched on, with the lens checked.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "The animation does not time the 15 minutes."
+          ]
+        },
+        {
+          "step_id": "S2",
+          "order": 2,
+          "title": "Prepare the forehead",
+          "instruction": "Rest for 10 minutes away from exercise or warm air. Move hair away from the forehead and wipe away any sweat. Remove any head covering.",
+          "anatomical_region_ids": [
+            "head"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Check the forehead is uncovered, dry and free of hair.",
+          "target_region_id": "head",
+          "target_laterality": "midline",
+          "target_site_id": "head",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "body_temperature",
+            "compatible_device_models": [
+              "Demo Infrared Thermometer T1"
+            ],
+            "components": [
+              "thermometer"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-IRT-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-T1"
+          ],
+          "visual": {
+            "action_id": "VA-TEMP-02-PREPARE-FOREHEAD",
+            "asset_id": "ASSET-IR-THERMOMETER-T1",
+            "additional_asset_ids": [
+              "ASSET-CREW-RESTRAINT"
+            ],
+            "camera": {
+              "view": "front",
+              "target_region_id": "head",
+              "target_laterality": "midline",
+              "framing": "region_closeup"
+            },
+            "expected_visible_action": "The forehead is uncovered, hair is moved aside and the skin is wiped dry.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "Sweat, hair and recent exercise can make the reading inaccurate.",
+            "In microgravity, restrain the body and the device; the animation does not show a validated spacecraft technique."
+          ]
+        },
+        {
+          "step_id": "S3",
+          "order": 3,
+          "title": "Aim the thermometer",
+          "instruction": "Hold the thermometer perpendicular to the centre of the forehead, about 3 cm away, without touching the skin. Keep it away from the eyes.",
+          "anatomical_region_ids": [
+            "head"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Hold the thermometer for the crew member, 3 cm from the centre of the forehead.",
+          "target_region_id": "head",
+          "target_laterality": "midline",
+          "target_site_id": "head",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "body_temperature",
+            "compatible_device_models": [
+              "Demo Infrared Thermometer T1"
+            ],
+            "components": [
+              "thermometer",
+              "lens"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-IRT-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-T1"
+          ],
+          "visual": {
+            "action_id": "VA-TEMP-03-AIM",
+            "asset_id": "ASSET-IR-THERMOMETER-T1",
+            "additional_asset_ids": [],
+            "camera": {
+              "view": "right_side",
+              "target_region_id": "head",
+              "target_laterality": "midline",
+              "framing": "region_closeup"
+            },
+            "expected_visible_action": "Side view: the thermometer is held level with the centre of the forehead, a short gap from the skin, pointed away from the eyes.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "Never point the thermometer at the eyes."
+          ]
+        },
+        {
+          "step_id": "S4",
+          "order": 4,
+          "title": "Take the measurement",
+          "instruction": "Press and release the measure button while keeping the thermometer still. Wait for the beep.",
+          "anatomical_region_ids": [
+            "head"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Keep the thermometer still until the beep.",
+          "target_region_id": "head",
+          "target_laterality": "midline",
+          "target_site_id": "head",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "body_temperature",
+            "compatible_device_models": [
+              "Demo Infrared Thermometer T1"
+            ],
+            "components": [
+              "thermometer",
+              "button"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-IRT-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-T1"
+          ],
+          "visual": {
+            "action_id": "VA-TEMP-04-MEASURE",
+            "asset_id": "ASSET-IR-THERMOMETER-T1",
+            "additional_asset_ids": [],
+            "camera": {
+              "view": "equipment_closeup",
+              "target_region_id": "head",
+              "target_laterality": "midline",
+              "framing": "device_controls"
+            },
+            "expected_visible_action": "The measure button is pressed once while the thermometer stays still; an indicator shows the reading is complete.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "Moving the thermometer during the measurement can give a wrong reading."
+          ]
+        },
+        {
+          "step_id": "S5",
+          "order": 5,
+          "title": "Read and record the result",
+          "instruction": "Read the temperature in degrees Celsius on the display and enter it.",
+          "anatomical_region_ids": [
+            "head"
+          ],
+          "requires_confirmation": true,
+          "responder_note": "Read the number aloud and enter it.",
+          "target_region_id": "head",
+          "target_laterality": "midline",
+          "target_site_id": "head",
+          "patient_role": "crew_member_being_assessed",
+          "equipment": {
+            "required_capability": "body_temperature",
+            "compatible_device_models": [
+              "Demo Infrared Thermometer T1"
+            ],
+            "components": [
+              "thermometer",
+              "display"
+            ]
+          },
+          "instruction_source_ids": [
+            "SRC-IRT-CONSUMER-GENERAL",
+            "SRC-DEMO-DEVICE-T1"
+          ],
+          "visual": {
+            "action_id": "VA-TEMP-05-RECORD-RESULT",
+            "asset_id": "ASSET-IR-THERMOMETER-T1",
+            "additional_asset_ids": [],
+            "camera": {
+              "view": "equipment_closeup",
+              "target_region_id": "head",
+              "target_laterality": "midline",
+              "framing": "device_display"
+            },
+            "expected_visible_action": "Close view of the display showing one temperature value in degrees Celsius.",
+            "replay_allowed": true,
+            "pause_allowed": true
+          },
+          "warnings": [
+            "The value on screen in the animation is illustrative, not the crew member's reading."
+          ]
+        }
+      ]
+    }
+  ]
 }

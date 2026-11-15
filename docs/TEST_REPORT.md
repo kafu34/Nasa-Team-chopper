@@ -3,6 +3,33 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.8.0 (pulse oximeter and thermometer procedures, plan step 34), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` (same environment variables as 2.6.0) | **319 passed, 0 failed, 0 skipped** (adds 20 in `test_x_more_procedures.py`) |
+| `scripts/export_openapi.py` | regenerated (38 paths, version 2.8.0) |
+| `scripts/http_smoke.py` | **40/40** (adds the procedure list and the PROC-PO-01 visual requirements) |
+| Live server restart | contract 2.8.0; configuration sync added both procedures and the device links to the existing database; 5 datasets still `IMPORTED` |
+
+The tests cover:
+- the procedure list;
+- the complete visual contract of each new procedure (sources, regions, sites, devices, disclaimers, microgravity
+  caveat);
+- 16 action IDs, unique across all procedures;
+- PROC-BP-01 identical to the fixture;
+- full PO and TEMP runs with their derived observations;
+- 8 measurement-validation cases (type mismatch, range, unit, shape, non-integer SpO2);
+- BP still valid;
+- device recommendation returning the new procedures;
+- an SpO2 concern requesting PROC-PO-01, refusing PROC-BP-01 and completing through PO while the concern stays
+  open;
+- a temperature concern requesting PROC-TEMP-01;
+- an old database receiving the procedures and device links.
+
+Two existing tests changed, as planned: the ruleset version is now DET-1.1, and an SpO2 concern now moves its
+case to `awaiting_assessment`.
+
 ## Contract 2.7.0 (history, live scenarios, review role check), run 2026-11-15
 
 | Suite | Result |

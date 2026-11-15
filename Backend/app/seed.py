@@ -29,6 +29,11 @@ def _ago(now: datetime, minutes: float | None) -> datetime | None:
     return None if minutes is None else now - timedelta(minutes=minutes)
 
 
+def all_procedures(fx: dict) -> list[dict]:
+    """PROC-BP-01 (`procedure`) plus `additional_procedures` (2.8.0)."""
+    return [fx["procedure"], *fx.get("additional_procedures", [])]
+
+
 def is_seeded(db: Session) -> bool:
     return db.scalar(select(m.Astronaut.astronaut_id).limit(1)) is not None
 
@@ -67,16 +72,16 @@ def seed_demo(db: Session, fx: dict, now: datetime | None = None) -> None:
                 verified_by=a["verified_by"],
             )
         )
-    proc = fx["procedure"]
-    db.add(
-        m.ProcedureDefinition(
-            procedure_id=proc["procedure_id"],
-            version=proc["version"],
-            title=proc["title"],
-            required_capability=proc["required_capability"],
-            definition=proc,
+    for proc in all_procedures(fx):
+        db.add(
+            m.ProcedureDefinition(
+                procedure_id=proc["procedure_id"],
+                version=proc["version"],
+                title=proc["title"],
+                required_capability=proc["required_capability"],
+                definition=proc,
+            )
         )
-    )
     db.flush()
     for e in fx["equipment"]:
         db.add(
@@ -142,17 +147,24 @@ def sync_configuration(db: Session, fx: dict) -> list[str]:
     content on startup. Sessions keep the procedure_version they were started with. Returns what changed.
     """
     changed = []
-    proc = fx["procedure"]
-    row = db.get(m.ProcedureDefinition, proc["procedure_id"])
-    if row is None:
-        db.add(m.ProcedureDefinition(procedure_id=proc["procedure_id"], version=proc["version"],
-                                     title=proc["title"], required_capability=proc["required_capability"],
-                                     definition=proc))
-        changed.append(f"procedure {proc['procedure_id']} added")
-    elif row.definition != proc:
-        row.version, row.title, row.required_capability = proc["version"], proc["title"], proc["required_capability"]
-        row.definition = proc
-        changed.append(f"procedure {proc['procedure_id']} updated to {proc['version']}")
+    for proc in all_procedures(fx):
+        row = db.get(m.ProcedureDefinition, proc["procedure_id"])
+        if row is None:
+            db.add(m.ProcedureDefinition(procedure_id=proc["procedure_id"], version=proc["version"],
+                                         title=proc["title"], required_capability=proc["required_capability"],
+                                         definition=proc))
+            changed.append(f"procedure {proc['procedure_id']} added")
+        elif row.definition != proc:
+            row.version, row.title = proc["version"], proc["title"]
+            row.required_capability = proc["required_capability"]
+            row.definition = proc
+            changed.append(f"procedure {proc['procedure_id']} updated to {proc['version']}")
+    db.flush()
+    for e in fx["equipment"]:  # device-procedure links are configuration too (2.8.0)
+        row = db.get(m.Equipment, e["equipment_id"])
+        if row is not None and list(row.compatible_procedure_ids or []) != e["compatible_procedure_ids"]:
+            row.compatible_procedure_ids = e["compatible_procedure_ids"]
+            changed.append(f"equipment {e['equipment_id']} procedures {e['compatible_procedure_ids']}")
     hab = fx["habitat"]
     hab_row = db.get(m.Habitat, hab["habitat_id"])
     if hab_row is not None and hab_row.map_version != hab["map_version"]:
