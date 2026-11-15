@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.6.0",
-  "contract_version": "2.6.0",
+  "fixture_version": "2.7.0",
+  "contract_version": "2.7.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -13,7 +13,8 @@
       "mission_name": "Fictional Mars Transit Demonstration",
       "habitat_id": "HAB-01",
       "mission_day": 142
-    }
+    },
+    "role_code": "crew_member"
   },
   "responder": {
     "astronaut_id": "DEMO-002",
@@ -25,7 +26,8 @@
       "mission_name": "Fictional Mars Transit Demonstration",
       "habitat_id": "HAB-01",
       "mission_day": 142
-    }
+    },
+    "role_code": "crew_medical_officer"
   },
   "habitat": {
     "habitat_id": "HAB-01",

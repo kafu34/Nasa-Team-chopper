@@ -10,7 +10,10 @@ from .. import models as m
 from ..db import utcnow
 from ..errors import not_found
 from ..schemas.monitoring import (BaselineList, BaselineOut, ConcernOut, DataQualityItem, DetectionRuleOut,
-                                  DetectionRulesetOut, MonitoringOut, ReassessmentOut, TrendOut, TypeMonitoring)
+                                  DetectionRulesetOut, MonitoringOut, ObservationHistory, ObservationHistoryItem,
+                                  ReassessmentOut, TrendOut, TypeMonitoring)
+from ..errors import ApiError
+from ..schemas.common import require_tz
 from . import baselines as bl_svc
 from . import detection
 from . import observations as obs_svc
@@ -66,6 +69,48 @@ def concern_out(db: Session, fx: dict, c: m.MonitoringConcern) -> ConcernOut:
         if fu else None,
         closed_at=c.closed_at, closed_by=c.closed_by, review_note=c.review_note,
         disclaimer=fx["detection_ruleset"]["disclaimer"])
+
+
+def _origin(o: m.HealthObservation) -> str:
+    if o.observation_id.startswith("OBS-HIST-"):
+        return "baseline_history"
+    if o.measurement_id:
+        return "procedure_measurement"
+    return "ingested" if o.detection else "seed_fixture"
+
+
+def history(db: Session, fx: dict, astronaut_id: str, type_: str | None, since: datetime | None,
+            until: datetime | None, limit: int, offset: int) -> ObservationHistory:
+    if db.get(m.Astronaut, astronaut_id) is None:
+        raise not_found("Astronaut", astronaut_id)
+    if type_ is not None and type_ not in obs_svc.catalogue(fx):
+        raise ApiError(422, "UNKNOWN_OBSERVATION_TYPE", f"Observation type '{type_}' is not in the catalogue.",
+                       {"allowed_types": sorted(obs_svc.catalogue(fx))})
+    for v in (since, until):
+        if v is not None:
+            require_tz(v)
+    q = select(m.HealthObservation).where(m.HealthObservation.astronaut_id == astronaut_id)
+    if type_:
+        q = q.where(m.HealthObservation.type == type_)
+    if since:
+        q = q.where(m.HealthObservation.observed_at >= since)
+    if until:
+        q = q.where(m.HealthObservation.observed_at <= until)
+    rows = db.scalars(q.order_by(m.HealthObservation.observed_at.desc(),
+                                 m.HealthObservation.recorded_at.desc())).all()
+    in_base = set()
+    for b in db.scalars(select(m.HealthBaseline).where(m.HealthBaseline.astronaut_id == astronaut_id,
+                                                       m.HealthBaseline.status == "active")):
+        in_base.update(b.source_observation_ids)
+    page = rows[offset:offset + limit]
+    items = [ObservationHistoryItem(
+        observation_id=o.observation_id, type=o.type, value=o.value, unit=o.unit, observed_at=o.observed_at,
+        recorded_at=o.recorded_at, source=o.source, quality=o.quality, origin=_origin(o),
+        measurement_id=o.measurement_id,
+        detection=o.detection if o.detection and "outcome" in o.detection else None,
+        in_active_baseline=o.observation_id in in_base) for o in page]
+    return ObservationHistory(astronaut_id=astronaut_id, type=type_, since=since, until=until, total=len(rows),
+                              limit=limit, offset=offset, items=items)
 
 
 def _trend(rows: list[m.HealthObservation], spread: float | None, minutes: int) -> TrendOut:

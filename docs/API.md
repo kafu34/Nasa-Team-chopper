@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.6.0)
+# SENTINEL AI Backend API (v2.7.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -56,13 +56,18 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
 - `GET /api/v1/monitoring/ruleset` → the DET-1.0 configured demonstration rules.
 - `GET /api/v1/astronauts/{id}/monitoring` → for each type: freshness, baseline, latest value, difference,
   descriptive trend and open concern; plus `concerns[]` and `data_quality[]`.
+- `GET /api/v1/astronauts/{id}/observations?type=&since=&until=&limit=&offset=` *(2.7.0)* → full history, newest
+  first, with `origin`, stored `detection` and `in_active_baseline`.
 - `GET /api/v1/astronauts/{id}/baselines[?type=]` → every baseline version.
 - `POST /api/v1/astronauts/{id}/baselines/{type}/recompute` — `{actor_id, reason}` → 201 new version. Errors:
-  409 `BASELINE_FROZEN`, 422 `INSUFFICIENT_BASELINE_DATA`.
+  409 `BASELINE_FROZEN`, 422 `INSUFFICIENT_BASELINE_DATA`, 403 `ROLE_NOT_PERMITTED` *(2.7.0)*.
 - `GET /api/v1/monitoring-concerns/{id}` → concern status (`open` | `awaiting_review` | `closed`), evidence and
   reassessment.
 - `POST /api/v1/monitoring-concerns/{id}/review` — `{actor_id, decision: continue_monitoring|close, note}`.
-  Errors: 409 `CONCERN_NOT_READY_FOR_REVIEW` and 409 `CONCERN_CLOSED`. Closing never resolves the case.
+  Errors: 409 `CONCERN_NOT_READY_FOR_REVIEW` and 409 `CONCERN_CLOSED`. Closing never resolves the case. *(2.7.0)* Closing needs `crew_medical_officer` or `flight_surgeon`
+  (403 `ROLE_NOT_PERMITTED`).
+- `POST /api/v1/demo/scenarios/{scenario_id}` *(2.7.0)* — resets, then loads `SCN-REASSESSMENT-DUE`,
+  `SCN-URGENT-DURING-PROCEDURE` or `SCN-EMERGENCY-DURING-PROCEDURE`; returns the IDs and any simulated clock change.
 
 ### Spatial intelligence and equipment
 - `POST /api/v1/location/estimate` — `{astronaut_id, observations: [{anchor_id, rssi_dbm (-120..0), observed_at}]}` →

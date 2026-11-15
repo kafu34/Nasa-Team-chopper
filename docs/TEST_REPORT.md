@@ -3,6 +3,23 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.7.0 (history, live scenarios, review role check), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` (same environment variables as 2.6.0) | **299 passed, 0 failed, 0 skipped** (adds 11 in `test_w_history_scenarios_roles.py`) |
+| `scripts/export_openapi.py` | regenerated (37 paths, version 2.7.0) |
+| `scripts/http_smoke.py` | **38/38** (adds the history read, a 403 for a crew-member close, and the three scenarios) |
+| Live server restart | contract 2.7.0; history returns the live database's readings; 5 datasets still `IMPORTED` |
+
+The tests cover:
+- history order, origin, detection and baseline flags, filters, paging and validation, and procedure readings;
+- each scenario's state (due reassessment completed by one reading; urgent interruption in the session; emergency
+  in `urgent_events`), isolation between scenarios, and an unknown scenario;
+- a crew member closing a concern (403, audited, state unchanged) and the medical officer closing it;
+  `continue_monitoring` by a crew member; a baseline recompute by a crew member (403); and role codes in
+  bootstrap.
+
 ## Contract 2.6.0 (proactive health intelligence, Milestone 5 backend), run 2026-11-15
 
 | Suite | Result |

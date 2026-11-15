@@ -22,6 +22,9 @@ class AstronautOut(BaseModel):
     astronaut_id: str
     display_name: str
     role: str
+    role_code: Literal["crew_member", "crew_medical_officer", "flight_surgeon", "ground_support"] = Field(
+        default="crew_member", description="Access role (2.7.0). Closing a monitoring concern and recomputing a "
+                                           "baseline need crew_medical_officer or flight_surgeon.")
     fictional: bool
     mission: Mission
     data_category: DataCategory = "SIMULATED_ASTRONAUT"

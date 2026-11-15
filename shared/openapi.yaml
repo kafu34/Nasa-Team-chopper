@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.6.0
+  version: 2.7.0
 paths:
   /healthz:
     get:
@@ -35,6 +35,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BootstrapOut'
+  /api/v1/demo/scenarios/{scenario_id}:
+    post:
+      tags:
+      - demo
+      summary: Reset, then load an isolated live-demonstration scenario (2.7.0)
+      description: SCN-REASSESSMENT-DUE, SCN-URGENT-DURING-PROCEDURE, SCN-EMERGENCY-DURING-PROCEDURE. The state is built through
+        the normal services; any simulated clock change is listed and audited.
+      operationId: load_scenario_api_v1_demo_scenarios__scenario_id__post
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Scenario Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioLoaded'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/demo/reset:
     post:
       tags:
@@ -268,6 +302,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/astronauts/{astronaut_id}/observations:
+    get:
+      tags:
+      - monitoring
+      summary: Full observation history, newest first (2.7.0)
+      description: 'Filters: type, since, until (ISO 8601 with offset). Paging: limit (1-1000, default 200) and offset. Each
+        item carries its stored detection result and origin.'
+      operationId: get_observations_api_v1_astronauts__astronaut_id__observations_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      - name: type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+      - name: since
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+      - name: until
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Until
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 200
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObservationHistory'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/astronauts/{astronaut_id}/baselines:
     get:
       tags:
@@ -314,7 +425,8 @@ paths:
       - monitoring
       summary: Create a new baseline version (explicit and audited; never automatic)
       description: 409 BASELINE_FROZEN while a monitoring concern for this type is not closed. 422 INSUFFICIENT_BASELINE_DATA
-        when too few valid readings remain. Readings observed while a concern was open are always excluded.
+        when too few valid readings remain. Readings observed while a concern was open are always excluded. Needs role crew_medical_officer
+        or flight_surgeon (403 ROLE_NOT_PERMITTED, 2.7.0).
       operationId: recompute_baseline_api_v1_astronauts__astronaut_id__baselines__type__recompute_post
       parameters:
       - name: astronaut_id
@@ -342,6 +454,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BaselineOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -398,7 +516,8 @@ paths:
       - monitoring
       summary: 'Human review: continue monitoring, or close a concern that is awaiting review'
       description: Closing needs status awaiting_review (409 CONCERN_NOT_READY_FOR_REVIEW otherwise). Closing a concern unfreezes
-        its baseline and never resolves the case. Any registered crew member may review until role-based access is built (PARTIAL).
+        its baseline and never resolves the case. Closing needs role crew_medical_officer or flight_surgeon (403 ROLE_NOT_PERMITTED,
+        2.7.0); continue_monitoring is open to any crew member.
       operationId: review_concern_api_v1_monitoring_concerns__concern_id__review_post
       parameters:
       - name: concern_id
@@ -420,6 +539,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConcernOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -1628,6 +1753,17 @@ components:
         role:
           type: string
           title: Role
+        role_code:
+          type: string
+          enum:
+          - crew_member
+          - crew_medical_officer
+          - flight_surgeon
+          - ground_support
+          title: Role Code
+          description: Access role (2.7.0). Closing a monitoring concern and recomputing a baseline need crew_medical_officer
+            or flight_surgeon.
+          default: crew_member
         fictional:
           type: boolean
           title: Fictional
@@ -5274,6 +5410,125 @@ components:
       - simulated
       - duplicate
       title: ObservationCreated
+    ObservationHistory:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        since:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+        until:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Until
+        total:
+          type: integer
+          title: Total
+        limit:
+          type: integer
+          title: Limit
+        offset:
+          type: integer
+          title: Offset
+        items:
+          items:
+            $ref: '#/components/schemas/ObservationHistoryItem'
+          type: array
+          title: Items
+          description: Newest first.
+      type: object
+      required:
+      - astronaut_id
+      - type
+      - since
+      - until
+      - total
+      - limit
+      - offset
+      - items
+      title: ObservationHistory
+    ObservationHistoryItem:
+      properties:
+        observation_id:
+          type: string
+          title: Observation Id
+        type:
+          type: string
+          title: Type
+        value:
+          type: number
+          title: Value
+        unit:
+          type: string
+          title: Unit
+        observed_at:
+          type: string
+          format: date-time
+          title: Observed At
+        recorded_at:
+          type: string
+          format: date-time
+          title: Recorded At
+        source:
+          type: string
+          title: Source
+        quality:
+          type: string
+          title: Quality
+        origin:
+          type: string
+          enum:
+          - baseline_history
+          - seed_fixture
+          - ingested
+          - procedure_measurement
+          title: Origin
+          description: 'baseline_history: fictional seed history; seed_fixture: demo fixture reading; ingested: POST /observations
+            or batch; procedure_measurement: from a recorded assessment.'
+        measurement_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Measurement Id
+        detection:
+          anyOf:
+          - $ref: '#/components/schemas/DetectionResult'
+          - type: 'null'
+          description: Null for readings that were never evaluated (history, fixture and procedure readings).
+        in_active_baseline:
+          type: boolean
+          title: In Active Baseline
+        data_category:
+          type: string
+          const: SIMULATED_ASTRONAUT
+          title: Data Category
+          default: SIMULATED_ASTRONAUT
+      type: object
+      required:
+      - observation_id
+      - type
+      - value
+      - unit
+      - observed_at
+      - recorded_at
+      - source
+      - quality
+      - origin
+      - measurement_id
+      - detection
+      - in_active_baseline
+      title: ObservationHistoryItem
     ObservationOut:
       properties:
         observation_id:
@@ -6215,6 +6470,57 @@ components:
       - kind
       - point
       title: RouteNodeOut
+    ScenarioLoaded:
+      properties:
+        scenario_id:
+          type: string
+          title: Scenario Id
+        description:
+          type: string
+          title: Description
+        reset_first:
+          type: boolean
+          title: Reset First
+        case_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Case Id
+        session_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Session Id
+        concern_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Concern Id
+        emergency_case_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Emergency Case Id
+        simulated_clock_changes:
+          items:
+            type: string
+          type: array
+          title: Simulated Clock Changes
+        note:
+          type: string
+          title: Note
+          default: Fictional demonstration scenario built through the normal services after a demo reset.
+      type: object
+      required:
+      - scenario_id
+      - description
+      - reset_first
+      - case_id
+      - session_id
+      - concern_id
+      - emergency_case_id
+      - simulated_clock_changes
+      title: ScenarioLoaded
     ScheduledAssessmentOut:
       properties:
         assessment_id:

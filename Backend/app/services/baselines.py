@@ -129,9 +129,10 @@ def create_version(db: Session, fx: dict, astronaut_id: str, type_: str, actor: 
 def recompute(db: Session, fx: dict, astronaut_id: str, type_: str, actor_id: str, reason: str) -> m.HealthBaseline:
     if db.get(m.Astronaut, astronaut_id) is None:
         raise not_found("Astronaut", astronaut_id)
-    if db.get(m.Astronaut, actor_id) is None:
-        raise not_found("Astronaut", actor_id)
     type_config(fx, type_)
+    from . import access
+
+    access.require(db, fx, actor_id, "baseline.recompute", "health_baseline", f"{astronaut_id}/{type_}")
     concern = freezing_concern(db, astronaut_id, type_)
     if concern is not None:
         raise ApiError(409, "BASELINE_FROZEN",

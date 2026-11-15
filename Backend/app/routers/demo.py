@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models as m
 from ..config import CONTRACT_VERSION, RULESET_VERSION
 from ..db import get_db, utcnow
+from ..schemas.common import error_responses
 from ..schemas.cases import ObservationOut
 from ..schemas.demo import (AnchorOut, AstronautOut, BootstrapOut, ConnectionOut, DemoInputs, EquipmentOut, HabitatOut,
                             HealthOut, Mission, ProcedureSummary, RegionOut, ResetOut, ScheduledAssessmentOut, ZoneOut)
@@ -14,14 +15,17 @@ from ..seed import reset_demo
 from ..services import cases as case_svc
 from ..services import datasets as ds
 from ..services import observations as obs_svc
-from ..services import surface_sites
+from ..services import access, surface_sites
+from ..services import demo_scenarios
+from ..schemas.monitoring import ScenarioLoaded
 from ..services.monitoring import detection_ruleset_out
 
 router = APIRouter()
 
 
-def astronaut_out(a: m.Astronaut) -> AstronautOut:
-    return AstronautOut(astronaut_id=a.astronaut_id, display_name=a.display_name, role=a.role, fictional=a.fictional,
+def astronaut_out(a: m.Astronaut, fx: dict | None = None) -> AstronautOut:
+    return AstronautOut(astronaut_id=a.astronaut_id, display_name=a.display_name, role=a.role,
+                        role_code=access.role_code(fx or {}, a.astronaut_id), fictional=a.fictional,
                         mission=Mission(mission_id=a.mission_id, mission_name=a.mission_name,
                                         habitat_id=a.habitat_id, mission_day=a.mission_day))
 
@@ -63,8 +67,8 @@ def bootstrap(request: Request, db: Session = Depends(get_db)) -> BootstrapOut:
         ruleset_version=RULESET_VERSION,
         server_time=now,
         disclaimer=fx["disclaimer"],
-        astronaut=astronaut_out(astro),
-        responder=astronaut_out(responder),
+        astronaut=astronaut_out(astro, fx),
+        responder=astronaut_out(responder, fx),
         habitat=HabitatOut(habitat_id=hab.habitat_id, name=hab.name, map_version=hab.map_version,
                            zones=[ZoneOut.model_validate(z) for z in zones],
                            connections=[ConnectionOut.model_validate(c) for c in conns]),
@@ -99,6 +103,15 @@ def bootstrap(request: Request, db: Session = Depends(get_db)) -> BootstrapOut:
         ),
         research_datasets=[ds.summary(db, settings, d) for d in ds.CANONICAL_IDS],
     )
+
+
+@router.post("/api/v1/demo/scenarios/{scenario_id}", response_model=ScenarioLoaded, tags=["demo"],
+             responses=error_responses(404),
+             summary="Reset, then load an isolated live-demonstration scenario (2.7.0)",
+             description="SCN-REASSESSMENT-DUE, SCN-URGENT-DURING-PROCEDURE, SCN-EMERGENCY-DURING-PROCEDURE. The state "
+                         "is built through the normal services; any simulated clock change is listed and audited.")
+def load_scenario(scenario_id: str, request: Request, db: Session = Depends(get_db)) -> ScenarioLoaded:
+    return ScenarioLoaded(**demo_scenarios.load(db, request.app.state.fixture, scenario_id))
 
 
 @router.post("/api/v1/demo/reset", response_model=ResetOut, tags=["demo"],
