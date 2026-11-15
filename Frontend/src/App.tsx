@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { api, DATASET_IDS, DEMO, display, type ApiObject, type BootstrapOut, type CaseOut, type CaseSummary, type LocationEstimate, type LocationLatest, type HabitatMap as HabitatMapData, type EquipmentRecommendation, type ProcedureOut, type SessionOut, type MeasurementResult, type EmergencyOut, type DatasetSummary, type DatasetDetail, type ResearchRecord, type ResearchRecordsPage, type TimeseriesPage } from './api'
+import { api, DATASET_IDS, DEMO, display, type ApiObject, type BootstrapOut, type CaseOut, type CaseSummary, type DemoScenario, type LocationEstimate, type LocationLatest, type HabitatMap as HabitatMapData, type EquipmentRecommendation, type ProcedureOut, type SessionOut, type MeasurementResult, type EmergencyOut, type DatasetSummary, type DatasetDetail, type ResearchRecord, type ResearchRecordsPage, type TimeseriesPage } from './api'
 import { HabitatMap } from './HabitatMap'
 import { HabitatOperations } from './HabitatOperations'
 import { Monitoring } from './Monitoring'
@@ -69,6 +69,12 @@ export function App() {
     try { const data = await api.case(id); setCaseData(data); setCaseError(null); return data }
     catch (error) { setCaseError(error instanceof Error ? error.message : 'Could not load case.'); return null }
   }, [])
+  async function scenarioLoaded(result: DemoScenario) {
+    setCaseId(null); setCaseData(null); setLocation(null); setEquipment(null); setProcedure(null); setSession(null); setMeasurement(null); setEmergency(null)
+    await loadBootstrap()
+    if (result.case_id) { setCaseId(result.case_id); await refreshCase(result.case_id) }
+    if (result.session_id) setSession(await api.getSession(result.session_id))
+  }
   useEffect(() => { void loadBootstrap() }, [loadBootstrap])
   useEffect(() => { if (caseId) void refreshCase(caseId) }, [caseId, refreshCase])
 
@@ -94,7 +100,7 @@ export function App() {
       <main>
         <Routes>
           <Route path="/" element={<Dashboard bootstrap={bootstrap} error={bootstrapError} currentCase={currentCase} alerts={bodyAlerts} savedPoints={savedPoints} animateAlerts={animateAlerts} onOpenBody={openBody} onRetry={loadBootstrap} />} />
-          <Route path="/monitoring" element={<Monitoring onCaseOpened={id => { setCaseId(id); void refreshCase(id); navigate('/case') }} onCaseDetected={id => { setCaseId(id); void refreshCase(id) }} />} />
+          <Route path="/monitoring" element={<Monitoring bootstrap={bootstrap} onCaseOpened={id => { setCaseId(id); void refreshCase(id); navigate('/case') }} onCaseDetected={id => { setCaseId(id); void refreshCase(id) }} onScenarioLoaded={scenarioLoaded} />} />
           <Route path="/body" element={<Anatomy initialSelection={focusedRegion} alerts={bodyAlerts} savedPoints={savedPoints} animateAlerts={animateAlerts} onCase={id => { setCaseId(id); void refreshCase(id) }} />} />
           <Route path="/spatial" element={<Spatial bootstrap={bootstrap} caseId={caseId} location={location} equipment={equipment} onLocation={setLocation} onEquipment={setEquipment} />} />
           <Route path="/procedure" element={<Suspense fallback={<p className="muted">Loading procedure coach…</p>}><ProcedureCoach caseId={caseId} equipment={equipment} procedure={procedure} session={session} measurement={measurement} onProcedure={setProcedure} onSession={setSession} onMeasurement={setMeasurement} onCaseRefresh={refreshCase} /></Suspense>} />

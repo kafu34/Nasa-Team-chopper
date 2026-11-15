@@ -1,0 +1,13 @@
+.monitoring-scenarios,.monitoring-actor{margin:20px 0}
+.monitoring-scenarios .form-label,.monitoring-actor .form-label,.observation-history .form-label{max-width:480px}
+.scenario-confirm,.scenario-result{margin-top:16px;padding:16px;border:1px solid #4c8190;background:#193447;border-radius:10px}
+.scenario-confirm p,.scenario-result p{line-height:1.5}
+.scenario-result .button{margin-top:8px}
+.history-chart{margin:16px 0;padding:12px;background:#172e40;border-radius:10px}
+.history-chart svg{display:block;width:100%;max-height:260px;overflow:visible}
+.history-chart text{fill:#b9cdd7;font-size:11px}
+.history-baseline{stroke:#e9b66c;stroke-width:2;stroke-dasharray:6 5}
+.observation-history table{min-width:690px}
+.observation-history td,.observation-history th{white-space:nowrap}
+.history-source{display:block;color:#a7bac9;font-size:.7rem;margin-top:3px}
+.observation-history .button{margin-top:14px}
