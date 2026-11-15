@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.11.0)
+# SENTINEL AI Backend API (v2.11.1)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -68,7 +68,7 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
 
 ### Communications, environment, recovery *(2.10.0)*
 - `POST /api/v1/comms/messages`, `GET /api/v1/comms/messages`, `GET /api/v1/comms/messages/{id}`,
-  `POST /api/v1/comms/messages/{id}/acknowledge` (409 `NOT_DELIVERED`), `GET|POST /api/v1/comms/link`.
+  `POST /api/v1/comms/messages/{id}/acknowledge` (409 `NOT_DELIVERED`; *2.11.1* `to_ground` only by the flight surgeon), `GET|POST /api/v1/comms/link`.
 - `GET /api/v1/environment/context` → attributed RadLab readings; `health_relationship: none_inferred`.
 - `GET /api/v1/system/recovery` → items to restore after reconnecting, plus the loss-of-server behaviour.
 

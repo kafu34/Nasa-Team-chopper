@@ -3,6 +3,33 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Fix: duplicate-reminder race (no contract change), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **357 passed, 0 failed, 0 skipped** (adds `test_overlapping_requests_cannot_create_a_duplicate_reminder`) |
+| Parallel HTTP check (isolated server) | 100 overlapping `/reminders` and `/assessments` requests over 5 fresh resets: all 200, no 500 in the server log, exactly 3 reminders |
+| Frontend (Codex's staged work, checked by Claude while Codex was down) | Vitest 46/46, `tsc` clean, build OK, live integration passed, 11 screens loaded in a browser |
+
+Found in that browser run: the screen requests assessments and reminders at the same moment. Both created the same
+reminder ("check, then insert"), and the second hit the unique key and returned 500. Reminders are now created with one
+atomic `INSERT … ON CONFLICT DO NOTHING`, and only the request that created the row logs it. The regression test forces
+the exact interleaving: without the fix it raises `IntegrityError`; with it, the request succeeds and one reminder
+exists.
+
+## Contract 2.11.1 (fix: medical-message acknowledgement role), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **356 passed, 0 failed, 0 skipped** (adds `test_only_the_flight_surgeon_acknowledges_medical_messages_to_the_ground`) |
+| `scripts/export_openapi.py` | regenerated (52 paths, version 2.11.1) |
+| `scripts/http_smoke.py` | **47/47** |
+
+The new test checks that ground support is refused (403, the message still `delivered`) on both an urgent emergency
+escalation and a routine message, that the flight surgeon can acknowledge, and that the published matrix shows the
+rule. The defect was found by Codex's live browser check, not by the earlier backend tests: those only ever
+acknowledged as the flight surgeon.
+
 ## Contract 2.11.0 (inventory and controlled closure, plan steps 41–43), run 2026-11-15
 
 | Suite | Result |

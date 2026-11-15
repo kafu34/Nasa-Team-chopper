@@ -30,7 +30,8 @@ PERMISSIONS: dict[str, tuple[set[str], bool, str]] = {
     "observations.read_history": (CLINICAL, True, "Read observation history and monitoring (viewer_id)."),
     "comms.send_to_ground": (CREW, False, "Queue a medical message to the ground."),
     "comms.send_to_crew": (GROUND, False, "Queue a message to the crew."),
-    "comms.acknowledge_to_ground": (GROUND, False, "Acknowledge a delivered message sent to the ground."),
+    "comms.acknowledge_to_ground": ({"flight_surgeon"}, False, "Acknowledge a delivered medical message sent to "
+                                   "the ground; only its addressee, the flight surgeon (2.11.1)."),
     "comms.acknowledge_to_crew": (CREW, False, "Acknowledge a delivered message sent to the crew."),
     "comms.link": (CREW | GROUND, False, "Simulate loss or restoration of the communication link."),
     "inventory.update": (CREW, False, "Update a device's readiness, supplies or location (2.11.0)."),

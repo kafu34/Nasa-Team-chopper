@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.11.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.11.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.11.1**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.11.1; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,7 +201,7 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **355 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+See `docs/TEST_REPORT.md`. Latest: **357 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
 `anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **47/47** real-HTTP checks against
 uvicorn.
 
@@ -222,6 +222,18 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.11.1 — fix: only the flight surgeon acknowledges medical messages to the ground
+
+Behaviour change (a fix), found in Codex's live browser check of 2.11.0.
+- **Before:** any ground role could acknowledge a `to_ground` message, so ground support could mark an urgent
+  emergency escalation as received even though the flight surgeon it is addressed to never saw it.
+- **Now:** `comms.acknowledge_to_ground` allows only `flight_surgeon`. Ground support gets 403
+  `ROLE_NOT_PERMITTED` with `allowed_roles: ["flight_surgeon"]`, the message stays `delivered`, and the refusal
+  is audited.
+- `to_crew` acknowledgement is unchanged (either crew role).
+- **Codex:** hide or disable **Acknowledge** on `to_ground` messages unless the actor is the flight surgeon
+  (`GET /access/roles` publishes the rule).
 
 ### Contract 2.11.0 — inventory updates and controlled case closure (plan steps 41–43)
 

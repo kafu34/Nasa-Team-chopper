@@ -1,7 +1,7 @@
 # SENTINEL AI — Backend acceptance record (v3.1 §8 and §12)
 
-Owner: Claude (backend). Contract **2.11.0**. Recorded 2026-11-15 after plan step 43 (Review 4 followed step 40).
-The tests were run, and their results are in `docs/TEST_REPORT.md` (355 passed, 0 failed; HTTP smoke 47/47).
+Owner: Claude (backend). Contract **2.11.1**. Recorded 2026-11-15 after plan step 43 (Review 4 followed step 40).
+The tests were run, and their results are in `docs/TEST_REPORT.md` (356 passed, 0 failed; HTTP smoke 47/47).
 
 **Status** uses the v3.1 words: COMPLETE, PARTIAL, BLOCKED, NOT STARTED. It covers **only the backend part**.
 
@@ -24,7 +24,7 @@ A subsystem is complete for the whole product only when Codex's visual and integ
 | Follow-up | COMPLETE | Simulated and tested | scheduling, due, reassessment with evidence, acknowledgement, controlled closure with blockers and audited cancellation (`test_d`, `test_v`, `test_za`) | — |
 | Environmental intelligence | PARTIAL | Real data (RadLab) | attributed RadLab context, no health inference (`test_z`) | NASA-EDA BLOCKED (no source file or importer) |
 | Offline operation | COMPLETE (backend) | Simulated and tested | local SQLite only, restart mid-session, mid-outage and mid-transmission, idempotent resend, `/system/recovery` (`test_z`) | Client-side offline behaviour is Codex's |
-| Medical communications | COMPLETE | Simulated and tested | durable queue, simulated delay and outage, urgent first, receiver-only acknowledgement, emergency escalation (`test_z`) | Simulated link; no real ground system |
+| Medical communications | COMPLETE | Simulated and tested | durable queue, simulated delay and outage, urgent first, addressee-only acknowledgement (flight surgeon for ground messages, 2.11.1), emergency escalation (`test_z`) | Simulated link; no real ground system |
 | Safety and privacy | PARTIAL | Simulated and tested | role matrix, audited denials, viewer-checked sensitive reads, audit trail, protocol versions (`test_w`, `test_y`) | **No authentication**: identities are self-declared. Reads without `viewer_id` stay open for the demo |
 | Anatomical Twin (backend) | COMPLETE (backend) | Simulated and tested | model registry, mesh attachment validation, marker migration status (`test_m`, `test_n`, `test_q`) | Exact surface contact cannot be proven by the backend |
 | Procedure Coach (backend) | COMPLETE (backend) | Simulated and tested | session state, visual events, device binding, measurement integration (`test_r`, `test_x`) | The registry check covers only PROC-BP-01 until Codex adds the PO and TEMP actions |

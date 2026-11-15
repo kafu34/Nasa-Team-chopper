@@ -30,7 +30,7 @@ No Docker, PostgreSQL, Redis, cloud service, paid API or internet dependency.
 Backend/
   app/
     main.py            app factory, startup (create tables, seed, auto-import), CORS
-    config.py          settings, CONTRACT_VERSION 2.11.0, RULESET_VERSION RULESET-P0-1.0
+    config.py          settings, CONTRACT_VERSION 2.11.1, RULESET_VERSION RULESET-P0-1.0
     db.py              engine, sessions, UTC datetime column
     errors.py          error envelope and handlers
     models.py          SQLite models (synthetic tables + research tables)

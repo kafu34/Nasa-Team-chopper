@@ -306,6 +306,7 @@ Detailed sub-steps for steps 35–40 (planned 2026-11-15):
 | 35–36 | done 2026-11-15: contract 2.9.0 screening and role matrix |
 | 37–40 | done 2026-11-15: contract 2.10.0 comms queue, environment context, recovery; 346 passed; smoke 45/45 |
 | 41–43 | done 2026-11-15: contract 2.11.0 inventory updates and controlled closure; 355 passed; smoke 47/47 |
+| 2.11.1 fix | done 2026-11-15: only the flight surgeon acknowledges medical messages to the ground; 356 passed |
 | Milestone 8 | NOT STARTED: out of scope by owner decision |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
