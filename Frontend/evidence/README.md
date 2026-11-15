@@ -70,3 +70,18 @@ The next software-only browser run used Vite at `127.0.0.1:5178` against an isol
 | Emergency response with queued ground message ID | [emergency-comms-link-2.10.png](emergency-comms-link-2.10.png) |
 | Attributed RadLab context and visible emergency entry | [environment-context-2.10.png](environment-context-2.10.png) |
 | Narrow-screen environmental caution | [environment-mobile-2.10.png](environment-mobile-2.10.png) |
+
+## Contract 2.11.0 — device status and controlled case closure
+
+An isolated 2.11.0 backend and disposable database supplied the device inventory. The browser displayed authoritative `usable` values and reasons, including an unknown BP monitor and another missing its cuff. A routine BP screening opened case `CASE-A9340887E1`; after Medical Bay confirmation, the backend recommended `EQ-BP-01` with route `REC-30FE377697`. Marking that device `needs_service` returned the recommendation ID as invalidated. The frontend removed the cached selected device and route; the active procedure session was not claimed cancelled. A resolution request on that in-progress case returned all three backend blockers: session in progress, assessment requested and state not resolvable. The case remained open.
+
+After a demo reset, a separate fictional emergency opened `CASE-6778E1C1BE`. A crew acknowledgement left it escalated. The crew medical officer then resolved it; the backend kept urgent priority but set `attention.interrupt` to false and returned a warning about unacknowledged ground message `MSG-E6A6DBC538`. The frontend displayed that warning, removed the active urgent treatment of the resolved case, and retained the resolved case ID in the page URL. Reloading that URL restored the resolved record. The narrow-screen result remained readable. These IDs refer only to the disposable scenario. Follow-up cancellation was verified in a focused frontend test and backend tests; this browser run had no outstanding follow-up to cancel.
+
+| Screen / check | Screenshot |
+|---|---|
+| Authoritative device usability and unavailable reasons | [inventory-overview-2.11.png](inventory-overview-2.11.png) |
+| BP device and backend route before status change | [inventory-route-before-2.11.png](inventory-route-before-2.11.png) |
+| Cached route removed after device invalidation | [inventory-invalidation-2.11.png](inventory-invalidation-2.11.png) |
+| All backend case-resolution blockers | [case-resolution-blockers-2.11.png](case-resolution-blockers-2.11.png) |
+| Resolved case and unacknowledged urgent message warning | [case-resolution-success-2.11.png](case-resolution-success-2.11.png) |
+| Narrow-screen resolved case | [case-resolution-mobile-2.11.png](case-resolution-mobile-2.11.png) |

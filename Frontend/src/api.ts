@@ -1,4 +1,4 @@
-/** Client models maintained against shared/openapi.yaml v2.10.0. */
+/** Client models maintained against shared/openapi.yaml v2.11.0. */
 export const DEMO = { astronautId: 'DEMO-001', responderId: 'DEMO-002', habitatId: 'HAB-01', procedureId: 'PROC-BP-01', datasetId: 'OSD-575' } as const
 export const DATASET_IDS = ['OSD-575', 'OSD-656', 'NASA-EDA', 'NASA-RADLAB', 'OSD-195', 'OSD-546', 'OSD-654', 'OSD-684', 'OSD-573', 'OSD-817'] as const
 export type DatasetAvailability = 'NOT_DOWNLOADED' | 'READY_TO_IMPORT' | 'IMPORTED' | 'IMPORT_FAILED' | 'UNSUPPORTED_FORMAT'
@@ -12,7 +12,10 @@ export type SurfacePoint = { model_id: string; model_version?: string; site_id: 
 export type SurfacePointOut = Omit<SurfacePoint, 'mesh_id' | 'mesh_local_point' | 'attachment'> & { model_version: string; site_label: string; mesh_validation: 'not_supplied' | 'not_declared_by_model' | 'validated'; mesh_id?: string | null; mesh_local_point?: { x: number; y: number; z: number } | null; attachment?: { triangle_index: number; barycentric: [number, number, number] } | null; marker_status: 'current' | 'model_version_changed' | 'model_version_incompatible' | 'model_retired' | 'model_unknown'; render_hint: 'exact_point' | 'site_only' | 'not_renderable' }
 export type SymptomOut = { symptom_id: string; region_id: string; laterality: string; severity: number; onset: string; reported_at: string; note: string | null; surface_point?: SurfacePointOut | null }
 export type FollowUpOut = { follow_up_id: string; title: string; due_at: string; status: string; interrupt: boolean; concern_id?: string | null; completed_at?: string | null; completion_evidence_id?: string | null }
-export type CaseOut = CaseSummary & { follow_up_status: string; follow_ups: FollowUpOut[]; symptoms: SymptomOut[]; measurements: ApiObject[]; monitoring_concern_ids?: string[]; evidence?: { type: string; id: string; summary: string; recorded_at: string }[]; requested_assessment?: { capability: string; procedure_id: string; status: string; configured_reason: string } | null; priority_protection?: { urgent_since: string | null; reason: string | null; urgent_instruction: string | null; automatic_downgrade_allowed: false; note: string } | null }
+export type CaseOut = CaseSummary & { follow_up_status: string; follow_ups: FollowUpOut[]; symptoms: SymptomOut[]; measurements: ApiObject[]; monitoring_concern_ids?: string[]; evidence?: { type: string; id: string; summary: string; recorded_at: string }[]; requested_assessment?: { capability: string; procedure_id: string; status: string; configured_reason: string } | null; priority_protection?: { urgent_since: string | null; reason: string | null; urgent_instruction: string | null; automatic_downgrade_allowed: false; note: string } | null; acknowledged_at?: string | null; acknowledged_by?: string | null; resolved_at?: string | null; resolved_by?: string | null; resolution_note?: string | null; session_ids?: string[]; attention?: { interrupt: boolean; [key: string]: unknown } }
+export type EquipmentStatus = { equipment_id: string; device_model: string; capability: string; zone_id: string; readiness: string; readiness_verified_at: string | null; supplies: Record<string, boolean>; required_supplies: string[]; compatible_procedure_ids: string[]; status_updated_at: string; usable: boolean; unusable_reasons: string[]; data_category: 'SIMULATED_ENVIRONMENT_OR_DEVICE' }
+export type EquipmentUpdateOut = { equipment: EquipmentStatus; changed: boolean; before: ApiObject; invalidated_recommendation_ids: string[]; affected_session_ids: string[] }
+export type CaseResolveOut = { case: CaseOut; cancelled_follow_up_ids: string[]; warnings: string[] }
 export type ScheduledAssessment = { assessment_id: string; astronaut_id: string; title: string; capability: string; procedure_id: string; due_at: string; status: 'scheduled' | 'completed'; is_due: boolean; reason: string; case_id: string | null; completed_at: string | null; due_state: 'upcoming' | 'due' | 'overdue' | 'completed'; overdue_at: string | null; interval_hours: number | null; grace_hours: number | null; series_id: string | null; sequence: number | null; symptom_linked: boolean; completed_by_measurement_id: string | null }
 export type AssessmentList = { astronaut_id: string; assessments: ScheduledAssessment[]; note: string }
 export type ReminderOut = { reminder_id: string; assessment_id: string; astronaut_id: string; kind: 'due' | 'overdue'; status: 'open' | 'acknowledged' | 'closed_by_completion'; created_at: string; acknowledged_at: string | null; acknowledged_by: string | null; closed_at: string | null; note: string }
@@ -75,7 +78,7 @@ export type CommsList = { messages: CommsMessage[]; link_state: 'up' | 'down'; o
 export type LinkOut = { link_id: string; state: 'up' | 'down'; changed_at: string; changed_by: string; reason: string; outage_count: number; one_way_delay_seconds: number; transmit_seconds: number; simulated: true }
 export type EnvironmentContext = { astronaut_id: string | null; radiation: { dataset_id: string; status: string; title: string; source_url: string | null; location: string; is_habitat_reading: false; is_personal_dose: false; latest_readings: { instrument_id: string; instrument_family: string | null; spacecraft: string | null; module: string | null; metric: string; value: number; value_raw: string; unit: string; timestamp: string; source_file: string; source_row_number: number }[]; limitations: string[] }; atmosphere: { dataset_id: string; status: string; note: string }; health_relationship: 'none_inferred'; caution: string; data_category: 'NASA_RESEARCH' }
 
-export class ApiError extends Error { constructor(message: string, readonly status: number) { super(message) } }
+export class ApiError extends Error { constructor(message: string, readonly status: number, readonly code?: string, readonly details?: unknown) { super(message) } }
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try { response = await fetch(path, { ...init, headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers } }) }
@@ -86,7 +89,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const envelope = asObject(value)
     const error = asObject(envelope?.error)
-    throw new ApiError(typeof error?.message === 'string' ? error.message : `Backend request failed (${response.status}).`, response.status)
+    throw new ApiError(typeof error?.message === 'string' ? error.message : `Backend request failed (${response.status}).`, response.status, typeof error?.code === 'string' ? error.code : undefined, error?.details)
   }
   if (!asObject(value) && !Array.isArray(value)) throw new ApiError('Backend returned an unexpected response.', response.status)
   return value as T
@@ -107,6 +110,10 @@ export const api = {
   commsLink: () => request<LinkOut>('/api/v1/comms/link'),
   changeCommsLink: (state: 'up' | 'down', reason: string, actorId: string = DEMO.responderId) => post<LinkOut>('/api/v1/comms/link', { state, reason, actor_id: actorId }),
   environmentContext: (astronautId: string = DEMO.astronautId) => request<EnvironmentContext>(`/api/v1/environment/context?${new URLSearchParams({ astronaut_id: astronautId })}`),
+  equipmentInventory: () => request<EquipmentStatus[]>('/api/v1/equipment'),
+  updateEquipment: (id: string, data: { actor_id: string; note: string; readiness?: 'verified_ready' | 'unknown' | 'needs_service' | 'in_use'; supplies?: Record<string, boolean>; zone_id?: string }) => post<EquipmentUpdateOut>(`/api/v1/equipment/${encodeURIComponent(id)}/status`, data),
+  acknowledgeCase: (id: string, actorId: string) => post<CaseOut>(`/api/v1/cases/${encodeURIComponent(id)}/acknowledge`, { actor_id: actorId }),
+  resolveCase: (id: string, actorId: string, note: string, closeOutstandingFollowUps: boolean) => post<CaseResolveOut>(`/api/v1/cases/${encodeURIComponent(id)}/resolve`, { actor_id: actorId, note, close_outstanding_follow_ups: closeOutstandingFollowUps }),
   reset: () => post<ApiObject>('/api/v1/demo/reset'),
   symptom: (data: { astronaut_id: string; region_id: string; laterality: string; severity: number; onset: string; note?: string; surface_point?: SurfacePoint }) => post<SymptomCreated>('/api/v1/symptoms', data),
   case: (id: string) => request<CaseOut>(`/api/v1/cases/${encodeURIComponent(id)}`),
