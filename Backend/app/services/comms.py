@@ -17,6 +17,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import models as m
@@ -36,10 +38,11 @@ def config(fx: dict) -> dict:
 def link(db: Session) -> m.CommsLink:
     row = db.get(m.CommsLink, LINK_ID)
     if row is None:
-        row = m.CommsLink(link_id=LINK_ID, state="up", changed_at=utcnow() - timedelta(days=1), changed_by="system",
-                          reason="Initial state")
-        db.add(row)
-        db.flush()
+        # Atomic: two first requests at once (e.g. the screen and a recovery check) must not both insert (500).
+        db.execute(sqlite_insert(m.CommsLink).values(
+            link_id=LINK_ID, state="up", changed_at=utcnow() - timedelta(days=1), changed_by="system",
+            reason="Initial state", outage_count=0).on_conflict_do_nothing())
+        row = db.get(m.CommsLink, LINK_ID)
     return row
 
 
@@ -102,7 +105,16 @@ def send(db: Session, fx: dict, sender_id: str, direction: str, priority: str, s
                          recipient_role="flight_surgeon" if direction == "to_ground" else "crew", case_id=case_id,
                          subject=subject, body=body, status="queued", created_at=now)
     db.add(msg)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        # The same client_message_id arrived twice at once (a resend while the first was still in flight):
+        # answer with the first message instead of a 500 (rule C-1).
+        db.rollback()
+        dup = db.scalars(select(m.CommsMessage).where(m.CommsMessage.client_message_id == client_message_id)).first()
+        if dup is None:
+            raise
+        return dup, True
     audit(db, sender_id, "comms.queued", "comms_message", msg.message_id, case_id, direction=direction,
           priority=priority, link_state=link(db).state)
     advance(db, fx, now)

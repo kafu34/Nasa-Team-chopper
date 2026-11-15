@@ -3,6 +3,24 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Fix: three more insert races (no contract change), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **360 passed, 0 failed, 0 skipped** (adds `test_zb_concurrent_inserts.py`: 3 tests that fail without the fix and pass with it) |
+| `scripts/export_openapi.py --check` | matches (no contract change) |
+| `scripts/http_smoke.py` | **47/47** |
+
+A live browser check of the frontend found a second 500: `GET /system/recovery` and the screen's first comms request
+both created the comms link row (`UNIQUE constraint failed: comms_links.link_id`). It has the same root cause as the
+reminder bug: check, then insert, with no protection against a second request in between. Two more places had the
+same pattern on a unique key and are fixed the same way:
+- the message resend key (`client_message_id`);
+- the step-event key (`client_event_id`).
+
+Two identical requests in flight at once now get the first record back (`duplicate: true`), as a sequential repeat
+already did. The link row is created with one atomic insert.
+
 ## Fix: duplicate-reminder race (no contract change), run 2026-11-15
 
 | Suite | Result |

@@ -201,7 +201,7 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **357 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+See `docs/TEST_REPORT.md`. Latest: **360 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
 `anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **47/47** real-HTTP checks against
 uvicorn.
 
