@@ -187,6 +187,51 @@ class DetectionRulesetOut(BaseModel):
     rules: list[DetectionRuleOut]
 
 
+ObservationOrigin = Literal["baseline_history", "seed_fixture", "ingested", "procedure_measurement"]
+
+
+class ObservationHistoryItem(BaseModel):
+    observation_id: str
+    type: str
+    value: float
+    unit: str
+    observed_at: datetime
+    recorded_at: datetime
+    source: str
+    quality: str
+    origin: ObservationOrigin = Field(description="baseline_history: fictional seed history; seed_fixture: demo "
+                                                  "fixture reading; ingested: POST /observations or batch; "
+                                                  "procedure_measurement: from a recorded assessment.")
+    measurement_id: Optional[str]
+    detection: Optional[DetectionResult] = Field(description="Null for readings that were never evaluated "
+                                                             "(history, fixture and procedure readings).")
+    in_active_baseline: bool
+    data_category: Literal["SIMULATED_ASTRONAUT"] = "SIMULATED_ASTRONAUT"
+
+
+class ObservationHistory(BaseModel):
+    astronaut_id: str
+    type: Optional[str]
+    since: Optional[datetime]
+    until: Optional[datetime]
+    total: int
+    limit: int
+    offset: int
+    items: list[ObservationHistoryItem] = Field(description="Newest first.")
+
+
+class ScenarioLoaded(BaseModel):
+    scenario_id: str
+    description: str
+    reset_first: bool
+    case_id: Optional[str]
+    session_id: Optional[str]
+    concern_id: Optional[str]
+    emergency_case_id: Optional[str]
+    simulated_clock_changes: list[str]
+    note: str = "Fictional demonstration scenario built through the normal services after a demo reset."
+
+
 class PriorityProtection(BaseModel):
     urgent_since: Optional[datetime]
     reason: Optional[str]

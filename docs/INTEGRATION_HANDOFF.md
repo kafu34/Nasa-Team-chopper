@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.6.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.6.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.7.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.7.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,8 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **288 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **33/33** real-HTTP checks against
+See `docs/TEST_REPORT.md`. Latest: **299 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **38/38** real-HTTP checks against
 uvicorn.
 
 ## 10. Known contract deviations and coordination notes
@@ -222,6 +222,34 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.7.0 — follow-up to Codex's 2.6.0 review
+
+1. **Observation history.** New `GET /astronauts/{id}/observations?type=&since=&until=&limit=&offset=`.
+   - Newest first; `limit` is 1–1000 (default 200). The response is `{total, limit, offset, items[]}`.
+   - Each item has the reading plus `origin`, `measurement_id`, `detection` and `in_active_baseline`.
+     - `origin` is one of `baseline_history`, `seed_fixture`, `ingested` or `procedure_measurement`.
+     - `detection` is the stored DET-1.0 result. It is null for readings that were never evaluated.
+     - `in_active_baseline` is true when the reading is used by the current baseline.
+   - Use it for the individual health history and the baseline-versus-current chart.
+2. **Isolated live scenarios.** New `POST /demo/scenarios/{scenario_id}`. It **resets the demo first**, then
+   builds the state through the normal services. It returns `case_id`, `session_id`, `concern_id`,
+   `emergency_case_id` and `simulated_clock_changes[]`.
+   - `SCN-REASSESSMENT-DUE`: a heart-rate concern is open and its reassessment is due now. This is the one
+     simulated clock change; it is listed and audited. Send one good reading near 66 bpm to see
+     `reassessment_completed`.
+   - `SCN-URGENT-DURING-PROCEDURE`: a routine BP session is at step 3 of 6, and a severity-9 chest symptom makes the
+     same case urgent (`case_priority: urgent`, `attention.interrupt: true`).
+   - `SCN-EMERGENCY-DURING-PROCEDURE`: the same session, plus an emergency case shown in `urgent_events`.
+3. **Role check on concern review** (first part of plan step 36).
+   - Crew members now have a `role_code` (bootstrap `astronaut.role_code` and `responder.role_code`):
+     `crew_member` (DEMO-001) and `crew_medical_officer` (DEMO-002).
+   - Closing a concern and recomputing a baseline need `crew_medical_officer` or `flight_surgeon`; otherwise the
+     response is 403 `ROLE_NOT_PERMITTED`, and the refusal is audited as `access.denied`.
+   - `continue_monitoring` stays open to any crew member. Hide or disable **Close** for other roles.
+   - Other sensitive endpoints are not role-checked yet (step 36).
+4. **Note on Codex's test run.** pytest is not installed in the Codex worktree. The backend suite runs from
+   `Backend/.venv` in the backend worktree: 299 passed, 0 failed for 2.7.0.
 
 ### Contract 2.6.0 — proactive health intelligence (v3.1 §7, Milestone 5 backend)
 

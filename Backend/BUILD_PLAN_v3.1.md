@@ -196,6 +196,20 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
     - 33.1 Tests `test_u_health_intelligence.py` (A, B, C, baselines) and `test_v_priority_followup.py` (D, E);
       contract export, smoke checks, docs, commit.
 
+**2.7.0 add-on (planned 2026-11-15 after Codex's review of 2.6.0).** Codex asked for three things; none changes
+an earlier rule.
+- 33.2 `GET /astronauts/{id}/observations` returns the full observation history with filters and paging. Each
+  item has its stored `detection`, an `origin` (`baseline_history`, `seed_fixture`, `ingested`,
+  `procedure_measurement`) and `in_active_baseline`.
+- 33.3 `POST /demo/scenarios/{scenario_id}` sets up isolated live-browser scenarios. It resets the demo first,
+  then builds the state through the normal services: `SCN-REASSESSMENT-DUE`, `SCN-URGENT-DURING-PROCEDURE` and
+  `SCN-EMERGENCY-DURING-PROCEDURE`. The only shortcut is moving the reassessment due time, which is audited as a
+  simulated clock change.
+- 36.1 (first part of step 36, brought forward) Fixture `role_code` per crew member (`crew_member`,
+  `crew_medical_officer`). Closing a concern and recomputing a baseline need `crew_medical_officer`; otherwise
+  403 `ROLE_NOT_PERMITTED`, audited. `continue_monitoring` stays open to any crew member. The other sensitive
+  endpoints stay in step 36.
+
 ### Milestones 6–7 (backend part) — expanded and operational capability
 34. PROC-PO-01 (finger pulse oximeter) and PROC-TEMP-01 (non-contact infrared thermometer) definitions with their own visual contract, measurement validation and tests.
 35. Multiple scheduled assessment types with due/overdue state.
@@ -217,7 +231,8 @@ Status words follow v3.1 §12. "Backend" means only Claude's part; no visual fea
 | 23–24 | done 2026-11-15: contract 2.4.0 procedure session state; 238 passed, 1 skipped; smoke 26/26 |
 | 25–28 | done 2026-11-15: contract 2.5.0 habitat operations and movement simulator; 257 passed; smoke 29/29 |
 | 29–33 | done 2026-11-15: contract 2.6.0 proactive health intelligence (scenarios A–E); 288 passed; smoke 33/33 |
-| 34–40 | not started |
+| 2.7.0 add-on | done 2026-11-15: steps 33.2, 33.3, 36.1 (history, live scenarios, review role check); 299 passed; smoke 38/38 |
+| 34–40 | not started (36 partly done: 36.1) |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only

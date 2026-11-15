@@ -129,6 +129,16 @@ def main() -> int:
         frozen = c.post("/api/v1/astronauts/DEMO-001/baselines/heart_rate/recompute",
                         json={"actor_id": "DEMO-002", "reason": "smoke test"})
         check("POST baselines/{type}/recompute (409 frozen expected)", frozen.status_code == 409)
+        hist = c.get("/api/v1/astronauts/DEMO-001/observations", params={"type": "heart_rate", "limit": 5}).json()
+        check("GET /api/v1/astronauts/{id}/observations", hist["total"] >= 12 and len(hist["items"]) == 5,
+              f"total={hist['total']}")
+        role = c.post(f"/api/v1/monitoring-concerns/{opened[0]}/review",
+                      json={"actor_id": "DEMO-001", "decision": "close", "note": "smoke"}) if opened else None
+        check("POST monitoring-concerns/{id}/review by crew member (403 expected)",
+              role is not None and role.status_code == 403)
+        for scn in ("SCN-REASSESSMENT-DUE", "SCN-URGENT-DURING-PROCEDURE", "SCN-EMERGENCY-DURING-PROCEDURE"):
+            sc = c.post(f"/api/v1/demo/scenarios/{scn}")
+            check(f"POST /api/v1/demo/scenarios/{scn}", sc.status_code == 200 and sc.json()["reset_first"])
         cors = c.options("/api/v1/demo/bootstrap", headers={"Origin": "http://127.0.0.1:5173",
                                                             "Access-Control-Request-Method": "GET"})
         check("CORS preflight from 127.0.0.1:5173", cors.headers.get("access-control-allow-origin") == "http://127.0.0.1:5173")
