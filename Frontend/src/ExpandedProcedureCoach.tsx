@@ -7,13 +7,13 @@ import './procedure.css'
 
 const ProcedureVisual = lazy(() => import('./ProcedureVisual').then(module => ({ default: module.ProcedureVisual })))
 type ProcedureId = 'PROC-PO-01' | 'PROC-TEMP-01'
-type Props = { procedureId: ProcedureId; caseId: string | null; equipment: EquipmentRecommendation | null; requestedProcedureId?: string | null; onCaseRefresh: (id: string) => Promise<CaseOut | null> }
+type Props = { procedureId: ProcedureId; caseId: string | null; equipment: EquipmentRecommendation | null; initialSession?: SessionOut | null; requestedProcedureId?: string | null; onCaseRefresh: (id: string) => Promise<CaseOut | null> }
 const storeKey = (caseId: string, procedureId: ProcedureId) => `sentinel:procedure-session:${caseId}:${procedureId}`
 const readStored = (key: string) => { try { return localStorage.getItem(key) } catch { return null } }
 const writeStored = (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* Session still works without local storage. */ } }
 const errorText = (cause: unknown) => cause instanceof Error ? cause.message : 'The local backend could not complete this request.'
 
-export function ExpandedProcedureCoach({ procedureId, caseId, equipment, requestedProcedureId, onCaseRefresh }: Props) {
+export function ExpandedProcedureCoach({ procedureId, caseId, equipment, initialSession, requestedProcedureId, onCaseRefresh }: Props) {
   const [procedure, setProcedure] = useState<ProcedureOut | null>(null)
   const [map, setMap] = useState<HabitatMap | null>(null)
   const [session, setSession] = useState<SessionOut | null>(null)
@@ -39,12 +39,14 @@ export function ExpandedProcedureCoach({ procedureId, caseId, equipment, request
   const valid = pulseOx ? Number.isInteger(Number(spo2)) && Number(spo2) >= 50 && Number(spo2) <= 100 && (pulse === '' || Number.isInteger(Number(pulse)) && Number(pulse) >= 20 && Number(pulse) <= 250) : temperature !== '' && Number.isFinite(Number(temperature)) && Number(temperature) >= 30 && Number(temperature) <= 43
 
   useEffect(() => { void api.procedure(procedureId).then(setProcedure).catch(cause => setError(errorText(cause))); void api.habitatMap(DEMO.habitatId).then(setMap).catch(() => { /* Procedure definition remains available without a map. */ }) }, [procedureId])
+  useEffect(() => { if (caseId && initialSession?.case_id === caseId && initialSession.procedure_id === procedureId) { setSession(initialSession); writeStored(storeKey(caseId, procedureId), initialSession.session_id) } }, [caseId, initialSession, procedureId])
   useEffect(() => {
     if (!caseId) return
+    if (initialSession?.case_id === caseId && initialSession.procedure_id === procedureId) return
     const stored = readStored(storeKey(caseId, procedureId))
     if (!stored) return
     void api.getSession(stored).then(value => { if (value.case_id === caseId && value.procedure_id === procedureId) setSession(value) }).catch(() => { /* A stale local session is ignored. */ })
-  }, [caseId, procedureId])
+  }, [caseId, initialSession, procedureId])
   useEffect(() => { if (session?.current_step_id) setSelectedStep(session.current_step_id); if (session?.mode) setMode(session.mode) }, [session?.current_step_id, session?.mode])
 
   async function run(action: () => Promise<void>) { setBusy(true); setError(null); setNotice(null); try { await action() } catch (cause) { setError(errorText(cause)) } finally { setBusy(false) } }

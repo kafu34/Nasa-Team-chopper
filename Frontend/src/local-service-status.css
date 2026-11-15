@@ -1,0 +1,7 @@
+.local-service-status { position: sticky; top: 0; z-index: 9; display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: 1rem 1.5rem 0; padding: .9rem 1rem; border-radius: 10px; border: 1px solid rgba(235, 147, 85, .6); background: #382a27; color: #fff0df; }
+.local-service-status.recovered { border-color: rgba(89, 179, 132, .6); background: #203c34; color: #ddf5e8; }
+.local-service-status strong { display: block; margin-bottom: .2rem; }
+.local-service-status p { margin: 0; line-height: 1.4; }
+.local-service-actions { display: flex; gap: .8rem; align-items: center; flex-shrink: 0; }
+.local-service-actions a { color: inherit; }
+@media (max-width: 760px) { .local-service-status { margin: .8rem 1rem 0; flex-direction: column; align-items: stretch; } .local-service-actions { flex-wrap: wrap; } }

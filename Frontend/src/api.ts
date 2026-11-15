@@ -1,4 +1,4 @@
-/** Client models maintained against shared/openapi.yaml v2.8.0. */
+/** Client models maintained against shared/openapi.yaml v2.10.0. */
 export const DEMO = { astronautId: 'DEMO-001', responderId: 'DEMO-002', habitatId: 'HAB-01', procedureId: 'PROC-BP-01', datasetId: 'OSD-575' } as const
 export const DATASET_IDS = ['OSD-575', 'OSD-656', 'NASA-EDA', 'NASA-RADLAB', 'OSD-195', 'OSD-546', 'OSD-654', 'OSD-684', 'OSD-573', 'OSD-817'] as const
 export type DatasetAvailability = 'NOT_DOWNLOADED' | 'READY_TO_IMPORT' | 'IMPORTED' | 'IMPORT_FAILED' | 'UNSUPPORTED_FORMAT'
@@ -13,12 +13,18 @@ export type SurfacePointOut = Omit<SurfacePoint, 'mesh_id' | 'mesh_local_point' 
 export type SymptomOut = { symptom_id: string; region_id: string; laterality: string; severity: number; onset: string; reported_at: string; note: string | null; surface_point?: SurfacePointOut | null }
 export type FollowUpOut = { follow_up_id: string; title: string; due_at: string; status: string; interrupt: boolean; concern_id?: string | null; completed_at?: string | null; completion_evidence_id?: string | null }
 export type CaseOut = CaseSummary & { follow_up_status: string; follow_ups: FollowUpOut[]; symptoms: SymptomOut[]; measurements: ApiObject[]; monitoring_concern_ids?: string[]; evidence?: { type: string; id: string; summary: string; recorded_at: string }[]; requested_assessment?: { capability: string; procedure_id: string; status: string; configured_reason: string } | null; priority_protection?: { urgent_since: string | null; reason: string | null; urgent_instruction: string | null; automatic_downgrade_allowed: false; note: string } | null }
+export type ScheduledAssessment = { assessment_id: string; astronaut_id: string; title: string; capability: string; procedure_id: string; due_at: string; status: 'scheduled' | 'completed'; is_due: boolean; reason: string; case_id: string | null; completed_at: string | null; due_state: 'upcoming' | 'due' | 'overdue' | 'completed'; overdue_at: string | null; interval_hours: number | null; grace_hours: number | null; series_id: string | null; sequence: number | null; symptom_linked: boolean; completed_by_measurement_id: string | null }
+export type AssessmentList = { astronaut_id: string; assessments: ScheduledAssessment[]; note: string }
+export type ReminderOut = { reminder_id: string; assessment_id: string; astronaut_id: string; kind: 'due' | 'overdue'; status: 'open' | 'acknowledged' | 'closed_by_completion'; created_at: string; acknowledged_at: string | null; acknowledged_by: string | null; closed_at: string | null; note: string }
+export type ReminderList = { astronaut_id: string; reminders: ReminderOut[] }
+export type RecoveryOut = { server_time: string; contract_version: string; astronaut_id: string; open_session_ids: string[]; open_concern_ids: string[]; open_case_ids: string[]; open_reminder_ids: string[]; undelivered_message_ids: string[]; unacknowledged_message_ids: string[]; link_state: 'up' | 'down'; loss_of_server_behaviour: string[] }
+export type AssessmentStartOut = { assessment: ScheduledAssessment; case_id: string; case_state: string; session: SessionOut; session_created: boolean }
 export type BootstrapOut = {
   astronaut: { astronaut_id: string; display_name: string; role_code?: CrewRole }; responder?: { astronaut_id: string; display_name: string; role_code?: CrewRole }; habitat: { habitat_id: string; map_version?: string; zones: { zone_id: string; name: string }[] };
   anchors: { anchor_id: string; zone_id: string; enabled: boolean }[];
   equipment: { equipment_id: string; zone_id: string; readiness: string }[];
   observations: { type: string; value: number | null; unit: string; observed_at: string; source: string }[];
-  scheduled_assessments: { title: string; due_at: string; is_due: boolean; status: 'scheduled' | 'completed'; reason: string }[];
+  scheduled_assessments: ScheduledAssessment[];
   open_cases: CaseSummary[];
   demo_inputs: { ble_observations: { anchor_id: string; rssi_dbm: number; age_seconds: number }[]; symptom: ApiObject; measurement: ApiObject; emergency: ApiObject };
   surface_model?: { model_id: string; coordinate_limit: number; coordinate_note: string; sites: { site_id: string; label: string; region_id: string; laterality: string }[] };
@@ -83,7 +89,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 const post = <T>(path: string, data?: ApiObject) => request<T>(path, { method: 'POST', ...(data ? { body: JSON.stringify(data) } : {}) })
 export const api = {
+  health: () => request<ApiObject>('/healthz'),
   bootstrap: () => request<BootstrapOut>('/api/v1/demo/bootstrap'),
+  assessments: (astronautId: string) => request<AssessmentList>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/assessments`),
+  reminders: (astronautId: string) => request<ReminderList>(`/api/v1/astronauts/${encodeURIComponent(astronautId)}/reminders`),
+  acknowledgeReminder: (reminderId: string, actorId: string = DEMO.astronautId) => post<ReminderOut>(`/api/v1/reminders/${encodeURIComponent(reminderId)}/acknowledge`, { actor_id: actorId }),
+  startAssessment: (assessmentId: string, actorId: string = DEMO.astronautId, mode: 'self' | 'responder' = 'self', equipmentId?: string) => post<AssessmentStartOut>(`/api/v1/assessments/${encodeURIComponent(assessmentId)}/start`, { actor_id: actorId, mode, ...(equipmentId ? { equipment_id: equipmentId } : {}) }),
+  recovery: (astronautId: string) => request<RecoveryOut>(`/api/v1/system/recovery?${new URLSearchParams({ astronaut_id: astronautId })}`),
   reset: () => post<ApiObject>('/api/v1/demo/reset'),
   symptom: (data: { astronaut_id: string; region_id: string; laterality: string; severity: number; onset: string; note?: string; surface_point?: SurfacePoint }) => post<SymptomCreated>('/api/v1/symptoms', data),
   case: (id: string) => request<CaseOut>(`/api/v1/cases/${encodeURIComponent(id)}`),

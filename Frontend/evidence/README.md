@@ -34,3 +34,27 @@ This run used Vite at `127.0.0.1:5177` against an isolated local backend at `127
 | Thermometer narrow-screen result | [thermometer-mobile-2.8.png](thermometer-mobile-2.8.png) |
 | Thermometer narrow-screen picture guide | [thermometer-mobile-guide-2.8.png](thermometer-mobile-guide-2.8.png) |
 | Thermometer equipment and backend route | [thermometer-route-2.8.png](thermometer-route-2.8.png) |
+
+## Milestones 6 and 7 software slice — coordination and local-service recovery
+
+The same isolated 2.8.0 backend and a Vite page at `127.0.0.1:5178` were used for this run. A fictional sustained temperature scenario opened `CASE-952C84A0FA` with `PROC-TEMP-01`; the case view displayed that backend request, the scheduled BP screening and the pending reassessment. After a manual Medical Bay zone confirmation, the backend recommended ready `EQ-THERM-01` and a route through Exercise Bay to Crew Quarters. The case panel then displayed the matching device. When the backend was stopped, a case refresh failed, the local-service banner identified retained data as potentially stale, and the emergency guidance page remained accessible. A fictional activation attempt did not show a saved response. Restarting the backend restored health checks and refreshed bootstrap and the active case. This verifies loss-of-service disclosure and recovery for a running browser session, not durable offline write queuing or a full onboard offline deployment.
+
+| Screen / check | Screenshot |
+|---|---|
+| Requested assessment and backend schedule | [care-coordination-case-2.8.png](care-coordination-case-2.8.png) |
+| Matching thermometer device and route | [care-coordination-device-2.8.png](care-coordination-device-2.8.png) |
+| Narrow-screen case and device cards | [care-coordination-mobile-2.8.png](care-coordination-mobile-2.8.png) |
+| Service loss with retained case state | [local-service-unavailable-2.8.png](local-service-unavailable-2.8.png) |
+| Service restoration with case reload | [local-service-recovered-2.8.png](local-service-recovered-2.8.png) |
+
+## Contract 2.10.0 — screening and recovery
+
+This browser run used Vite at `127.0.0.1:5178` against an isolated local 2.10.0 backend at `127.0.0.1:8001`, with a disposable SQLite database. The three returned assessment states were overdue temperature, due blood pressure and upcoming pulse oximetry. An overdue reminder acknowledgement survived reload while its assessment stayed overdue. Starting temperature screening without a symptom returned case `CASE-65BDC7D388` and session `SES-9134831E5D`; the procedure coach opened that in-progress session and retained it after reload. The narrow viewport showed the schedule and controls. During a deliberate server outage the banner marked retained information as potentially stale. After restart, `/system/recovery` reported one open case, one session, two open reminders, no undelivered messages and simulated link `up`. These IDs and counts belong to the disposable demonstration only.
+
+| Screen / check | Screenshot |
+|---|---|
+| Three backend screening states and reminder controls | [screening-schedule-2.10.png](screening-schedule-2.10.png) |
+| Durable reminder acknowledgement with assessment still overdue | [screening-reminder-ack-2.10.png](screening-reminder-ack-2.10.png) |
+| Routine assessment in the temperature procedure coach | [screening-start-session-2.10.png](screening-start-session-2.10.png) |
+| Narrow-screen schedule and controls | [screening-mobile-2.10.png](screening-mobile-2.10.png) |
+| Local server recovery snapshot | [recovery-snapshot-2.10.png](recovery-snapshot-2.10.png) |

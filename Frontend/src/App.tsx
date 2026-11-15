@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { api, DATASET_IDS, DEMO, display, type ApiObject, type BootstrapOut, type CaseOut, type CaseSummary, type DemoScenario, type LocationEstimate, type LocationLatest, type HabitatMap as HabitatMapData, type EquipmentRecommendation, type ProcedureOut, type SessionOut, type MeasurementResult, type EmergencyOut, type DatasetSummary, type DatasetDetail, type ResearchRecord, type ResearchRecordsPage, type TimeseriesPage } from './api'
+import { api, DATASET_IDS, DEMO, display, type ApiObject, type AssessmentStartOut, type BootstrapOut, type CaseOut, type CaseSummary, type DemoScenario, type LocationEstimate, type LocationLatest, type HabitatMap as HabitatMapData, type EquipmentRecommendation, type ProcedureOut, type SessionOut, type MeasurementResult, type EmergencyOut, type DatasetSummary, type DatasetDetail, type ResearchRecord, type ResearchRecordsPage, type TimeseriesPage } from './api'
 import { HabitatMap } from './HabitatMap'
 import { HabitatOperations } from './HabitatOperations'
 import { Monitoring } from './Monitoring'
@@ -11,6 +11,9 @@ import { AnatomyResearchPanel, ExpressionResults } from './AnatomyResearchPanel'
 import { AssayResults } from './AssayResults'
 import { HistologyResults, RadiationResults } from './ResearchSpecialResults'
 import { ActionReminder } from './ActionReminder'
+import { CareCoordination } from './CareCoordination'
+import { LocalServiceStatus } from './LocalServiceStatus'
+import { ScreeningPanel } from './ScreeningPanel'
 import { strongestAlert, symptomAlerts, type BodyAlerts } from './mission-ui'
 
 const HumanBody = lazy(() => import('./HumanBody').then(module => ({ default: module.HumanBody })))
@@ -46,6 +49,7 @@ export function App() {
   const [caseError, setCaseError] = useState<string | null>(null)
   const [location, setLocation] = useState<LocationEstimate | null>(null)
   const [equipment, setEquipment] = useState<EquipmentRecommendation | null>(null)
+  const [equipmentCaseId, setEquipmentCaseId] = useState<string | null>(null)
   const [procedure, setProcedure] = useState<ProcedureOut | null>(null)
   const [session, setSession] = useState<SessionOut | null>(null)
   const [measurement, setMeasurement] = useState<MeasurementResult | null>(null)
@@ -70,7 +74,7 @@ export function App() {
     catch (error) { setCaseError(error instanceof Error ? error.message : 'Could not load case.'); return null }
   }, [])
   async function scenarioLoaded(result: DemoScenario) {
-    setCaseId(null); setCaseData(null); setLocation(null); setEquipment(null); setProcedure(null); setSession(null); setMeasurement(null); setEmergency(null)
+    setCaseId(null); setCaseData(null); setLocation(null); setEquipment(null); setEquipmentCaseId(null); setProcedure(null); setSession(null); setMeasurement(null); setEmergency(null)
     await loadBootstrap()
     if (result.case_id) { setCaseId(result.case_id); await refreshCase(result.case_id) }
     if (result.session_id) setSession(await api.getSession(result.session_id))
@@ -78,12 +82,15 @@ export function App() {
   useEffect(() => { void loadBootstrap() }, [loadBootstrap])
   useEffect(() => { if (caseId) void refreshCase(caseId) }, [caseId, refreshCase])
 
-  const currentCase = caseData ?? bootstrap?.open_cases?.[0] ?? null
+  const activeCaseData = caseData?.case_id === caseId ? caseData : null
+  const currentCase = activeCaseData ?? bootstrap?.open_cases?.find(item => item.case_id === caseId) ?? null
   const nextAction = currentCase?.next_action ?? bootstrap?.scheduled_assessments?.find(item => item.status === 'scheduled')?.title
-  const reminderDueAt = caseData?.follow_ups?.find(item => item.status !== 'completed')?.due_at ?? bootstrap?.scheduled_assessments?.find(item => item.status === 'scheduled')?.due_at ?? null
-  const bodyAlerts = symptomAlerts(caseData)
-  const savedPoints = (caseData?.symptoms ?? []).flatMap(symptom => { const selection = reportedSurfaceSelection(symptom); return selection ? [{ selection, severity: symptom.severity }] : [] })
+  const reminderDueAt = activeCaseData?.follow_ups?.find(item => item.status !== 'completed')?.due_at ?? bootstrap?.scheduled_assessments?.find(item => item.status === 'scheduled')?.due_at ?? null
+  const bodyAlerts = symptomAlerts(activeCaseData)
+  const savedPoints = (activeCaseData?.symptoms ?? []).flatMap(symptom => { const selection = reportedSurfaceSelection(symptom); return selection ? [{ selection, severity: symptom.severity }] : [] })
   const openBody = (region: BodySelection | null) => { setFocusedRegion(region); navigate('/body') }
+  const recoverLocalData = useCallback(async () => { await loadBootstrap(); if (caseId) await refreshCase(caseId) }, [caseId, loadBootstrap, refreshCase])
+  const assessmentStarted = async (result: AssessmentStartOut) => { setCaseId(result.case_id); setCaseData(null); setEquipment(null); setEquipmentCaseId(null); setProcedure(null); setMeasurement(null); setSession(result.session); await refreshCase(result.case_id); navigate('/procedure') }
   useEffect(() => { setMenuOpen(false); setSettingsOpen(false) }, [route.pathname])
   return <div className="app-shell">
     <aside className="sidebar">
@@ -97,15 +104,16 @@ export function App() {
     </aside>
     <div className="main-column">
       <header className="topbar"><span>NASA SPACE APPS CHALLENGE 2026</span><div className="topbar-tools"><span className="topbar-right">ASTRONAUT {DEMO.astronautId} <span className="topbar-divider">/</span> {DEMO.habitatId}</span><button type="button" className="menu-toggle" aria-label="Open menu" aria-expanded={menuOpen} aria-controls="utility-menu" onClick={() => setMenuOpen(value => !value)}><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg><span>Menu</span></button>{menuOpen && <div id="utility-menu" className="utility-menu"><div className="utility-menu-heading"><strong>{settingsOpen ? 'Settings' : 'Mission menu'}</strong><button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>×</button></div>{settingsOpen ? <><p className="muted small">Display preferences are saved on this device.</p><label><input type="checkbox" checked={animateAlerts} onChange={event => { setAnimateAlerts(event.target.checked); savePreference('sentinel-animate-alerts', event.target.checked) }} /> Animated symptom highlights</label><label><input type="checkbox" checked={remindersEnabled} onChange={event => { setRemindersEnabled(event.target.checked); savePreference('sentinel-reminders', event.target.checked) }} /> Timed next-action reminders</label><button type="button" className="utility-back" onClick={() => setSettingsOpen(false)}>← Back to menu</button></> : <><NavLink to="/" onClick={() => setMenuOpen(false)}>Overview</NavLink><NavLink to="/monitoring" onClick={() => setMenuOpen(false)}>Health Monitoring</NavLink><NavLink to="/body" onClick={() => setMenuOpen(false)}>Anatomical Twin</NavLink><NavLink to="/spatial" onClick={() => setMenuOpen(false)}>Maps · choose my location</NavLink><NavLink to="/procedure" onClick={() => setMenuOpen(false)}>Procedure Coach</NavLink><NavLink to="/research" onClick={() => setMenuOpen(false)}>NASA Research</NavLink><NavLink to="/case" onClick={() => setMenuOpen(false)}>Case & Follow-Up</NavLink><button type="button" onClick={() => setSettingsOpen(true)}>Settings</button></>}</div>}</div></header>
+      <LocalServiceStatus onRecovered={recoverLocalData} />
       <main>
         <Routes>
           <Route path="/" element={<Dashboard bootstrap={bootstrap} error={bootstrapError} currentCase={currentCase} alerts={bodyAlerts} savedPoints={savedPoints} animateAlerts={animateAlerts} onOpenBody={openBody} onRetry={loadBootstrap} />} />
           <Route path="/monitoring" element={<Monitoring bootstrap={bootstrap} onCaseOpened={id => { setCaseId(id); void refreshCase(id); navigate('/case') }} onCaseDetected={id => { setCaseId(id); void refreshCase(id) }} onScenarioLoaded={scenarioLoaded} />} />
           <Route path="/body" element={<Anatomy initialSelection={focusedRegion} alerts={bodyAlerts} savedPoints={savedPoints} animateAlerts={animateAlerts} onCase={id => { setCaseId(id); void refreshCase(id) }} />} />
-          <Route path="/spatial" element={<Spatial bootstrap={bootstrap} caseId={caseId} requestedCapability={caseData?.requested_assessment?.capability} location={location} equipment={equipment} onLocation={setLocation} onEquipment={setEquipment} />} />
-          <Route path="/procedure" element={<Suspense fallback={<p className="muted">Loading procedure coach…</p>}><ProcedureHub caseId={caseId} equipment={equipment} procedure={procedure} session={session} measurement={measurement} recommendedProcedureId={caseData?.requested_assessment?.procedure_id ?? equipment?.procedure_id} onProcedure={setProcedure} onSession={setSession} onMeasurement={setMeasurement} onCaseRefresh={refreshCase} /></Suspense>} />
+          <Route path="/spatial" element={<Spatial bootstrap={bootstrap} caseId={caseId} requestedCapability={activeCaseData?.requested_assessment?.capability} location={location} equipment={equipmentCaseId === caseId ? equipment : null} onLocation={setLocation} onEquipment={value => { setEquipment(value); setEquipmentCaseId(caseId) }} />} />
+          <Route path="/procedure" element={<Suspense fallback={<p className="muted">Loading procedure coach…</p>}><ProcedureHub caseId={caseId} equipment={equipmentCaseId === caseId ? equipment : null} procedure={procedure} session={session} measurement={measurement} recommendedProcedureId={activeCaseData?.requested_assessment?.procedure_id ?? (session?.case_id === caseId ? session.procedure_id : equipmentCaseId === caseId ? equipment?.procedure_id : null)} onProcedure={setProcedure} onSession={setSession} onMeasurement={setMeasurement} onCaseRefresh={refreshCase} /></Suspense>} />
           <Route path="/research" element={<Research />} />
-          <Route path="/case" element={<CaseView caseId={caseId} currentCase={currentCase} error={caseError} onRefresh={() => caseId && void refreshCase(caseId)} onReset={async () => { await api.reset(); setCaseId(null); setCaseData(null); setFocusedRegion(null); setLocation(null); setEquipment(null); setProcedure(null); setSession(null); setMeasurement(null); setEmergency(null); await loadBootstrap(); navigate('/') }} />} />
+          <Route path="/case" element={<CaseView caseId={caseId} currentCase={currentCase} bootstrap={bootstrap} equipment={equipmentCaseId === caseId ? equipment : null} error={caseError} onAssessmentStarted={assessmentStarted} onRefresh={() => caseId && void refreshCase(caseId)} onReset={async () => { await api.reset(); setCaseId(null); setCaseData(null); setFocusedRegion(null); setLocation(null); setEquipment(null); setEquipmentCaseId(null); setProcedure(null); setSession(null); setMeasurement(null); setEmergency(null); await loadBootstrap(); navigate('/') }} />} />
           <Route path="/emergency" element={<Emergency emergency={emergency} onEmergency={setEmergency} />} />
           <Route path="*" element={<PageTitle eyebrow="Navigation" title="Screen not found">Choose a section from the navigation.</PageTitle>} />
         </Routes>
@@ -225,11 +233,13 @@ function Research() {
     <DataCard title="Actual measurements"><div className="research-header"><p className="muted">{selected === DEMO.datasetId ? 'OSD-575 comprehensive metabolic panel' : selected}</p><span className="tag research">NASA RESEARCH</span></div>{!imported ? <Empty text="Numerical records unavailable until the backend reports this dataset as IMPORTED." /> : selected === 'NASA-RADLAB' ? radiation ? <RadiationResults page={radiation} instrument={instrument} onInstrument={value => void loadInstrument(value)} /> : <Empty text={datasetRequest.error ? 'RadLab readings could not be loaded from the local backend.' : 'Loading historical RadLab readings from the local backend.'} /> : page?.record_schema === "GENE_EXPRESSION_V1" ? <ExpressionResults page={page} /> : page?.record_schema === "BIO_ASSAY_TABLE" ? <AssayResults page={page} /> : page?.record_schema === "HISTOLOGY_COUNTS_V1" ? <HistologyResults page={page} /> : !records.length ? <Empty text="No numerical records returned by the local research API." /> : <><div className="chart-wrap">{values.length > 1 ? <svg viewBox="0 0 480 190" role="img" aria-label={`Trend of ${trend[0].analyte} for ${trend[0].subject} in ${trend[0].unit}; source order`}><line x1="20" y1="170" x2="465" y2="170" className="axis" /><polyline points={points} className="trend" />{points.split(' ').map((point, i) => { const [cx, cy] = point.split(','); return <circle key={i} cx={cx} cy={cy} r="4" className="trend-point" /> })}</svg> : <Empty text="At least two comparable numeric records are needed for a trend chart." />}</div>{values.length > 1 && <p className="muted small">{trend[0].analyte} · subject {trend[0].subject} · {trend[0].unit}. Source order; timepoint labels remain in the table.</p>}<div className="table-scroll"><table><thead><tr><th>Analyte</th><th>Value</th><th>Unit</th><th>Subject</th><th>Timepoint</th></tr></thead><tbody>{records.slice(0, 30).map((record, i) => <tr key={i}><td>{display(record.analyte ?? record.ANALYTE)}</td><td>{display(record.value ?? record.VALUE)}</td><td>{display(record.unit ?? record.units ?? record.UNITS)}</td><td>{display(record.subject_id ?? record.SUBJECT_ID)}</td><td>{display(record.timepoint)}</td></tr>)}</tbody></table></div></>}</DataCard></>
 }
 
-function CaseView({ caseId, currentCase, error, onRefresh, onReset }: { caseId: string | null; currentCase: CaseOut | CaseSummary | null; error: string | null; onRefresh: () => void; onReset: () => Promise<void> }) {
+function CaseView({ caseId, currentCase, bootstrap, equipment, error, onAssessmentStarted, onRefresh, onReset }: { caseId: string | null; currentCase: CaseOut | CaseSummary | null; bootstrap: BootstrapOut | null; equipment: EquipmentRecommendation | null; error: string | null; onAssessmentStarted: (result: AssessmentStartOut) => Promise<void>; onRefresh: () => void; onReset: () => Promise<void> }) {
   const reset = useRequest()
   const details = currentCase && 'follow_ups' in currentCase ? currentCase as CaseOut : null
   return <><PageTitle eyebrow="Closed-loop follow-up / 06" title="Case progress">Persisted case state, monitoring evidence and next required action come from the local backend.</PageTitle>
     {currentCase?.priority === 'urgent' && <div className="status error" role="alert"><strong>Urgent priority is protected.</strong> {details?.priority_protection?.urgent_instruction ?? currentCase.next_action} {details?.priority_protection?.note}</div>}
+    {currentCase && <CareCoordination currentCase={currentCase} equipment={equipment} />}
+    <ScreeningPanel bootstrap={bootstrap} onStarted={onAssessmentStarted} />
     <div className="two-column"><DataCard title="Current case"><span className="tag simulated">SIMULATED ASTRONAUT</span><Field label="Case ID" value={caseId} /><Field label="Priority" value={currentCase?.priority} /><Field label="State" value={currentCase?.state} /><Field label="Next action" value={currentCase?.next_action} /><Field label="Updated" value={currentCase?.updated_at} /><Field label="Follow-up" value={details?.follow_up_status} /><Field label="Monitoring concerns" value={details?.monitoring_concern_ids?.join(', ')} />{details?.requested_assessment && <p className="status info">Configured assessment: {details.requested_assessment.procedure_id} · {details.requested_assessment.configured_reason}</p>}{error && <p className="status error">{error}</p>}<div className="button-row"><button className="button secondary" disabled={!caseId} onClick={onRefresh}>Refresh case from backend</button><NavLink className="button secondary" to="/monitoring">View monitoring evidence</NavLink><NavLink className="button secondary" to="/spatial">Find assessment equipment</NavLink></div></DataCard>
     <DataCard title="Evidence and follow-up">{details?.evidence?.length ? <ul>{details.evidence.map(item => <li key={`${item.type}-${item.id}`}><strong>{item.type.replaceAll('_', ' ')}</strong> · {item.summary}</li>)}</ul> : <p className="muted">No case evidence returned yet.</p>}{details?.follow_ups?.length ? <ul>{details.follow_ups.map(item => <li key={item.follow_up_id}><strong>{item.title}</strong> · {item.status} · due {new Date(item.due_at).toLocaleString()}{item.concern_id ? ` · ${item.concern_id}` : ''}</li>)}</ul> : <p className="muted">No follow-up scheduled.</p>}</DataCard></div>
     <DataCard title="Repeat demonstration"><p className="muted">Reset clears the fictional backend scenario, then reloads its initial state.</p><button className="button secondary" disabled={reset.busy} onClick={() => void reset.run(onReset, 'Demo reset and reloaded.')}>Reset demo scenario</button><Feedback {...reset} /></DataCard>
