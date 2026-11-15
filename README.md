@@ -36,19 +36,32 @@ packages are installed, and all NASA data files are already in this repository.
 **1. Get the code**: `git clone https://github.com/kafu34/Nasa-Team-chopper.git`, or use **Code → Download ZIP**
 (about 32 MB).
 
-**2. Start the backend** in one terminal:
+Run the commands from the folder that **contains** `Nasa-Team-chopper` (where you cloned or unzipped it).
+
+**2. Start the backend** in one terminal window.
+
+Windows (Command Prompt or PowerShell):
+
+```bat
+cd Nasa-Team-chopper\Backend
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+macOS / Linux:
 
 ```bash
 cd Nasa-Team-chopper/Backend
-python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements.txt   # macOS/Linux: .venv/bin/python
-.venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-The first start creates the local database and imports the NASA files, which takes a moment. The API docs are then
-at http://127.0.0.1:8000/docs.
+The first start creates the local database and imports the NASA files, which takes about 20 seconds. Wait for
+`Application startup complete`; the API docs are then at http://127.0.0.1:8000/docs. Leave this window open.
 
-**3. Start the frontend** in a second terminal:
+**3. Start the frontend** in a second terminal window:
 
 ```bash
 cd Nasa-Team-chopper/Frontend
@@ -56,7 +69,19 @@ npm install
 npm run dev
 ```
 
+On Windows, use `cd Nasa-Team-chopper\Frontend`. If PowerShell refuses to run `npm`, type `npm.cmd` instead.
+
 **4. Open http://127.0.0.1:5173.** The frontend forwards `/api` to the backend on port 8000.
+
+**Common problems**
+
+- **"The system cannot find the path specified"**: you are in the wrong folder. `cd` into the folder that contains
+  `Nasa-Team-chopper` first.
+- **`'.venv' is not recognized`**: in Command Prompt, use backslashes (`.venv\Scripts\python`), not `/`.
+- **`python` opens the Microsoft Store**: install Python 3.13 from python.org (tick "Add python.exe to PATH"), or
+  use `py -3.13` instead of `python`.
+- **"address already in use" on port 8000**: another copy of the backend is already running. Stop it, or skip step 2
+  and use the running one.
 
 **Back to a clean demo:** use **Case & Follow-Up → Reset demo scenario**, or `POST /api/v1/demo/reset`. This resets
 the fictional data only; the NASA data is never touched.
