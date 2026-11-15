@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.4.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.4.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.5.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.5.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,8 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **238 passed, 1 skipped, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **26/26** real-HTTP checks against
+See `docs/TEST_REPORT.md`. Latest: **257 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **29/29** real-HTTP checks against
 uvicorn.
 
 ## 10. Known contract deviations and coordination notes
@@ -222,6 +222,50 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.5.0 — habitat operations (v3.1 §6, Milestone 4 backend)
+
+Additive except for one behaviour change in the location engine (item 4).
+
+1. **Hatch control.** New `POST /habitats/{habitat_id}/hatches/{hatch_id}` with body
+   `{state: open|closed, actor_id, reason}`.
+   - The response is `{hatch_id, from_zone_id, to_zone_id, state, changed, state_version,
+     invalidated_recommendation_ids, access_note}`.
+   - Errors: 404 for an unknown habitat or hatch; 403 `NOT_HABITAT_CREW` when the actor is not crew of this
+     habitat.
+   - Every change is audited and increases the habitat's `state_version`. The map returns `state_version`; refetch
+     the map when it changes.
+   - Access limit: any crew member of the habitat may change a hatch. Role-based authorisation is not built yet
+     (step 36).
+2. **Stored recommendations.**
+   - `POST /equipment/recommend` now returns `recommendation_id`, `status` and `habitat_state_version`.
+   - New `GET /equipment/recommendations/{id}` returns the stored route and its live status.
+   - Closing a hatch on the route invalidates the recommendation. Opening any hatch invalidates every active
+     recommendation, because a shorter route may now exist. Then request a new recommendation.
+   - Demo reset restores the fixture hatches.
+3. **Route start from a crew member.**
+   - `zone_id` is now optional. You may send `astronaut_id` and `start_role: patient|responder` instead; the
+     start is then that person's latest estimate.
+   - The response gains `start_basis` (`request_zone` or `latest_estimate`), `start_role`,
+     `start_astronaut_id`, `start_estimate_id` and `start_confidence`.
+   - Stale or missing location: 409 `LOCATION_UNAVAILABLE` (ask for a manual confirmation). Neither field sent:
+     422 `START_REQUIRED`.
+   - Below 0.7 confidence, `start_uncertainty {confidence, candidates[{zone_id, best_rssi_dbm|null, route_hops}],
+     hop_spread, note}` lists the other zones the person may be in.
+4. **Location engine LOC-P0-1.1 (changed behaviour).**
+   - A neighbouring zone whose anchors all stayed silent can no longer be ruled out. Confidence is now capped at
+     0.5, and the zone is listed in the new `unobserved_zone_ids`. Show this as uncertainty.
+   - Found by the simulator: with the laboratory anchor failed, version 1.0 reported crew quarters at
+     0.63–0.67 confidence, which was wrong.
+   - The canonical demo estimate is unchanged (crew quarters, 0.867).
+5. **Movement simulator.** New `POST /simulation/movement {scenario_id, astronaut_id}`, plus
+   `scripts/simulate_movement.py`.
+   - Scenarios are in the fixture's `movement_scenarios`: `SIM-WALK-CQ-MED`, `SIM-CONFLICT-PASSAGE`,
+     `SIM-MISSING-ANCHOR` and `SIM-STALE`. The radio model is `movement_model` (`SIM-RSSI-1.0`), not calibrated.
+   - Each tick's simulated observations go through the normal estimator and are stored, so
+     `GET /location/{id}/latest` shows the movement.
+   - Ground truth appears only in the response's `evaluation` block. Use it for tests, **never as the crew
+     member's location on screen.**
 
 ### Contract 2.4.0 — procedure session state for the visual Procedure Coach (v3.1 §5, Milestone 3 backend)
 

@@ -53,11 +53,13 @@ class LocationEstimateOut(BaseModel):
     limitation: str = "Zone-level estimate from simulated signals. RSSI does not give exact distance."
     display_mode: DisplayMode = Field(
         default="zone_only", description="zone_only: highlight the zone, no point. estimated_xy: draw `position` "
-        "with its uncertainty (never produced by LOC-P0-1.0). unavailable: no estimate. stale: last-known only "
+        "with its uncertainty (never produced by LOC-P0-1.1). unavailable: no estimate. stale: last-known only "
         "(GET /location/{astronaut_id}/latest).")
     position: Optional[list[float]] = Field(default=None, description="x/y in the map frame. Always null for the "
                                                                       "zone-only engine.")
     position_uncertainty_m: Optional[float] = None
+    unobserved_zone_ids: list[str] = Field(default_factory=list, description="Neighbouring zones with no "
+                                           "reporting anchor; the person could be there (LOC-P0-1.1, 2.5.0).")
     map_version: Optional[str] = None
     data_category: DataCategory = "SIMULATED_ENVIRONMENT_OR_DEVICE"
 
@@ -87,8 +89,29 @@ class LocationConfirmRequest(TzModel):
 
 class EquipmentRecommendRequest(TzModel):
     case_id: str
-    zone_id: str = Field(examples=["crew-quarters"], description="Current (estimated or confirmed) zone.")
+    zone_id: Optional[str] = Field(default=None, examples=["crew-quarters"],
+                                   description="Start zone. Optional since 2.5.0: when omitted, the start is the "
+                                               "latest location estimate of astronaut_id.")
     capability: str = Field(examples=["blood_pressure"])
+    astronaut_id: Optional[str] = Field(default=None, examples=["DEMO-002"],
+                                        description="Optional (2.5.0). Whose location the route starts from.")
+    start_role: Literal["patient", "responder"] = Field(
+        default="patient", description="Optional (2.5.0). Whether the route is for the patient or a responder "
+                                       "fetching the device.")
+
+
+class StartCandidate(BaseModel):
+    zone_id: str
+    best_rssi_dbm: Optional[int] = Field(description="Null for a zone with no reporting anchor.")
+    route_hops: Optional[int] = Field(description="Hops from this zone to the chosen device; null if unreachable.")
+
+
+class StartUncertainty(BaseModel):
+    confidence: float
+    candidates: list[StartCandidate]
+    hop_spread: Optional[int] = Field(description="Max minus min hops over reachable candidates.")
+    note: str = ("The start zone is uncertain. The route is drawn from the most likely zone; the person may be in "
+                 "another candidate zone.")
 
 
 class ExcludedEquipment(BaseModel):
@@ -98,6 +121,11 @@ class ExcludedEquipment(BaseModel):
 
 
 class EquipmentRecommendation(BaseModel):
+    recommendation_id: Optional[str] = Field(default=None, description="Stored recommendation (2.5.0); read it "
+                                             "back with GET /equipment/recommendations/{id}.")
+    status: Literal["active", "invalidated"] = "active"
+    invalidated_reason: Optional[str] = None
+    habitat_state_version: Optional[int] = None
     equipment_id: str
     device_model: str
     zone_id: str
@@ -115,6 +143,13 @@ class EquipmentRecommendation(BaseModel):
     start_reference: StartReference
     route_hatch_ids: list[str] = Field(description="Hatches on the route, in order. All are open.")
     route_geometry: RouteGeometry = Field(description="Route polyline in the map frame (metres).")
+    start_basis: Literal["request_zone", "latest_estimate"] = "request_zone"
+    start_role: Literal["patient", "responder"] = "patient"
+    start_astronaut_id: Optional[str] = None
+    start_estimate_id: Optional[str] = None
+    start_confidence: Optional[float] = None
+    start_uncertainty: Optional[StartUncertainty] = Field(
+        default=None, description="Present when the start comes from an estimate with confidence below 0.7.")
     readiness_note: str = ("Readiness comes from the equipment registry check, not from wireless detection. "
                            "A detected advertisement does not mean a device is medically ready.")
     data_category: DataCategory = "SIMULATED_ENVIRONMENT_OR_DEVICE"

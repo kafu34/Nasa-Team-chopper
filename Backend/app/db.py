@@ -75,7 +75,8 @@ def get_db(request: Request) -> Iterator[Session]:
 # an older build gets them here. Each is nullable, so existing rows stay valid.
 ADDED_COLUMNS = [("symptom_reports", "surface_point", "JSON"), ("zone_connections", "hatch_id", "VARCHAR"),
                  ("procedure_sessions", "equipment_id", "VARCHAR"),
-                 ("procedure_sessions", "equipment_snapshot", "JSON")]
+                 ("procedure_sessions", "equipment_snapshot", "JSON"),
+                 ("habitats", "state_version", "INTEGER NOT NULL DEFAULT 1")]
 
 
 def add_missing_columns(engine: Engine) -> list[str]:

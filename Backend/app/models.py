@@ -35,6 +35,7 @@ class Habitat(Base):
     habitat_id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String)
     map_version: Mapped[str] = mapped_column(String)
+    state_version: Mapped[int] = mapped_column(Integer, default=1)
 
 
 class Zone(Base):
@@ -179,6 +180,24 @@ class ProcedureSession(Base):
     equipment_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
 
+class EquipmentRecommendationRecord(Base):
+    """A stored equipment recommendation, so hatch or equipment changes can invalidate it."""
+
+    __tablename__ = "equipment_recommendations"
+    recommendation_id: Mapped[str] = mapped_column(String, primary_key=True)
+    case_id: Mapped[str] = mapped_column(ForeignKey("medical_cases.case_id"), index=True)
+    equipment_id: Mapped[str] = mapped_column(String)
+    start_zone_id: Mapped[str] = mapped_column(String)
+    route_zone_ids: Mapped[list] = mapped_column(JSON, default=list)
+    route_hatch_ids: Mapped[list] = mapped_column(JSON, default=list)
+    habitat_state_version: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String, default="active")
+    invalidated_reason: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    invalidated_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    response: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
 class ProcedureStepEvent(Base):
     """What the crew member saw in the visual Procedure Coach. Never evidence of correct clinical execution."""
 
@@ -253,6 +272,7 @@ SYNTHETIC_TABLES = [
     HealthObservation,
     AssessmentMeasurement,
     FollowUpTask,
+    EquipmentRecommendationRecord,
     ProcedureStepEvent,
     ProcedureSession,
     SymptomReport,

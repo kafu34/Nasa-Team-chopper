@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.4.0)
+# SENTINEL AI Backend API (v2.5.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -58,6 +58,12 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   `position_uncertainty_m: null` and `map_version`.
 - `GET /api/v1/location/{astronaut_id}/latest` *(2.2.0)* → `{astronaut_id, display_mode (zone_only | stale |
   unavailable), estimate|null, age_seconds, stale_after_seconds (30 BLE, 900 manual), label}`.
+- `POST /api/v1/habitats/{habitat_id}/hatches/{hatch_id}` *(2.5.0)* — `{state: open|closed, actor_id, reason}` →
+  `{hatch_id, state, changed, state_version, invalidated_recommendation_ids[]}`. 403 `NOT_HABITAT_CREW`.
+- `GET /api/v1/equipment/recommendations/{id}` *(2.5.0)* → stored recommendation with `status`
+  (`active` | `invalidated`) and `invalidated_reason`.
+- `POST /api/v1/simulation/movement` *(2.5.0)* — `{scenario_id, astronaut_id}` → per-tick generated observations
+  and stored estimates, plus an `evaluation` block with ground truth (test use only).
 - `GET /api/v1/habitats/{habitat_id}/map` *(2.2.0)* → `{map_version, coordinate_frame (metres), decks[],
   compartments[{zone_id, polygon, navigation_reference}], passages[{passage_id, hatch_id, polygon, hatch_point,
   accessible, hatch_state}], anchors[{anchor_id, point, enabled}], equipment[{equipment_id, point|null,

@@ -3,6 +3,42 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.5.0 (habitat operations, Milestone 4 backend), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` with `SENTINEL_FRONTEND_SITES`, `SENTINEL_FRONTEND_HUMAN_GLB` and `SENTINEL_FRONTEND_VISUAL_REGISTRY` set (the registry is Codex's **uncommitted** draft `Frontend/src/visual-registry.ts`) | **257 passed, 0 failed, 0 skipped** (adds 18 in `test_s_habitat_operations.py` and `test_t_movement_simulation.py`) |
+| `scripts/export_openapi.py` | regenerated (28 paths, version 2.5.0) |
+| `scripts/http_smoke.py` | **29/29** (adds recommendation read-back, a movement run and a hatch change) |
+| `scripts/simulate_movement.py` | walk 9/9 ticks in an acceptable zone; passage conflict 5/5 with low confidence and smoothing; missing anchor 0/3 correct but every tick capped at 0.5 with `laboratory` unobserved; stale 2/2 unavailable |
+| Live server restart | contract 2.5.0; `habitats.state_version` and `equipment_recommendations` added; 5 datasets still `IMPORTED` |
+
+The tests cover:
+- recommendations stored and read back;
+- closing a route hatch invalidates both affected recommendations and leaves medical unreachable;
+- opening the lab-medical hatch gives the new route via `H-CQ-LAB` and `H-LAB-MED`;
+- an unrelated hatch keeps the recommendation;
+- opening a hatch invalidates active recommendations;
+- no-change and validation cases (404 and 403);
+- hatch state survives a restart and reset restores it;
+- a responder route from a confirmed location;
+- `START_REQUIRED` and `LOCATION_UNAVAILABLE` (none or stale);
+- uncertain-start candidates and hop spread;
+- the unobserved-neighbour confidence cap;
+- an old database upgrade;
+- simulation:
+  - moving between compartments, with the latest estimate following;
+  - repeatability;
+  - conflicting passage signals;
+  - a missing anchor flagged rather than confident;
+  - stale observations giving unavailable;
+  - ground truth absent from the location, map and recommendation responses and from stored estimates;
+  - unknown scenario or astronaut.
+
+Known limitation found by testing: with the laboratory's only enabled anchor failed, the engine still picks
+crew quarters. It now reports that at 0.5 confidence with the laboratory flagged, instead of 0.63–0.67 with no
+warning. A zone-only BLE engine cannot do better without an anchor in that zone.
+
 ## Contract 2.4.0 (procedure session state, Milestone 3 backend), run 2026-11-15
 
 | Suite | Result |

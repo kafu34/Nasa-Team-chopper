@@ -61,6 +61,15 @@ def main() -> int:
         eq = c.post("/api/v1/equipment/recommend", json={"case_id": case_id, "zone_id": loc["zone_id"],
                                                           "capability": "blood_pressure"}).json()
         check("POST /api/v1/equipment/recommend", eq.get("equipment_id") == "EQ-BP-01", "->".join(eq["route_zone_ids"]))
+        stored = c.get(f"/api/v1/equipment/recommendations/{eq['recommendation_id']}").json()
+        check("GET /api/v1/equipment/recommendations/{id}", stored["status"] == "active")
+        sim = c.post("/api/v1/simulation/movement", json={"scenario_id": "SIM-WALK-CQ-MED",
+                                                           "astronaut_id": "DEMO-002"}).json()
+        check("POST /api/v1/simulation/movement", sim["evaluation"]["zone_matches"] == sim["evaluation"]["tick_count"],
+              f"{sim['evaluation']['zone_matches']}/{sim['evaluation']['tick_count']}")
+        hatch = c.post("/api/v1/habitats/HAB-01/hatches/H-CQ-LAB", json={"state": "closed", "actor_id": "DEMO-002",
+                                                                         "reason": "Smoke test"}).json()
+        check("POST /api/v1/habitats/HAB-01/hatches/{id}", hatch["changed"] and hatch["state_version"] == 2)
         latest = c.get("/api/v1/location/DEMO-001/latest").json()
         check("GET /api/v1/location/{id}/latest", latest["display_mode"] == "zone_only", latest["label"])
         hab_map = c.get("/api/v1/habitats/HAB-01/map").json()
