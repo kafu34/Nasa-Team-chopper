@@ -53,6 +53,42 @@ def test_reminders_are_durable_deduplicated_and_acknowledged_without_completion(
     assert client.post(f"{API}/reminders/REM-NOPE/acknowledge", json={"actor_id": "DEMO-001"}).status_code == 404
 
 
+def test_overlapping_requests_cannot_create_a_duplicate_reminder(client):
+    """Regression (found in a live browser run): the screen loads assessments and reminders at the same time; the
+    second request used to hit the unique key and return 500. Here another request commits the same reminder just
+    before ours writes."""
+    from sqlalchemy import event
+
+    from app.services import screening
+
+    factory, engine, fired = client.app.state.session_factory, client.app.state.engine, {"done": False}
+
+    def competitor(conn, cursor, statement, params, context, executemany):
+        if fired["done"] or "INSERT INTO assessment_reminders" not in statement:
+            return
+        fired["done"] = True
+        with factory() as other:
+            other.add(m.AssessmentReminder(reminder_id="REM-SA-BP-001-due", assessment_id="SA-BP-001",
+                                           astronaut_id="DEMO-001", kind="due", status="open", created_at=utcnow()))
+            other.commit()
+
+    event.listen(engine, "before_cursor_execute", competitor)
+    try:
+        with factory() as db:
+            screening.refresh(db, "DEMO-001")  # must not raise
+    finally:
+        event.remove(engine, "before_cursor_execute", competitor)
+    assert fired["done"]
+    rem = client.get(f"{API}/astronauts/DEMO-001/reminders")
+    assert rem.status_code == 200
+    kinds = [(r["assessment_id"], r["kind"]) for r in rem.json()["reminders"]]
+    assert kinds.count(("SA-BP-001", "due")) == 1 and len(kinds) == len(set(kinds))
+    with factory() as db:
+        created = db.query(m.AuditEvent).filter(m.AuditEvent.action == "reminder.created",
+                                                m.AuditEvent.entity_id == "REM-SA-BP-001-due").count()
+    assert created == 0  # the request that lost the race does not log a creation it did not make
+
+
 def test_upcoming_becomes_due_and_gets_a_reminder(client):
     with client.app.state.session_factory() as db:
         db.get(m.ScheduledAssessment, "SA-PO-001").due_at = utcnow() - timedelta(minutes=1)

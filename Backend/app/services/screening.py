@@ -15,6 +15,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from .. import models as m
@@ -69,12 +70,15 @@ def refresh(db: Session, astronaut_id: str, now: datetime | None = None) -> list
         state = due_state(a, now)
         kinds = {"due": ["due"], "overdue": ["due", "overdue"]}.get(state, [])
         for kind in kinds:
-            if db.scalars(select(m.AssessmentReminder).where(m.AssessmentReminder.assessment_id == a.assessment_id,
-                                                             m.AssessmentReminder.kind == kind)).first() is None:
-                r = m.AssessmentReminder(reminder_id=f"REM-{a.assessment_id}-{kind}", assessment_id=a.assessment_id,
-                                         astronaut_id=astronaut_id, kind=kind, status="open", created_at=now)
-                db.add(r)
-                audit(db, "screening-manager", "reminder.created", "assessment_reminder", r.reminder_id,
+            # One atomic statement: two overlapping requests (e.g. the screen loading assessments and reminders at
+            # once) can no longer both insert the same reminder and fail on the unique key (500). Only the request
+            # that actually created the row writes the audit entry.
+            rid = f"REM-{a.assessment_id}-{kind}"
+            created = db.execute(sqlite_insert(m.AssessmentReminder).values(
+                reminder_id=rid, assessment_id=a.assessment_id, astronaut_id=astronaut_id, kind=kind, status="open",
+                created_at=now).on_conflict_do_nothing()).rowcount
+            if created:
+                audit(db, "screening-manager", "reminder.created", "assessment_reminder", rid,
                       a.case_id, assessment_id=a.assessment_id, kind=kind)
                 changed = True
     if changed:
