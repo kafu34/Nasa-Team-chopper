@@ -116,6 +116,59 @@ class ScheduledAssessment(Base):
     reason: Mapped[str] = mapped_column(Text)
     case_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    interval_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # 2.9.0 screening
+    grace_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    series_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    sequence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    symptom_linked: Mapped[bool] = mapped_column(Boolean, default=True)
+    completed_by_measurement_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class CommsMessage(Base):
+    """Durable medical communications record (2.10.0). The delay and link are simulated."""
+    __tablename__ = "comms_messages"
+    message_id: Mapped[str] = mapped_column(String, primary_key=True)
+    client_message_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, unique=True)
+    direction: Mapped[str] = mapped_column(String, index=True)  # to_ground | to_crew
+    priority: Mapped[str] = mapped_column(String)  # urgent | routine
+    sender_id: Mapped[str] = mapped_column(String)
+    sender_role: Mapped[str] = mapped_column(String)
+    recipient_role: Mapped[str] = mapped_column(String)
+    case_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    subject: Mapped[str] = mapped_column(String)
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String, index=True)  # queued | in_transit | delivered | acknowledged
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    transmit_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    deliver_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    acknowledged_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class CommsLink(Base):
+    __tablename__ = "comms_links"
+    link_id: Mapped[str] = mapped_column(String, primary_key=True)
+    state: Mapped[str] = mapped_column(String)  # up | down
+    changed_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    changed_by: Mapped[str] = mapped_column(String)
+    reason: Mapped[str] = mapped_column(Text)
+    outage_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class AssessmentReminder(Base):
+    """Durable reminder, one per scheduled assessment and kind (due, overdue). 2.9.0."""
+    __tablename__ = "assessment_reminders"
+    reminder_id: Mapped[str] = mapped_column(String, primary_key=True)
+    assessment_id: Mapped[str] = mapped_column(String, index=True)
+    astronaut_id: Mapped[str] = mapped_column(ForeignKey("astronauts.astronaut_id"), index=True)
+    kind: Mapped[str] = mapped_column(String)  # due | overdue
+    status: Mapped[str] = mapped_column(String, default="open")  # open | acknowledged | closed_by_completion
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    acknowledged_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    closed_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
+    __table_args__ = (UniqueConstraint("assessment_id", "kind", name="uq_reminder_kind"),)
 
 
 class MedicalCase(Base):
@@ -330,6 +383,9 @@ SYNTHETIC_TABLES = [
     EmergencyEvent,
     MonitoringConcern,
     HealthBaseline,
+    AssessmentReminder,
+    CommsMessage,
+    CommsLink,
     LocationEstimate,
     HealthObservation,
     AssessmentMeasurement,

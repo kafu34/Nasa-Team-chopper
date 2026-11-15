@@ -12,7 +12,7 @@ from ..schemas.common import error_responses
 from ..schemas.monitoring import (BaselineList, BaselineOut, BaselineRecompute, ConcernOut, ConcernReview,
                                   DetectionRulesetOut, MonitoringOut, ObservationHistory)
 from ..services import baselines as bl_svc
-from ..services import detection
+from ..services import access, detection
 from ..services import monitoring as mon
 
 router = APIRouter(prefix="/api/v1", tags=["monitoring"])
@@ -24,23 +24,32 @@ def get_ruleset(request: Request) -> DetectionRulesetOut:
     return mon.detection_ruleset_out(request.app.state.fixture)
 
 
-@router.get("/astronauts/{astronaut_id}/monitoring", response_model=MonitoringOut, responses=error_responses(404),
+@router.get("/astronauts/{astronaut_id}/monitoring", response_model=MonitoringOut,
+            responses=error_responses(403, 404),
             summary="Per-measurement freshness, baseline, latest reading, trend, concerns and data-quality items",
             description="Data-quality items (missing, stale, poor quality, insufficient baseline) never open a case. "
                         "Trends are descriptive only.")
-def get_monitoring(astronaut_id: str, request: Request, db: Session = Depends(get_db)) -> MonitoringOut:
-    return mon.summary(db, request.app.state.fixture, astronaut_id)
+def get_monitoring(astronaut_id: str, request: Request, viewer_id: Optional[str] = Query(default=None),
+                   db: Session = Depends(get_db)) -> MonitoringOut:
+    fx = request.app.state.fixture
+    out = mon.summary(db, fx, astronaut_id)
+    access.check_viewer(db, fx, viewer_id, "observations.read_history", "astronaut", astronaut_id, astronaut_id)
+    return out
 
 
 @router.get("/astronauts/{astronaut_id}/observations", response_model=ObservationHistory,
-            responses=error_responses(404, 422), summary="Full observation history, newest first (2.7.0)",
+            responses=error_responses(403, 404, 422), summary="Full observation history, newest first (2.7.0)",
             description="Filters: type, since, until (ISO 8601 with offset). Paging: limit (1-1000, default 200) and "
                         "offset. Each item carries its stored detection result and origin.")
 def get_observations(astronaut_id: str, request: Request, type: Optional[str] = Query(default=None),
                      since: Optional[datetime] = Query(default=None), until: Optional[datetime] = Query(default=None),
                      limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0),
+                     viewer_id: Optional[str] = Query(default=None),
                      db: Session = Depends(get_db)) -> ObservationHistory:
-    return mon.history(db, request.app.state.fixture, astronaut_id, type, since, until, limit, offset)
+    fx = request.app.state.fixture
+    out = mon.history(db, fx, astronaut_id, type, since, until, limit, offset)
+    access.check_viewer(db, fx, viewer_id, "observations.read_history", "astronaut", astronaut_id, astronaut_id)
+    return out
 
 
 @router.get("/astronauts/{astronaut_id}/baselines", response_model=BaselineList, responses=error_responses(404),

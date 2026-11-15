@@ -242,6 +242,53 @@ an earlier rule.
 39. Offline and recovery tests (restart mid-session, loss of server behaviour documented).
 40. Full regression, contract export, smoke test, docs and status table.
 
+**Scope decision (owner, 2026-11-15).** Milestone 8 (hardware and AR) is out of scope. It is reported as NOT
+STARTED and nothing simulated is labelled as hardware. Milestones 6 and 7 are built for the software part only.
+
+Detailed sub-steps for steps 35–40 (planned 2026-11-15):
+- **Part A, contract 2.9.0 (steps 35–36).**
+  - 35.1 Fixture `screening_schedule`: three configured, fictional screening types for DEMO-001. They are
+    SA-BP-001 (weekly blood pressure, due 30 min ago, unchanged), SA-PO-001 (daily pulse oximetry, due in 6 h)
+    and SA-TEMP-001 (daily temperature, overdue). Each has `interval_hours` and `grace_hours`; columns are added
+    via `add_missing_columns`, and the sync adds missing schedule rows to existing databases.
+  - 35.2 Derived `due_state`: `upcoming`, `due`, `overdue` (past due + grace) or `completed`.
+    `GET /astronauts/{id}/assessments`.
+  - 35.3 Durable reminders: table `assessment_reminders`, one row per assessment and kind (`due`, `overdue`),
+    created on read. `GET /astronauts/{id}/reminders` and `POST /reminders/{id}/acknowledge`. Acknowledging
+    never completes the assessment.
+  - 35.4 `POST /assessments/{id}/start {actor_id, mode, equipment_id?}` opens a routine screening case
+    (`awaiting_assessment`, no symptom needed) and its session through the normal services. A measurement from
+    that procedure completes the assessment and schedules the next one (`due_at = completed + interval`).
+  - 36.1 is done (2.7.0). 36.2: fixture `ground_personnel` (fictional flight surgeon GND-FS-01 and ground support
+    GND-SUP-01). They are valid actors for role checks but are not habitat crew.
+  - 36.3 A permission matrix covering concern close, baseline recompute, hatch change, case acknowledgement,
+    sensitive case and history reads (optional `viewer_id`), and comms send and acknowledge (Part B). Every
+    refusal is 403 `ROLE_NOT_PERMITTED` and audited. `GET /access/roles` publishes the matrix.
+  - 36.4 Honest limit: there is no authentication. The actor or viewer ID is self-declared, so this is role
+    enforcement in a simulation, not security. Requests without `viewer_id` keep the demo behaviour.
+- **Part B, contract 2.10.0 (steps 37–38).**
+  - 37.1 Table `comms_messages`: direction (`to_ground` or `to_crew`), priority, sender, recipient role, case,
+    `client_message_id` (idempotent), and status (`queued`, `in_transit`, `delivered`, `acknowledged`) with
+    times. Fixture `comms`: fictional one-way delay of 300 s.
+  - 37.2 Transmission is computed lazily from the clock. Urgent messages go first, and routine messages queue
+    behind any urgent message that has not been sent. `POST /comms/link {state: up|down, actor_id}` simulates
+    loss of signal: messages wait while the link is down and get a new delivery time when it returns.
+  - 37.3 Endpoints: `POST /comms/messages`, `GET /comms/messages`, `POST /comms/messages/{id}/acknowledge`
+    (409 `NOT_DELIVERED`; the recipient side's role is required) and `GET /comms/link`.
+  - 37.4 An emergency activation now queues a real urgent `to_ground` message to the flight surgeon (it was a
+    status text before). Onboard crew response still does not wait for it.
+  - 38.1 `GET /environment/context`: the latest RadLab reading per instrument, with the dataset ID, source link,
+    unit and the location "ISS", stated as not the fictional habitat. It says explicitly that no relationship to
+    the crew member's health is inferred. NASA-EDA stays BLOCKED.
+- **Part C, steps 39–40.**
+  - 39.1 `GET /system/recovery` (2.10.0): what a client must restore after reconnecting (open sessions, open
+    concerns, due reminders, queued or undelivered messages, link state).
+  - 39.2 Tests: restart mid-session and mid-transmission; resend after a lost response (client IDs); outage
+    across a restart. The handoff documents the loss-of-server behaviour.
+  - 40.1 Full regression, contract export, smoke test, live restart, `docs/ACCEPTANCE_RECORD.md` (backend
+    acceptance record per v3.1 §8 subsystem with status and validation level), and the status table. Then
+    Review 4.
+
 **Review 4 (after step 40).** Check every status against v3.1 §12; nothing simulated is labelled hardware-tested or clinically validated.
 *Reflection:* Milestone 8 (hardware, AR) needs real devices; it stays NOT STARTED and is documented as such.
 
@@ -256,7 +303,9 @@ an earlier rule.
 | 29–33 | done 2026-11-15: contract 2.6.0 proactive health intelligence (scenarios A–E); 288 passed; smoke 33/33 |
 | 2.7.0 add-on | done 2026-11-15: steps 33.2, 33.3, 36.1 (history, live scenarios, review role check); 299 passed; smoke 38/38 |
 | 34 | done 2026-11-15: contract 2.8.0 PROC-PO-01 and PROC-TEMP-01, DET-1.1; 319 passed; smoke 40/40 |
-| 35–40 | not started (36 partly done: 36.1) |
+| 35–36 | done 2026-11-15: contract 2.9.0 screening and role matrix |
+| 37–40 | done 2026-11-15: contract 2.10.0 comms queue, environment context, recovery; 346 passed; smoke 45/45 |
+| Milestone 8 | NOT STARTED: out of scope by owner decision |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
 `test_instructions_and_limitations_unchanged`). Anatomy changes are additive for Codex's current client; the only
@@ -292,3 +341,25 @@ machine have one source each. The remaining risk is time-based behaviour (the re
 suppression window). Tests move the stored timestamps instead of sleeping, as `test_follow_up_becomes_due`
 already does. Efficiency: steps 31.1 and 32.1 were built with step 30 because they share the same functions.
 Step 31 therefore only adds the closing and review rules (31.2), and step 33 adds the D and E tests.
+
+**Review 4 outcome (2026-11-15, after step 40).**
+- Status words: `docs/ACCEPTANCE_RECORD.md` gives every v3.1 §8 subsystem a backend status and a validation
+  level. Environmental intelligence, safety and privacy, and habitat intelligence are PARTIAL, with the reason
+  given. NASA-EDA and OSD-195 are BLOCKED. Milestone 8 is NOT STARTED.
+- Nothing simulated is labelled hardware tested or clinically validated. All three procedures are
+  `EDUCATIONAL_DEMONSTRATION`. The only places the higher validation levels appear are the enum definition in
+  `schemas/procedures.py`, and every comms message and link response carries `simulated: true`.
+- Research integrity: all 5 imported datasets are still `IMPORTED` on the live database after the 2.9.0 and
+  2.10.0 upgrades. Reset counts are unchanged (`test_a`).
+- Deviations from the plan:
+  - Milestone 8 was dropped by the owner.
+  - A message created during an outage waits for a free 5-second transmission slot after the link returns. That
+    is the planned serial channel, but the first smoke check expected `in_transit` and was corrected to accept
+    `queued`.
+  - The RadLab context test found the snapshot lives under `raw/NASA-RADLAB/`, not `raw/`.
+
+*Reflection:* the main remaining risk is honesty about security. Role enforcement without authentication can be
+mistaken for access control, so the limitation appears in `/access/roles`, the handoff and the acceptance
+record. Efficiency: screening, comms and recovery reuse the case, procedure and audit services, so no workflow
+has two code paths. The test suite grew to 346 and runs in about 2.5 minutes. The next speed-up would be a
+session-scoped app for read-only tests.

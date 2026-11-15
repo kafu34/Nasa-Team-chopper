@@ -143,6 +143,21 @@ def main() -> int:
         for scn in ("SCN-REASSESSMENT-DUE", "SCN-URGENT-DURING-PROCEDURE", "SCN-EMERGENCY-DURING-PROCEDURE"):
             sc = c.post(f"/api/v1/demo/scenarios/{scn}")
             check(f"POST /api/v1/demo/scenarios/{scn}", sc.status_code == 200 and sc.json()["reset_first"])
+        states = {a["assessment_id"]: a["due_state"] for a in
+                  c.get("/api/v1/astronauts/DEMO-001/assessments").json()["assessments"]}
+        check("GET /api/v1/astronauts/{id}/assessments", states.get("SA-TEMP-001") == "overdue", str(states))
+        roles = c.get("/api/v1/access/roles").json()
+        check("GET /api/v1/access/roles", len(roles["personnel"]) == 4)
+        sent = c.post("/api/v1/comms/messages", json={"sender_id": "DEMO-002", "direction": "to_ground",
+                                                      "subject": "Smoke test", "body": "Fictional message."})
+        check("POST /api/v1/comms/messages", sent.status_code == 201
+              and sent.json()["status"] in ("queued", "in_transit"), sent.json().get("status", ""))
+        env = c.get("/api/v1/environment/context").json()
+        check("GET /api/v1/environment/context", env["health_relationship"] == "none_inferred"
+              and env["radiation"]["status"] == "IMPORTED" and len(env["radiation"]["latest_readings"]) > 0,
+              f"readings={len(env['radiation']['latest_readings'])}")
+        rec = c.get("/api/v1/system/recovery").json()
+        check("GET /api/v1/system/recovery", sent.json()["message_id"] in rec["undelivered_message_ids"])
         cors = c.options("/api/v1/demo/bootstrap", headers={"Origin": "http://127.0.0.1:5173",
                                                             "Access-Control-Request-Method": "GET"})
         check("CORS preflight from 127.0.0.1:5173", cors.headers.get("access-control-allow-origin") == "http://127.0.0.1:5173")

@@ -6,7 +6,7 @@ R-SYM-00  Validate region/laterality/onset against the fixture.
 R-SYM-01  An identical report (same region, laterality, severity and surface site) within 10 minutes is a
           duplicate. Two different detailed sites in one broad region (e.g. shoulder and elbow) are kept apart.
 R-SYM-02  A symptom opens (or joins) the astronaut's open routine case and moves it to 'investigating'.
-R-SYM-03  If a configured scheduled assessment exists, link it and move the case to 'awaiting_assessment'.
+R-SYM-03  If a configured symptom-linked scheduled assessment exists (2.9.0: daily screenings are not), link it and move the case to 'awaiting_assessment'.
           This is a fictional demonstration configuration. It does NOT claim the symptom is a clinical
           indication for blood-pressure testing.
 R-SYM-04  Severity >= 8 raises the case priority to 'urgent' and advises notifying the crew medical officer.
@@ -106,7 +106,8 @@ def report_symptom(db: Session, fx: dict, body: SymptomCreate) -> tuple[m.Sympto
     if case.state == "investigating":
         sa = db.scalars(select(m.ScheduledAssessment)
                         .where(m.ScheduledAssessment.astronaut_id == body.astronaut_id,
-                               m.ScheduledAssessment.status == "scheduled")
+                               m.ScheduledAssessment.status == "scheduled",
+                               m.ScheduledAssessment.symptom_linked.is_(True))
                         .order_by(m.ScheduledAssessment.due_at)).first()
         if sa is not None:
             sa.case_id = case.case_id

@@ -7,7 +7,7 @@ info:
     device. All astronaut, habitat and device data are fictional (SIMULATED_ASTRONAUT / SIMULATED_ENVIRONMENT_OR_DEVICE).
     NASA research records (NASA_RESEARCH) are kept separate and are never presented as live astronaut observations. Errors
     use the envelope {"error": {"code", "message", "details"}}.'
-  version: 2.8.0
+  version: 2.10.0
 paths:
   /healthz:
     get:
@@ -121,6 +121,8 @@ paths:
       tags:
       - cases
       summary: Get a case with evidence, follow-ups, measurements and audit history
+      description: 'Optional viewer_id (2.9.0): when sent, the viewer''s role is checked (crew medical officer, flight surgeon,
+        or the crew member whose case it is) and the read is audited. Without it the demonstration behaviour is unchanged.'
       operationId: get_case_api_v1_cases__case_id__get
       parameters:
       - name: case_id
@@ -129,6 +131,14 @@ paths:
         schema:
           type: string
           title: Case Id
+      - name: viewer_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Viewer Id
       responses:
         '200':
           description: Successful Response
@@ -136,6 +146,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CaseOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -153,6 +169,7 @@ paths:
       tags:
       - cases
       summary: Acknowledge a case alert (optional). Never changes state and never resolves the case.
+      description: Crew members and the flight surgeon may acknowledge; ground support gets 403 (2.9.0).
       operationId: acknowledge_case_api_v1_cases__case_id__acknowledge_post
       parameters:
       - name: case_id
@@ -174,6 +191,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CaseOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -283,6 +306,14 @@ paths:
         schema:
           type: string
           title: Astronaut Id
+      - name: viewer_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Viewer Id
       responses:
         '200':
           description: Successful Response
@@ -290,6 +321,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MonitoringOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -360,6 +397,14 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: viewer_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Viewer Id
       responses:
         '200':
           description: Successful Response
@@ -367,6 +412,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ObservationHistory'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Resource not found
           content:
@@ -545,6 +596,440 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/comms/messages:
+    post:
+      tags:
+      - communications
+      summary: Queue a medical message (simulated delayed link, 2.10.0)
+      description: to_ground needs a crew role; to_crew needs a ground role. 200 with duplicate=true for a repeated client_message_id.
+      operationId: send_message_api_v1_comms_messages_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommsSend'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommsMessageOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - communications
+      summary: The communications queue, urgent first (delivery is computed from the clock)
+      operationId: list_messages_api_v1_comms_messages_get
+      parameters:
+      - name: direction
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Direction
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - name: case_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Case Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommsList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/comms/messages/{message_id}:
+    get:
+      tags:
+      - communications
+      summary: One message with its transmission state
+      operationId: get_message_api_v1_comms_messages__message_id__get
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Message Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommsMessageOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/comms/messages/{message_id}/acknowledge:
+    post:
+      tags:
+      - communications
+      summary: Acknowledge a delivered message (receiving side only; 409 NOT_DELIVERED)
+      operationId: acknowledge_message_api_v1_comms_messages__message_id__acknowledge_post
+      parameters:
+      - name: message_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Message Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommsAck'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommsMessageOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict with current workflow state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/comms/link:
+    get:
+      tags:
+      - communications
+      summary: Simulated link state
+      operationId: get_link_api_v1_comms_link_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkOut'
+    post:
+      tags:
+      - communications
+      summary: Simulate loss or restoration of the ground link
+      operationId: change_link_api_v1_comms_link_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkChange'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkOut'
+        '403':
+          description: Not permitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/environment/context:
+    get:
+      tags:
+      - environment
+      summary: Attributed environmental context (RadLab ISS snapshot); no health relationship inferred
+      operationId: environment_context_api_v1_environment_context_get
+      parameters:
+      - name: astronaut_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentContext'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/system/recovery:
+    get:
+      tags:
+      - system
+      summary: What a client must restore after reconnecting (2.10.0)
+      operationId: recovery_api_v1_system_recovery_get
+      parameters:
+      - name: astronaut_id
+        in: query
+        required: false
+        schema:
+          type: string
+          default: DEMO-001
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/access/roles:
+    get:
+      tags:
+      - access
+      summary: Role codes, permission matrix and fictional personnel (2.9.0)
+      operationId: get_roles_api_v1_access_roles_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessMatrixOut'
+  /api/v1/astronauts/{astronaut_id}/assessments:
+    get:
+      tags:
+      - screening
+      summary: Scheduled screening assessments with due/overdue state (2.9.0)
+      operationId: list_assessments_api_v1_astronauts__astronaut_id__assessments_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentList'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/astronauts/{astronaut_id}/reminders:
+    get:
+      tags:
+      - screening
+      summary: Durable due and overdue reminders (2.9.0)
+      operationId: list_reminders_api_v1_astronauts__astronaut_id__reminders_get
+      parameters:
+      - name: astronaut_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Astronaut Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderList'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/reminders/{reminder_id}/acknowledge:
+    post:
+      tags:
+      - screening
+      summary: Acknowledge a reminder (never completes the assessment)
+      operationId: acknowledge_reminder_api_v1_reminders__reminder_id__acknowledge_post
+      parameters:
+      - name: reminder_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Reminder Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderAck'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderOut'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/assessments/{assessment_id}/start:
+    post:
+      tags:
+      - screening
+      summary: 'Start a scheduled screening: opens or joins a routine case and its procedure session'
+      description: No symptom is needed. 409 ASSESSMENT_COMPLETED, 409 CASE_HAS_PENDING_ASSESSMENT. The measurement from the
+        session completes the assessment and schedules the next one.
+      operationId: start_assessment_api_v1_assessments__assessment_id__start_post
+      parameters:
+      - name: assessment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Assessment Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentStart'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentStartOut'
         '404':
           description: Resource not found
           content:
@@ -1546,6 +2031,38 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    AccessMatrixOut:
+      properties:
+        role_codes:
+          items:
+            type: string
+            enum:
+            - crew_member
+            - crew_medical_officer
+            - flight_surgeon
+            - ground_support
+          type: array
+          title: Role Codes
+        permissions:
+          items:
+            $ref: '#/components/schemas/PermissionOut'
+          type: array
+          title: Permissions
+        personnel:
+          items:
+            $ref: '#/components/schemas/PersonOut'
+          type: array
+          title: Personnel
+        limitation:
+          type: string
+          title: Limitation
+      type: object
+      required:
+      - role_codes
+      - permissions
+      - personnel
+      - limitation
+      title: AccessMatrixOut
     AnchorOut:
       properties:
         anchor_id:
@@ -1758,6 +2275,74 @@ components:
       - source_column
       title: AssayRecord
       description: One value from a wide bio-assay table (BIO_ASSAY_TABLE), e.g. OSD-656 urine inflammation panel.
+    AssessmentList:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        assessments:
+          items:
+            $ref: '#/components/schemas/ScheduledAssessmentOut'
+          type: array
+          title: Assessments
+        note:
+          type: string
+          title: Note
+          default: Fictional demonstration schedule. Not a clinical recommendation.
+      type: object
+      required:
+      - astronaut_id
+      - assessments
+      title: AssessmentList
+    AssessmentStart:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-001
+        mode:
+          type: string
+          enum:
+          - self
+          - responder
+          title: Mode
+          default: self
+        equipment_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Equipment Id
+          examples:
+          - EQ-PO-01
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      title: AssessmentStart
+    AssessmentStartOut:
+      properties:
+        assessment:
+          $ref: '#/components/schemas/ScheduledAssessmentOut'
+        case_id:
+          type: string
+          title: Case Id
+        case_state:
+          type: string
+          title: Case State
+        session:
+          $ref: '#/components/schemas/SessionOut'
+        session_created:
+          type: boolean
+          title: Session Created
+      type: object
+      required:
+      - assessment
+      - case_id
+      - case_state
+      - session
+      - session_created
+      title: AssessmentStartOut
     AstronautOut:
       properties:
         astronaut_id:
@@ -1801,6 +2386,23 @@ components:
       - fictional
       - mission
       title: AstronautOut
+    AtmosphereContext:
+      properties:
+        dataset_id:
+          type: string
+          title: Dataset Id
+        status:
+          type: string
+          title: Status
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - dataset_id
+      - status
+      - note
+      title: AtmosphereContext
     Attention:
       properties:
         priority:
@@ -2553,6 +3155,208 @@ components:
       - source_row_number
       title: CmpRecord
       description: One analyte value from LSDS-8_Comprehensive_Metabolic_Panel_CMP.upload_SUBMITTED.csv.
+    CommsAck:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - GND-FS-01
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      title: CommsAck
+    CommsList:
+      properties:
+        messages:
+          items:
+            $ref: '#/components/schemas/CommsMessageOut'
+          type: array
+          title: Messages
+          description: Urgent first, then oldest first.
+        link_state:
+          type: string
+          enum:
+          - up
+          - down
+          title: Link State
+        one_way_delay_seconds:
+          type: integer
+          title: One Way Delay Seconds
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - messages
+      - link_state
+      - one_way_delay_seconds
+      - note
+      title: CommsList
+    CommsMessageOut:
+      properties:
+        message_id:
+          type: string
+          title: Message Id
+        client_message_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Client Message Id
+        direction:
+          type: string
+          enum:
+          - to_ground
+          - to_crew
+          title: Direction
+        priority:
+          type: string
+          enum:
+          - urgent
+          - routine
+          title: Priority
+        sender_id:
+          type: string
+          title: Sender Id
+        sender_role:
+          type: string
+          title: Sender Role
+        recipient_role:
+          type: string
+          title: Recipient Role
+        case_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Case Id
+        subject:
+          type: string
+          title: Subject
+        body:
+          type: string
+          title: Body
+        status:
+          type: string
+          enum:
+          - queued
+          - in_transit
+          - delivered
+          - acknowledged
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        transmit_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Transmit At
+        deliver_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Deliver At
+          description: Expected or actual arrival time.
+        delivered_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Delivered At
+        acknowledged_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Acknowledged At
+        acknowledged_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Acknowledged By
+        duplicate:
+          type: boolean
+          title: Duplicate
+          default: false
+        simulated:
+          type: boolean
+          const: true
+          title: Simulated
+          default: true
+      type: object
+      required:
+      - message_id
+      - client_message_id
+      - direction
+      - priority
+      - sender_id
+      - sender_role
+      - recipient_role
+      - case_id
+      - subject
+      - body
+      - status
+      - created_at
+      - transmit_at
+      - deliver_at
+      - delivered_at
+      - acknowledged_at
+      - acknowledged_by
+      title: CommsMessageOut
+    CommsSend:
+      properties:
+        sender_id:
+          type: string
+          title: Sender Id
+          examples:
+          - DEMO-002
+        direction:
+          type: string
+          enum:
+          - to_ground
+          - to_crew
+          title: Direction
+        priority:
+          type: string
+          enum:
+          - urgent
+          - routine
+          title: Priority
+          default: routine
+        subject:
+          type: string
+          maxLength: 200
+          minLength: 3
+          title: Subject
+        body:
+          type: string
+          maxLength: 5000
+          minLength: 1
+          title: Body
+        case_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Case Id
+        client_message_id:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: Client Message Id
+          description: Resending with the same value returns the first message (duplicate=true).
+      additionalProperties: false
+      type: object
+      required:
+      - sender_id
+      - direction
+      - subject
+      - body
+      title: CommsSend
     ComparisonReadiness:
       properties:
         ready:
@@ -3669,6 +4473,37 @@ components:
       - equipment_assistance
       - next_action
       title: EmergencyOut
+    EnvironmentContext:
+      properties:
+        astronaut_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Astronaut Id
+        radiation:
+          $ref: '#/components/schemas/RadiationContext'
+        atmosphere:
+          $ref: '#/components/schemas/AtmosphereContext'
+        health_relationship:
+          type: string
+          const: none_inferred
+          title: Health Relationship
+        caution:
+          type: string
+          title: Caution
+        data_category:
+          type: string
+          const: NASA_RESEARCH
+          title: Data Category
+      type: object
+      required:
+      - astronaut_id
+      - radiation
+      - atmosphere
+      - health_relationship
+      - caution
+      - data_category
+      title: EnvironmentContext
     EquipmentAssistance:
       properties:
         available:
@@ -4093,6 +4928,12 @@ components:
         note:
           type: string
           title: Note
+        message_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message Id
+          description: The urgent to_ground message in the communications queue (2.10.0). Track it with GET /comms/messages/{id}.
       type: object
       required:
       - status
@@ -4716,6 +5557,77 @@ components:
       - description
       - reviewed_by_flight_surgeon
       title: InstructionSource
+    LinkChange:
+      properties:
+        state:
+          type: string
+          enum:
+          - up
+          - down
+          title: State
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-002
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+          title: Reason
+      additionalProperties: false
+      type: object
+      required:
+      - state
+      - actor_id
+      - reason
+      title: LinkChange
+    LinkOut:
+      properties:
+        link_id:
+          type: string
+          title: Link Id
+        state:
+          type: string
+          enum:
+          - up
+          - down
+          title: State
+        changed_at:
+          type: string
+          format: date-time
+          title: Changed At
+        changed_by:
+          type: string
+          title: Changed By
+        reason:
+          type: string
+          title: Reason
+        outage_count:
+          type: integer
+          title: Outage Count
+        one_way_delay_seconds:
+          type: integer
+          title: One Way Delay Seconds
+          default: 300
+        transmit_seconds:
+          type: integer
+          title: Transmit Seconds
+          default: 5
+        simulated:
+          type: boolean
+          const: true
+          title: Simulated
+          default: true
+      type: object
+      required:
+      - link_id
+      - state
+      - changed_at
+      - changed_by
+      - reason
+      - outage_count
+      title: LinkOut
     LocationConfirmRequest:
       properties:
         astronaut_id:
@@ -5706,6 +6618,68 @@ components:
       - hatch_state
       - note
       title: PassageOut
+    PermissionOut:
+      properties:
+        action:
+          type: string
+          title: Action
+        allowed_roles:
+          items:
+            type: string
+            enum:
+            - crew_member
+            - crew_medical_officer
+            - flight_surgeon
+            - ground_support
+          type: array
+          title: Allowed Roles
+        own_record_allowed:
+          type: boolean
+          title: Own Record Allowed
+          description: A crew_member may perform it on their own record.
+        description:
+          type: string
+          title: Description
+      type: object
+      required:
+      - action
+      - allowed_roles
+      - own_record_allowed
+      - description
+      title: PermissionOut
+    PersonOut:
+      properties:
+        person_id:
+          type: string
+          title: Person Id
+        display_name:
+          type: string
+          title: Display Name
+        role_code:
+          type: string
+          enum:
+          - crew_member
+          - crew_medical_officer
+          - flight_surgeon
+          - ground_support
+          title: Role Code
+        location:
+          type: string
+          title: Location
+        kind:
+          type: string
+          enum:
+          - crew
+          - ground
+          title: Kind
+      type: object
+      required:
+      - person_id
+      - display_name
+      - role_code
+      - location
+      - kind
+      title: PersonOut
     PriorityProtection:
       properties:
         urgent_since:
@@ -5999,6 +6973,111 @@ components:
       - spo2
       title: PulseOximetryValue
       description: 2.8.0. SpO2 in %, pulse in beats per minute.
+    RadiationContext:
+      properties:
+        dataset_id:
+          type: string
+          title: Dataset Id
+        status:
+          type: string
+          title: Status
+        title:
+          type: string
+          title: Title
+        source_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Url
+        location:
+          type: string
+          title: Location
+        is_habitat_reading:
+          type: boolean
+          const: false
+          title: Is Habitat Reading
+        is_personal_dose:
+          type: boolean
+          const: false
+          title: Is Personal Dose
+        latest_readings:
+          items:
+            $ref: '#/components/schemas/RadiationReading'
+          type: array
+          title: Latest Readings
+        limitations:
+          items:
+            type: string
+          type: array
+          title: Limitations
+      type: object
+      required:
+      - dataset_id
+      - status
+      - title
+      - source_url
+      - location
+      - is_habitat_reading
+      - is_personal_dose
+      - latest_readings
+      - limitations
+      title: RadiationContext
+    RadiationReading:
+      properties:
+        instrument_id:
+          type: string
+          title: Instrument Id
+        instrument_family:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instrument Family
+        spacecraft:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Spacecraft
+        module:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Module
+        metric:
+          type: string
+          title: Metric
+        value:
+          type: number
+          title: Value
+        value_raw:
+          type: string
+          title: Value Raw
+        unit:
+          type: string
+          title: Unit
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        source_file:
+          type: string
+          title: Source File
+        source_row_number:
+          type: integer
+          title: Source Row Number
+      type: object
+      required:
+      - instrument_id
+      - instrument_family
+      - spacecraft
+      - module
+      - metric
+      - value
+      - value_raw
+      - unit
+      - timestamp
+      - source_file
+      - source_row_number
+      title: RadiationReading
     ReassessmentOut:
       properties:
         follow_up_id:
@@ -6030,6 +7109,75 @@ components:
       - completed_at
       - completion_evidence_id
       title: ReassessmentOut
+    RecoveryOut:
+      properties:
+        server_time:
+          type: string
+          format: date-time
+          title: Server Time
+        contract_version:
+          type: string
+          title: Contract Version
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        open_session_ids:
+          items:
+            type: string
+          type: array
+          title: Open Session Ids
+        open_concern_ids:
+          items:
+            type: string
+          type: array
+          title: Open Concern Ids
+        open_case_ids:
+          items:
+            type: string
+          type: array
+          title: Open Case Ids
+        open_reminder_ids:
+          items:
+            type: string
+          type: array
+          title: Open Reminder Ids
+        undelivered_message_ids:
+          items:
+            type: string
+          type: array
+          title: Undelivered Message Ids
+          description: queued or in_transit
+        unacknowledged_message_ids:
+          items:
+            type: string
+          type: array
+          title: Unacknowledged Message Ids
+          description: delivered, waiting for acknowledgement
+        link_state:
+          type: string
+          enum:
+          - up
+          - down
+          title: Link State
+        loss_of_server_behaviour:
+          items:
+            type: string
+          type: array
+          title: Loss Of Server Behaviour
+      type: object
+      required:
+      - server_time
+      - contract_version
+      - astronaut_id
+      - open_session_ids
+      - open_concern_ids
+      - open_case_ids
+      - open_reminder_ids
+      - undelivered_message_ids
+      - unacknowledged_message_ids
+      - link_state
+      - loss_of_server_behaviour
+      title: RecoveryOut
     RegionOut:
       properties:
         region_id:
@@ -6129,6 +7277,94 @@ components:
       - anchor_id
       - reason
       title: RejectedObservation
+    ReminderAck:
+      properties:
+        actor_id:
+          type: string
+          title: Actor Id
+          examples:
+          - DEMO-001
+      additionalProperties: false
+      type: object
+      required:
+      - actor_id
+      title: ReminderAck
+    ReminderList:
+      properties:
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        reminders:
+          items:
+            $ref: '#/components/schemas/ReminderOut'
+          type: array
+          title: Reminders
+      type: object
+      required:
+      - astronaut_id
+      - reminders
+      title: ReminderList
+    ReminderOut:
+      properties:
+        reminder_id:
+          type: string
+          title: Reminder Id
+        assessment_id:
+          type: string
+          title: Assessment Id
+        astronaut_id:
+          type: string
+          title: Astronaut Id
+        kind:
+          type: string
+          enum:
+          - due
+          - overdue
+          title: Kind
+        status:
+          type: string
+          enum:
+          - open
+          - acknowledged
+          - closed_by_completion
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        acknowledged_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Acknowledged At
+        acknowledged_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Acknowledged By
+        closed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Closed At
+        note:
+          type: string
+          title: Note
+          default: Acknowledging a reminder does not complete the assessment.
+      type: object
+      required:
+      - reminder_id
+      - assessment_id
+      - astronaut_id
+      - kind
+      - status
+      - created_at
+      - acknowledged_at
+      - acknowledged_by
+      - closed_at
+      title: ReminderOut
     RequestedAssessment:
       properties:
         assessment_id:
@@ -6614,6 +7850,51 @@ components:
             format: date-time
           - type: 'null'
           title: Completed At
+        due_state:
+          type: string
+          enum:
+          - upcoming
+          - due
+          - overdue
+          - completed
+          title: Due State
+          description: 2.9.0. overdue = past due_at + grace_hours.
+          default: upcoming
+        overdue_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Overdue At
+        interval_hours:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Interval Hours
+        grace_hours:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Grace Hours
+        series_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Series Id
+        sequence:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sequence
+        symptom_linked:
+          type: boolean
+          title: Symptom Linked
+          default: true
+        completed_by_measurement_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Completed By Measurement Id
       type: object
       required:
       - assessment_id

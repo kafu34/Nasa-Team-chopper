@@ -2,8 +2,8 @@
 
 | Item | Value |
 |---|---|
-| Contract | `shared/openapi.yaml`, **version 2.8.0**, generated from the FastAPI app (do not edit by hand) |
-| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.8.0; anatomy models in `shared/anatomy/` |
+| Contract | `shared/openapi.yaml`, **version 2.10.0**, generated from the FastAPI app (do not edit by hand) |
+| Fixture | `shared/fixtures/demo_scenario.json`, `fixture_version` 2.10.0; anatomy models in `shared/anatomy/` |
 | Backend branch | `backend/p0-v2.1`. PR #1 was merged into `main`; the contract 2.2.0 commits below are on this branch only until the owner merges them. |
 | Base URL | `http://127.0.0.1:8000` |
 | API prefix | `/api/v1` (plus `/healthz` at the root) |
@@ -201,8 +201,8 @@ Generated IDs (`CASE-…`, `SES-…`) are random per run; fixture IDs are fixed.
 
 ## 9. Tests
 
-See `docs/TEST_REPORT.md`. Latest: **319 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
-`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **40/40** real-HTTP checks against
+See `docs/TEST_REPORT.md`. Latest: **346 passed, 0 failed** (pytest, including the 3D site-catalogue check against Codex's
+`anatomy-sites.ts`; the skip is the visual-registry check, see §11) and **45/45** real-HTTP checks against
 uvicorn.
 
 ## 10. Known contract deviations and coordination notes
@@ -222,6 +222,69 @@ uvicorn.
 ## 11. Changes requiring frontend updates
 
 Changes are listed newest first, each with its contract version.
+
+### Contract 2.10.0 — communications, environment and recovery (plan steps 37–39)
+
+1. **Medical communications queue.** The link is a fictional simulation: 300 s one-way delay and 5 s per
+   transmission.
+   - `POST /comms/messages {sender_id, direction: to_ground|to_crew, priority, subject, body, case_id?,
+     client_message_id?}`. A crew role is needed for `to_ground` and a ground role for `to_crew` (403
+     otherwise). A repeated `client_message_id` returns 200 with `duplicate: true`.
+   - Status moves `queued` → `in_transit` → `delivered` → `acknowledged`. `deliver_at` is the expected arrival.
+     Delivery is computed from the clock on every read.
+   - One message is sent at a time; among the messages waiting, urgent goes first.
+   - `GET /comms/messages[?direction=&status=&case_id=]` lists urgent first. `GET /comms/messages/{id}` returns
+     one message.
+   - `POST /comms/messages/{id}/acknowledge {actor_id}`: only the receiving side (ground for `to_ground`, crew for
+     `to_crew`), and only after delivery (409 `NOT_DELIVERED`).
+   - `GET /comms/link` and `POST /comms/link {state: up|down, actor_id, reason}` simulate loss of signal.
+     Messages created while the link is down stay `queued`. Messages already sent keep travelling.
+   - **Emergency activation now queues a real urgent `to_ground` message.** It appears as
+     `flight_surgeon_escalation.message_id`. A duplicate activation reuses the same message. The onboard crew
+     response still does not wait for it.
+2. **Environmental context.** `GET /environment/context[?astronaut_id=]` returns the latest RadLab reading per
+   instrument, with dataset ID, source link, unit, source file and row.
+   - The flags are `is_habitat_reading: false`, `is_personal_dose: false` and
+     `health_relationship: none_inferred`. Show the `caution` text with it.
+   - NASA-EDA is reported as BLOCKED.
+3. **Recovery.** `GET /system/recovery[?astronaut_id=]` lists what to restore after reconnecting: open sessions,
+   cases and concerns, open reminders, undelivered and unacknowledged messages, and the link state.
+   `loss_of_server_behaviour[]` is the documented behaviour when the server is lost. While the server is
+   unreachable, the client must say so and must not show cached data as current.
+4. **Acceptance record.** `docs/ACCEPTANCE_RECORD.md` gives the backend status and validation level for every
+   v3.1 §8 subsystem.
+
+### Contract 2.9.0 — preventive screening and role-based access (plan steps 35–36)
+
+1. **Screening.** There are three fictional schedule types for DEMO-001:
+   - SA-BP-001: weekly blood pressure, **due**;
+   - SA-PO-001: daily pulse oximetry, **upcoming**;
+   - SA-TEMP-001: daily temperature, **overdue**.
+
+   Endpoints and rules:
+   - `GET /astronauts/{id}/assessments` returns `due_state` (`upcoming`, `due`, `overdue`, `completed`),
+     `overdue_at`, `interval_hours`, `series_id`, `sequence` and `symptom_linked`. Bootstrap
+     `scheduled_assessments` gains the same fields and is ordered by ID.
+   - `GET /astronauts/{id}/reminders` returns durable reminders, one per assessment and kind (`due`,
+     `overdue`). `POST /reminders/{id}/acknowledge {actor_id}` records an acknowledgement but never completes
+     the assessment.
+   - `POST /assessments/{id}/start {actor_id, mode, equipment_id?}` opens or joins a routine case **without a
+     symptom** and starts the session. Errors: 409 `ASSESSMENT_COMPLETED` and 409
+     `CASE_HAS_PENDING_ASSESSMENT`.
+   - A recorded measurement from that procedure completes every due or overdue assessment of the same type and
+     schedules the next one (`SA-…-2`).
+   - Symptom reports still link only SA-BP-001.
+2. **Roles.** `GET /access/roles` publishes the role codes, the permission matrix and the fictional personnel:
+   DEMO-001 crew member, DEMO-002 crew medical officer, GND-FS-01 flight surgeon, GND-SUP-01 ground support.
+   - The flight surgeon may close concerns, recompute baselines, acknowledge cases and send to the crew.
+   - Ground support cannot close, review or acknowledge.
+   - Ground personnel cannot operate hatches.
+   - Optional `viewer_id` on `GET /cases/{id}`, `/astronauts/{id}/observations` and
+     `/astronauts/{id}/monitoring` checks the viewer's role: crew medical officer, flight surgeon, or the crew
+     member reading their own record. These reads are audited.
+   - Every refusal is 403 `ROLE_NOT_PERMITTED` and is audited.
+   - **Limit:** there is no authentication, so identities are self-declared. Without `viewer_id` the demo
+     behaviour is unchanged.
 
 ### Contract 2.8.0 — pulse oximeter and thermometer procedures (plan step 34)
 

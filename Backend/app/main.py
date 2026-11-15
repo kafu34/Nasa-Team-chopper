@@ -28,10 +28,10 @@ DESCRIPTION = (
 
 
 def _routers():
-    from .routers import cases, demo, emergency, monitoring, procedures, research, spatial
+    from .routers import cases, demo, emergency, monitoring, operations, procedures, research, spatial
 
-    return [demo.router, cases.router, monitoring.router, spatial.router, procedures.router, research.router,
-            emergency.router]
+    return [demo.router, cases.router, monitoring.router, operations.router, spatial.router, procedures.router,
+            research.router, emergency.router]
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:

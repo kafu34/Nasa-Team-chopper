@@ -34,6 +34,20 @@ def all_procedures(fx: dict) -> list[dict]:
     return [fx["procedure"], *fx.get("additional_procedures", [])]
 
 
+def screening_entries(fx: dict) -> list[dict]:
+    """SA-BP-001 (`scheduled_assessment`) plus `screening_schedule` (2.9.0)."""
+    return [fx["scheduled_assessment"], *fx.get("screening_schedule", [])]
+
+
+def _assessment_row(sa: dict, now: datetime) -> m.ScheduledAssessment:
+    return m.ScheduledAssessment(
+        assessment_id=sa["assessment_id"], astronaut_id=sa["astronaut_id"], title=sa["title"],
+        capability=sa["capability"], procedure_id=sa["procedure_id"], due_at=_ago(now, sa["due_minutes_ago"]),
+        status="scheduled", reason=sa["reason"], interval_hours=sa.get("interval_hours"),
+        grace_hours=sa.get("grace_hours"), series_id=sa["assessment_id"], sequence=1,
+        symptom_linked=sa.get("symptom_linked", True))
+
+
 def is_seeded(db: Session) -> bool:
     return db.scalar(select(m.Astronaut.astronaut_id).limit(1)) is not None
 
@@ -114,19 +128,8 @@ def seed_demo(db: Session, fx: dict, now: datetime | None = None) -> None:
                 simulated=True,
             )
         )
-    sa = fx["scheduled_assessment"]
-    db.add(
-        m.ScheduledAssessment(
-            assessment_id=sa["assessment_id"],
-            astronaut_id=sa["astronaut_id"],
-            title=sa["title"],
-            capability=sa["capability"],
-            procedure_id=sa["procedure_id"],
-            due_at=_ago(now, sa["due_minutes_ago"]),
-            status="scheduled",
-            reason=sa["reason"],
-        )
-    )
+    for sa in screening_entries(fx):
+        db.add(_assessment_row(sa, now))
     db.add(
         m.AuditEvent(
             timestamp=now,
@@ -176,6 +179,23 @@ def sync_configuration(db: Session, fx: dict) -> list[str]:
         if want is not None and row.hatch_id != want:
             row.hatch_id = want
             changed.append(f"connection {row.from_zone_id}-{row.to_zone_id} hatch {want}")
+    now = utcnow()
+    for sa in screening_entries(fx):  # screening configuration (2.9.0)
+        if db.get(m.Astronaut, sa["astronaut_id"]) is None or db.get(m.ProcedureDefinition, sa["procedure_id"]) is None:
+            continue
+        rows = db.scalars(select(m.ScheduledAssessment).where(
+            (m.ScheduledAssessment.series_id == sa["assessment_id"])
+            | (m.ScheduledAssessment.assessment_id == sa["assessment_id"]))).all()
+        if not rows:
+            db.add(_assessment_row(sa, now))
+            changed.append(f"screening {sa['assessment_id']} added")
+        for row in rows:
+            if row.series_id is None:
+                row.series_id, row.sequence = sa["assessment_id"], 1
+            if row.interval_hours is None and sa.get("interval_hours"):
+                row.interval_hours, row.grace_hours = sa["interval_hours"], sa.get("grace_hours")
+                row.symptom_linked = sa.get("symptom_linked", True)
+                changed.append(f"screening {row.assessment_id} interval set")
     if changed:
         db.add(m.AuditEvent(actor="system", action="configuration.synced", entity_type="fixture",
                             entity_id=fx["fixture_version"], details={"changes": changed}))

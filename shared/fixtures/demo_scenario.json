@@ -1,6 +1,6 @@
 {
-  "fixture_version": "2.8.0",
-  "contract_version": "2.8.0",
+  "fixture_version": "2.10.0",
+  "contract_version": "2.10.0",
   "disclaimer": "FICTIONAL DEMONSTRATION DATA. SENTINEL AI is a research demonstration prototype, not a clinically validated medical device. All astronaut, habitat, device and wireless records in this file are synthetic.",
   "time_convention": "Fields ending in _minutes_ago or _seconds_ago are resolved relative to the server clock when the demo is seeded or reset. BLE observations are sent by the client with observed_at = now - age_seconds.",
   "astronaut": {
@@ -780,7 +780,10 @@
     "capability": "blood_pressure",
     "procedure_id": "PROC-BP-01",
     "due_minutes_ago": 30,
-    "reason": "Configured weekly demonstration assessment. This schedule is fictional and is not a clinical recommendation."
+    "reason": "Configured weekly demonstration assessment. This schedule is fictional and is not a clinical recommendation.",
+    "interval_hours": 168,
+    "grace_hours": 24,
+    "symptom_linked": true
   },
   "demo_symptom": {
     "astronaut_id": "DEMO-001",
@@ -2027,5 +2030,52 @@
         }
       ]
     }
-  ]
+  ],
+  "screening_schedule": [
+    {
+      "assessment_id": "SA-PO-001",
+      "astronaut_id": "DEMO-001",
+      "title": "Daily fingertip pulse-oximeter check (fictional schedule)",
+      "capability": "pulse_oximetry",
+      "procedure_id": "PROC-PO-01",
+      "due_minutes_ago": -360,
+      "interval_hours": 24,
+      "grace_hours": 6,
+      "symptom_linked": false,
+      "reason": "Configured daily demonstration screening. This schedule is fictional and is not a clinical recommendation."
+    },
+    {
+      "assessment_id": "SA-TEMP-001",
+      "astronaut_id": "DEMO-001",
+      "title": "Daily temperature check (fictional schedule)",
+      "capability": "body_temperature",
+      "procedure_id": "PROC-TEMP-01",
+      "due_minutes_ago": 1560,
+      "interval_hours": 24,
+      "grace_hours": 6,
+      "symptom_linked": false,
+      "reason": "Configured daily demonstration screening. This schedule is fictional and is not a clinical recommendation."
+    }
+  ],
+  "ground_personnel": [
+    {
+      "person_id": "GND-FS-01",
+      "display_name": "Demo Flight Surgeon (fictional)",
+      "role_code": "flight_surgeon",
+      "location": "mission_control",
+      "fictional": true
+    },
+    {
+      "person_id": "GND-SUP-01",
+      "display_name": "Demo Ground Support Engineer (fictional)",
+      "role_code": "ground_support",
+      "location": "mission_control",
+      "fictional": true
+    }
+  ],
+  "comms": {
+    "one_way_delay_seconds": 300,
+    "transmit_seconds": 5,
+    "note": "Fictional simulation of a delayed habitat-to-ground link (300 s one way). There is no real ground link."
+  }
 }

@@ -97,6 +97,15 @@ class ScheduledAssessmentOut(Out):
     reason: str
     case_id: Optional[str]
     completed_at: Optional[datetime]
+    due_state: Literal["upcoming", "due", "overdue", "completed"] = Field(
+        default="upcoming", description="2.9.0. overdue = past due_at + grace_hours.")
+    overdue_at: Optional[datetime] = None
+    interval_hours: Optional[int] = None
+    grace_hours: Optional[int] = None
+    series_id: Optional[str] = None
+    sequence: Optional[int] = None
+    symptom_linked: bool = True
+    completed_by_measurement_id: Optional[str] = None
 
 
 class RegionOut(BaseModel):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -22,6 +22,8 @@ class CrewAlert(BaseModel):
 class FlightSurgeonEscalation(BaseModel):
     status: Literal["queued_for_transmission"]
     note: str
+    message_id: Optional[str] = Field(default=None, description="The urgent to_ground message in the "
+                                      "communications queue (2.10.0). Track it with GET /comms/messages/{id}.")
 
 
 class EmergencyInformation(BaseModel):
