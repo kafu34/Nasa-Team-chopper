@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import models as m
@@ -221,6 +222,17 @@ def record_step_event(db: Session, session_id: str, body: StepEventCreate) -> St
                               client_event_id=body.client_event_id, actor_id=body.actor_id, note=body.note,
                               occurred_at=at, recorded_at=now)
     db.add(ev)
+    try:
+        db.flush()
+    except IntegrityError:
+        # The same client_event_id arrived twice at once: return the first event, as a sequential repeat would.
+        db.rollback()
+        prev = db.scalars(select(m.ProcedureStepEvent).where(
+            m.ProcedureStepEvent.session_id == s.session_id,
+            m.ProcedureStepEvent.client_event_id == body.client_event_id)).first()
+        if prev is None:
+            raise
+        return StepEventOut(**_event_dict(prev), duplicate=True)
     audit(db, body.actor_id, f"procedure_visual.{body.event_type}", "procedure_session", s.session_id, s.case_id,
           step_id=body.step_id, visual_action_id=expected, note="Visual record only; not clinical execution")
     db.commit()
