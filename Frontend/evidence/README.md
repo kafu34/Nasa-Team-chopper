@@ -58,3 +58,15 @@ This browser run used Vite at `127.0.0.1:5178` against an isolated local 2.10.0 
 | Routine assessment in the temperature procedure coach | [screening-start-session-2.10.png](screening-start-session-2.10.png) |
 | Narrow-screen schedule and controls | [screening-mobile-2.10.png](screening-mobile-2.10.png) |
 | Local server recovery snapshot | [recovery-snapshot-2.10.png](recovery-snapshot-2.10.png) |
+
+## Contract 2.10.0 — simulated communications and environmental context
+
+The next software-only browser run used Vite at `127.0.0.1:5178` against an isolated 2.10.0 backend and disposable SQLite database. NASA-RadLab was imported into that database from the repository's source file. The communications view displayed the backend's 300-second one-way delay. A crew-authored fictional message stayed `queued` during a simulated link outage and became `in_transit` after restoration, with `deliver_at` supplied by the backend. An emergency activation queued urgent message `MSG-6D8D8B435A`; the emergency screen linked to that exact queue record and explicitly kept onboard action independent of delivery. This run did not wait five minutes for delivery or exercise a live ground acknowledgement; backend tests cover those transitions, while the frontend acknowledgement control has a focused role and status test. The environment view showed historical ISS RadLab readings with source file, row, units and NASA link, plus the backend's caution. NASA-EDA returned `NOT_DOWNLOADED` with a `BLOCKED` note because no source file or importer exists. The narrow-screen caution remained readable. The sidebar was made viewport-sticky so emergency assistance remains visible on long desktop pages.
+
+| Screen / check | Screenshot |
+|---|---|
+| Crew message queued during simulated ground-link outage | [comms-queued-outage-2.10.png](comms-queued-outage-2.10.png) |
+| Message in transit after simulated link restoration | [comms-in-transit-2.10.png](comms-in-transit-2.10.png) |
+| Emergency response with queued ground message ID | [emergency-comms-link-2.10.png](emergency-comms-link-2.10.png) |
+| Attributed RadLab context and visible emergency entry | [environment-context-2.10.png](environment-context-2.10.png) |
+| Narrow-screen environmental caution | [environment-mobile-2.10.png](environment-mobile-2.10.png) |
