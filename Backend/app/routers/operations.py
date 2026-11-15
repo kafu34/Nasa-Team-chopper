@@ -18,7 +18,8 @@ from sqlalchemy import select
 from ..config import CONTRACT_VERSION
 from ..schemas.operations import (CommsAck, CommsList, CommsMessageOut, CommsSend, EnvironmentContext, LinkChange,
                                   LinkOut, RecoveryOut)
-from ..services import access, comms, environment, screening
+from ..schemas.operations import EquipmentStatus, EquipmentUpdate, EquipmentUpdateOut
+from ..services import access, comms, environment, inventory, screening
 from ..services import procedures as proc_svc
 
 router = APIRouter(prefix="/api/v1")
@@ -137,6 +138,35 @@ def recovery(request: Request, astronaut_id: str = Query(default="DEMO-001"),
         link_state=comms.link(db).state, loss_of_server_behaviour=LOSS_OF_SERVER)
     db.commit()
     return out
+
+
+def _equipment_status(d, reasons) -> EquipmentStatus:
+    return EquipmentStatus(**{k: getattr(d, k) for k in ("equipment_id", "device_model", "capability", "zone_id",
+                                                         "readiness", "readiness_verified_at", "supplies",
+                                                         "required_supplies", "compatible_procedure_ids",
+                                                         "status_updated_at")},
+                           usable=not reasons, unusable_reasons=reasons)
+
+
+@router.get("/equipment", response_model=list[EquipmentStatus], tags=["equipment"],
+            summary="Equipment inventory with usability (2.11.0)")
+def list_equipment(db: Session = Depends(get_db)) -> list[EquipmentStatus]:
+    return [_equipment_status(d, r) for d, r in inventory.listing(db)]
+
+
+@router.post("/equipment/{equipment_id}/status", response_model=EquipmentUpdateOut,
+             responses=error_responses(403, 404, 422), tags=["equipment"],
+             summary="Update a device's readiness, supplies or location (crew roles; audited)",
+             description="Invalidates active recommendations for the device and its capability. verified_ready "
+                         "counts as a fresh readiness check.")
+def update_equipment(equipment_id: str, body: EquipmentUpdate, request: Request,
+                     db: Session = Depends(get_db)) -> EquipmentUpdateOut:
+    out = inventory.update(db, request.app.state.fixture, equipment_id, body.actor_id, body.readiness,
+                           body.supplies, body.zone_id, body.note)
+    return EquipmentUpdateOut(equipment=_equipment_status(out["equipment"], out["unusable_reasons"]),
+                              changed=out["changed"], before=out["before"],
+                              invalidated_recommendation_ids=out["invalidated_recommendation_ids"],
+                              affected_session_ids=out["affected_session_ids"])
 
 
 @router.get("/access/roles", response_model=AccessMatrixOut, tags=["access"],

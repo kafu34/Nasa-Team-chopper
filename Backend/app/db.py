@@ -89,7 +89,10 @@ ADDED_COLUMNS = [("symptom_reports", "surface_point", "JSON"), ("zone_connection
                  ("scheduled_assessments", "series_id", "VARCHAR"),
                  ("scheduled_assessments", "sequence", "INTEGER"),
                  ("scheduled_assessments", "symptom_linked", "BOOLEAN NOT NULL DEFAULT 1"),
-                 ("scheduled_assessments", "completed_by_measurement_id", "VARCHAR")]
+                 ("scheduled_assessments", "completed_by_measurement_id", "VARCHAR"),
+                 ("medical_cases", "resolved_at", "DATETIME"),
+                 ("medical_cases", "resolved_by", "VARCHAR"),
+                 ("medical_cases", "resolution_note", "TEXT")]
 
 
 def add_missing_columns(engine: Engine) -> list[str]:

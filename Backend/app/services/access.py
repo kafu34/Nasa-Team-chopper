@@ -33,6 +33,8 @@ PERMISSIONS: dict[str, tuple[set[str], bool, str]] = {
     "comms.acknowledge_to_ground": (GROUND, False, "Acknowledge a delivered message sent to the ground."),
     "comms.acknowledge_to_crew": (CREW, False, "Acknowledge a delivered message sent to the crew."),
     "comms.link": (CREW | GROUND, False, "Simulate loss or restoration of the communication link."),
+    "inventory.update": (CREW, False, "Update a device's readiness, supplies or location (2.11.0)."),
+    "case.resolve": (CLINICAL, False, "Resolve a case after its open items are closed (2.11.0)."),
 }
 
 

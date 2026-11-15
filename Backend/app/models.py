@@ -188,6 +188,9 @@ class MedicalCase(Base):
     urgent_since: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)
     priority_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     urgent_instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(UTCDateTime, nullable=True)  # 2.11.0
+    resolved_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    resolution_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 

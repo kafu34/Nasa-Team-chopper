@@ -39,7 +39,7 @@ def test_all_baseline_and_v21_routes_present():
 
 
 def test_contract_version():
-    assert _spec()["info"]["version"] == "2.10.0"
+    assert _spec()["info"]["version"] == "2.11.0"
 
 
 def test_committed_contract_matches_app():

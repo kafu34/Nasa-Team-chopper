@@ -132,6 +132,39 @@ class RecoveryOut(BaseModel):
 RoleCode = Literal["crew_member", "crew_medical_officer", "flight_surgeon", "ground_support"]
 
 
+class EquipmentStatus(BaseModel):
+    equipment_id: str
+    device_model: str
+    capability: str
+    zone_id: str
+    readiness: str
+    readiness_verified_at: Optional[datetime]
+    supplies: dict[str, bool]
+    required_supplies: list[str]
+    compatible_procedure_ids: list[str]
+    status_updated_at: datetime
+    usable: bool = Field(description="Ready, freshly checked and supplied. Zone accessibility depends on the "
+                                     "route start and is checked by /equipment/recommend.")
+    unusable_reasons: list[str]
+    data_category: Literal["SIMULATED_ENVIRONMENT_OR_DEVICE"] = "SIMULATED_ENVIRONMENT_OR_DEVICE"
+
+
+class EquipmentUpdate(Strict):
+    actor_id: str = Field(examples=["DEMO-002"])
+    readiness: Optional[Literal["verified_ready", "unknown", "needs_service", "in_use"]] = None
+    supplies: Optional[dict[str, bool]] = None
+    zone_id: Optional[str] = None
+    note: str = Field(min_length=3, max_length=500)
+
+
+class EquipmentUpdateOut(BaseModel):
+    equipment: EquipmentStatus
+    changed: bool
+    before: dict
+    invalidated_recommendation_ids: list[str]
+    affected_session_ids: list[str] = Field(description="In-progress sessions using this device; not cancelled.")
+
+
 class AssessmentList(BaseModel):
     astronaut_id: str
     assessments: list[ScheduledAssessmentOut]

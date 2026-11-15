@@ -3,6 +3,25 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.11.0 (inventory and controlled closure, plan steps 41–43), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` (same environment variables as 2.6.0) | **355 passed, 0 failed, 0 skipped** (adds 9 in `test_za_inventory_closure.py`) |
+| `scripts/export_openapi.py` | regenerated (52 paths, version 2.11.0) |
+| `scripts/http_smoke.py` | **47/47** (adds the inventory list and a blocked resolution) |
+| Live server restart | contract 2.11.0; new case columns added; 5 datasets still `IMPORTED`; every device reports `readiness_check_stale` because its readiness checks date from 2026-11-14 (expected; reset or re-verify) |
+
+The tests cover:
+- **Inventory:** usability reasons; a device out of service invalidating its route and leaving no device;
+  restocking another device making it the pick; `verified_ready` counting as a fresh check, and a device move
+  being audited with before and after values; validation (unknown device, supply or zone, invalid readiness,
+  ground role refused, no-change); an in-progress session listed but not cancelled.
+- **Closure:** blockers listed together and cleared step by step; explicit follow-up cancellation; resolution
+  recorded and audited; a second resolution refused; a new symptom opening a new case; an open concern blocking;
+  role refusals; an urgent emergency case resolving with its priority kept, no longer interrupting, and an
+  unacknowledged-message warning.
+
 ## Contracts 2.9.0 and 2.10.0 (Milestones 6–7 software part, plan steps 35–40), run 2026-11-15
 
 | Suite | Result |

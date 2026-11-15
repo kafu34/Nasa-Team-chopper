@@ -1,4 +1,4 @@
-# SENTINEL AI Backend API (v2.10.0)
+# SENTINEL AI Backend API (v2.11.0)
 
 The authoritative, machine-readable contract is **`shared/openapi.yaml`**, generated from the running FastAPI
 application by `Backend/scripts/export_openapi.py`. A test (`tests/test_h_contract.py`) fails if the committed
@@ -51,6 +51,13 @@ file drifts from the code. Interactive docs: `http://127.0.0.1:8000/docs` while 
   `detection`, the DET-1.0 result (data-quality gate, outcome, baseline comparison and disclaimer).
 - `POST /api/v1/observations/batch` *(2.6.0)* — `{observations[]}` (1–200), processed in `observed_at` order →
   `{results[], stored, duplicates, concern_ids_opened[]}`. One invalid item rejects the whole batch (`details.index`).
+
+### Inventory and closure *(2.11.0)*
+- `GET /api/v1/equipment` → devices with `usable` and `unusable_reasons`.
+- `POST /api/v1/equipment/{id}/status` — `{actor_id, readiness?, supplies?, zone_id?, note}` (crew roles) →
+  `{equipment, changed, before, invalidated_recommendation_ids, affected_session_ids}`.
+- `POST /api/v1/cases/{id}/resolve` — `{actor_id, note, close_outstanding_follow_ups?}` (crew medical officer or
+  flight surgeon). 409 `CASE_NOT_READY_TO_RESOLVE` with `blockers[]`; 409 `CASE_RESOLVED`.
 
 ### Screening and access *(2.9.0)*
 - `GET /api/v1/astronauts/{id}/assessments` → scheduled assessments with `due_state`.

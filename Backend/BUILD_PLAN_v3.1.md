@@ -305,6 +305,7 @@ Detailed sub-steps for steps 35–40 (planned 2026-11-15):
 | 34 | done 2026-11-15: contract 2.8.0 PROC-PO-01 and PROC-TEMP-01, DET-1.1; 319 passed; smoke 40/40 |
 | 35–36 | done 2026-11-15: contract 2.9.0 screening and role matrix |
 | 37–40 | done 2026-11-15: contract 2.10.0 comms queue, environment context, recovery; 346 passed; smoke 45/45 |
+| 41–43 | done 2026-11-15: contract 2.11.0 inventory updates and controlled closure; 355 passed; smoke 47/47 |
 | Milestone 8 | NOT STARTED: out of scope by owner decision |
 
 **Review 1 outcome.** Instruction text, safety limitations and measurement rules are unchanged (test
@@ -363,3 +364,26 @@ mistaken for access control, so the limitation appears in `/access/roles`, the h
 record. Efficiency: screening, comms and recovery reuse the case, procedure and audit services, so no workflow
 has two code paths. The test suite grew to 346 and runs in about 2.5 minutes. The next speed-up would be a
 session-scoped app for read-only tests.
+
+### Gap closure after Review 4 (planned 2026-11-15; contract 2.11.0)
+The acceptance record still had two v3.1 §8 items that software can close. Neither changes an earlier rule.
+41. **Inventory** (§8 Diagnostics coordination, Milestone 6 "inventory").
+    - `GET /equipment` lists every device with `usable` and its `unusable_reasons`.
+    - `POST /equipment/{id}/status {actor_id, readiness?, supplies?, zone_id?, note}` is for crew roles only
+      (`inventory.update`).
+    - Setting `verified_ready` counts as a fresh check. Unknown supply keys and unknown zones are refused.
+    - Every change is audited with its before and after values. It invalidates the active recommendations for
+      that device and for its capability, because a better or a worse device may now apply. It also lists the
+      in-progress sessions bound to the device.
+42. **Controlled closure** (§8 Follow-up).
+    - `POST /cases/{id}/resolve {actor_id, note, close_outstanding_follow_ups?}` needs the crew medical officer
+      or flight surgeon (`case.resolve`).
+    - It is refused with 409 `CASE_NOT_READY_TO_RESOLVE` and a `blockers` list while any of these remain: an
+      open monitoring concern, an in-progress session, a requested assessment, or an outstanding follow-up.
+    - Outstanding follow-ups may be cancelled explicitly (`close_outstanding_follow_ups`), and each cancellation
+      is audited.
+    - Unacknowledged urgent messages are returned as warnings.
+    - Resolution keeps the priority value (it is never downgraded) but stops interrupting. It records
+      `resolved_at`, `resolved_by` and `resolution_note`.
+43. Tests `test_za_inventory_closure.py`, contract export, smoke checks, live restart, docs, acceptance record
+    and commit.
