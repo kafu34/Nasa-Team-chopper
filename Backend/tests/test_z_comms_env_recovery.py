@@ -96,6 +96,25 @@ def test_message_already_sent_keeps_travelling_during_an_outage(client):
     assert msg(client, sent["message_id"])["status"] == "delivered"
 
 
+def test_only_the_flight_surgeon_acknowledges_medical_messages_to_the_ground(client):
+    """2.11.1: the addressee acknowledges, not any ground role (found in Codex's live browser check)."""
+    out = client.post(f"{API}/emergencies", json=EMERGENCY).json()
+    mid = out["flight_surgeon_escalation"]["message_id"]
+    routine = send(client).json()["message_id"]
+    age_all(client, 320)
+    for m_id in (mid, routine):
+        assert msg(client, m_id)["status"] == "delivered"
+        denied = client.post(f"{API}/comms/messages/{m_id}/acknowledge", json={"actor_id": "GND-SUP-01"})
+        assert denied.status_code == 403 and denied.json()["error"]["code"] == "ROLE_NOT_PERMITTED"
+        assert denied.json()["error"]["details"]["allowed_roles"] == ["flight_surgeon"]
+        assert msg(client, m_id)["status"] == "delivered"  # still waiting for the flight surgeon
+    ok = client.post(f"{API}/comms/messages/{mid}/acknowledge", json={"actor_id": "GND-FS-01"}).json()
+    assert ok["status"] == "acknowledged" and ok["acknowledged_by"] == "GND-FS-01"
+    matrix = {p["action"]: p["allowed_roles"] for p in client.get(f"{API}/access/roles").json()["permissions"]}
+    assert matrix["comms.acknowledge_to_ground"] == ["flight_surgeon"]
+    assert matrix["comms.acknowledge_to_crew"] == ["crew_medical_officer", "crew_member"]
+
+
 def test_emergency_queues_an_urgent_message_to_the_flight_surgeon(client):
     out = client.post(f"{API}/emergencies", json=EMERGENCY).json()
     mid = out["flight_surgeon_escalation"]["message_id"]

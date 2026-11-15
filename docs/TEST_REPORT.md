@@ -3,6 +3,19 @@
 Run date: 2026-11-14. Environment: Windows 11, Python 3.13.15, FastAPI 0.115.6, SQLAlchemy 2.0.36,
 Pydantic 2.10.4, pytest 8.3.4. Commands run from `Backend/`.
 
+## Contract 2.11.1 (fix: medical-message acknowledgement role), run 2026-11-15
+
+| Suite | Result |
+|---|---|
+| `.venv/Scripts/python -m pytest` | **356 passed, 0 failed, 0 skipped** (adds `test_only_the_flight_surgeon_acknowledges_medical_messages_to_the_ground`) |
+| `scripts/export_openapi.py` | regenerated (52 paths, version 2.11.1) |
+| `scripts/http_smoke.py` | **47/47** |
+
+The new test checks that ground support is refused (403, the message still `delivered`) on both an urgent emergency
+escalation and a routine message, that the flight surgeon can acknowledge, and that the published matrix shows the
+rule. The defect was found by Codex's live browser check, not by the earlier backend tests: those only ever
+acknowledged as the flight surgeon.
+
 ## Contract 2.11.0 (inventory and controlled closure, plan steps 41–43), run 2026-11-15
 
 | Suite | Result |
